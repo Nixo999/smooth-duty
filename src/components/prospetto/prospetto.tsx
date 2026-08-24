@@ -131,9 +131,11 @@ export function Prospetto({
       <Tabella dati={dati} />
 
       <p className="px-1 text-[12px] text-faint">
-        Le ore di assenza sono le ore di turno che quel giorno sarebbero state
-        lavorate: chi è assente in un giorno di riposo non perde ore, e la
-        colonna resta vuota pur tenendo il conto dei giorni.
+        Le ore di assenza si contano sul contratto, non sul tabellone: in una
+        settimana da 40 ore chi ne lavora 10 perché è stato in malattia ne
+        perde 30, che il turno di quei giorni fosse scritto o no. Il conto è
+        settimanale, come il contratto. Chi lavora a chiamata non ha un
+        contratto da cui sottrarre: per lui restano le ore dei turni saltati.
       </p>
     </div>
   );
@@ -149,7 +151,11 @@ function Riepilogo({ totali, scoperti }: { totali: Totali; scoperti: number }) {
       <Dato
         etichetta="Perse per assenza"
         valore={formatDuration(totali.persi)}
-        nota="turni saltati, da coprire"
+        nota={
+          totali.saltati > 0
+            ? `sulle ore da contratto · ${formatDuration(totali.saltati)} di turni già scritti, da coprire`
+            : "sulle ore da contratto"
+        }
         allerta={totali.persi > 0}
       />
       <Dato

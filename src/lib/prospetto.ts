@@ -27,8 +27,13 @@ export type RepartoProspetto = { id: string; name: string; hue: number };
 export type Totali = {
   /** Quanto era stato messo a tabellone. */
   programmati: number;
-  /** Quanto di quello è saltato per un'assenza. */
+  /** Le ore che l'assenza e' costata, contate sul contratto. Non e' un pezzo
+   *  di `programmati`: mancano anche le ore che a tabellone non erano mai
+   *  state scritte. */
   persi: number;
+  /** Quante ore di turno già scritte sono saltate: è quello che il
+   *  responsabile deve ricoprire, ed è un numero diverso dalle ore perse. */
+  saltati: number;
   /** Quello che resta: le ore che verranno lavorate davvero. */
   effettivi: number;
   /** Ore attese dal contratto nel periodo. null se nessuno le ha. */
@@ -43,9 +48,10 @@ export type RigaProspetto = {
   contratto: number | null;
   aChiamata: boolean;
   totali: Totali;
-  /** Ore di assenza per causale, in minuti. Sono le ore di turno che quel
-   *  giorno sarebbero state lavorate: chi è assente in un giorno di riposo
-   *  non perde ore, e qui non compare. */
+  /** Ore di assenza per causale, in minuti. Si contano sul contratto, non
+   *  sul tabellone: chi ha 40 ore a settimana e in quella settimana ne
+   *  lavora 10 perché è stato in malattia ne perde 30, che il turno di quei
+   *  giorni fosse scritto o no. Il come sta in `calcolaProspetto`. */
   perCausale: Record<string, number>;
   /** Giorni di calendario coperti da un'assenza, per causale. Serve a dire
    *  "sette giorni di malattia", che è un numero diverso dalle ore. */
@@ -94,7 +100,36 @@ export function giorniDelPeriodo(da: string, a: string): string[] {
   return giorni;
 }
 
-const vuoti = (): Totali => ({ programmati: 0, persi: 0, effettivi: 0, attesi: null });
+const vuoti = (): Totali => ({
+  programmati: 0,
+  persi: 0,
+  saltati: 0,
+  effettivi: 0,
+  attesi: null,
+});
+
+/** Il lunedi' della settimana che contiene questa data.
+ *
+ *  Si fa a mano invece di chiamare `@/lib/week`: questo file resta senza
+ *  dipendenze e senza fusi orari. Mezzogiorno UTC perche' a mezzanotte
+ *  un'ora avanti o indietro cambierebbe il giorno. */
+function lunediDi(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Quanto pesa una settimana nel conto: i suoi giorni che cadono dentro il
+ *  periodo, quanto ci si e' lavorato, e quanti giorni di assenza ci sono
+ *  stati causale per causale. */
+type Settimana = {
+  giorni: number;
+  lavorate: number;
+  giorniPerCausale: Record<string, number>;
+};
+
+const somma = (r: Record<string, number>) =>
+  Object.values(r).reduce((n, m) => n + m, 0);
 
 export function calcolaProspetto({
   da,
@@ -135,7 +170,7 @@ export function calcolaProspetto({
       tinta: reparto?.hue ?? 220,
       contratto: p.contract_hours === null ? null : Number(p.contract_hours),
       aChiamata: p.on_call,
-      totali: { programmati: 0, persi: 0, effettivi: 0, attesi },
+      totali: { ...vuoti(), attesi },
       perCausale: {},
       giorniPerCausale: {},
       giorniAssenza: 0,
@@ -144,6 +179,13 @@ export function calcolaProspetto({
   }
 
   let scopertiMinuti = 0;
+
+  /** Minuti lavorati davvero, giorno per giorno: e' quello che il conto
+   *  settimanale sottrae dal contratto. */
+  const lavorate = new Map<string, Map<string, number>>();
+  /** Ore di turno saltate, per causale. Restano il conto buono per chi un
+   *  contratto non ce l'ha: a chiamata non c'e' niente da cui sottrarre. */
+  const saltatePerCausale = new Map<string, Record<string, number>>();
 
   for (const t of turni) {
     if (t.date < da || t.date > a) continue;
@@ -161,23 +203,79 @@ export function calcolaProspetto({
 
     const assenza = assenzaDelGiorno(assenze, t.profile_id, t.date);
     if (assenza) {
-      riga.totali.persi += durata;
+      riga.totali.saltati += durata;
       riga.turniSaltati += 1;
       const causale = assenza.type ?? "altro";
-      riga.perCausale[causale] = (riga.perCausale[causale] ?? 0) + durata;
+      const suo = saltatePerCausale.get(t.profile_id) ?? {};
+      suo[causale] = (suo[causale] ?? 0) + durata;
+      saltatePerCausale.set(t.profile_id, suo);
     } else {
       riga.totali.effettivi += durata;
+      const suoi = lavorate.get(t.profile_id) ?? new Map<string, number>();
+      suoi.set(t.date, (suoi.get(t.date) ?? 0) + durata);
+      lavorate.set(t.profile_id, suoi);
     }
   }
 
+  /* ------------------------------------------------- quanto e' costata --
+   *
+   *  Un'assenza costa le ore da contratto che quella settimana non sono
+   *  state lavorate, non i turni che erano stati scritti: chi sta a casa
+   *  cinque giorni su sette e negli altri due fa dieci ore, di quaranta ne
+   *  perde trenta — e il tabellone di quei cinque giorni poteva benissimo
+   *  essere vuoto, com'e' quasi sempre per una malattia che comincia il
+   *  lunedi'. Il conto e' settimanale perche' settimanale e' il contratto;
+   *  delle settimane a cavallo del periodo si conta la parte dentro. */
+
   for (const riga of righe.values()) {
+    const settimane = new Map<string, Settimana>();
+    const sue = lavorate.get(riga.profileId);
+
     for (const g of giorni) {
+      const chiave = lunediDi(g);
+      let sett = settimane.get(chiave);
+      if (!sett) {
+        sett = { giorni: 0, lavorate: 0, giorniPerCausale: {} };
+        settimane.set(chiave, sett);
+      }
+      sett.giorni += 1;
+      sett.lavorate += sue?.get(g) ?? 0;
+
       const assenza = assenzaDelGiorno(assenze, riga.profileId, g);
       if (!assenza) continue;
-      riga.giorniAssenza += 1;
       const causale = assenza.type ?? "altro";
+      riga.giorniAssenza += 1;
       riga.giorniPerCausale[causale] = (riga.giorniPerCausale[causale] ?? 0) + 1;
+      sett.giorniPerCausale[causale] = (sett.giorniPerCausale[causale] ?? 0) + 1;
     }
+
+    if (riga.giorniAssenza === 0) continue;
+
+    if (riga.contratto === null || riga.aChiamata) {
+      riga.perCausale = { ...(saltatePerCausale.get(riga.profileId) ?? {}) };
+    } else {
+      for (const sett of settimane.values()) {
+        const giorniAssenti = somma(sett.giorniPerCausale);
+        if (giorniAssenti === 0) continue;
+
+        const dovute = (riga.contratto * 60 * sett.giorni) / 7;
+        const mancate = dovute - sett.lavorate;
+        if (mancate <= 0) continue;
+
+        // Con due causali nella stessa settimana si dividono in proporzione
+        // ai giorni: di un giorno di assenza non si sa quante ore avrebbe
+        // avuto, quindi non c'e' una ripartizione piu' informata di questa.
+        for (const [causale, g] of Object.entries(sett.giorniPerCausale)) {
+          riga.perCausale[causale] =
+            (riga.perCausale[causale] ?? 0) + (mancate * g) / giorniAssenti;
+        }
+      }
+      for (const causale of Object.keys(riga.perCausale)) {
+        riga.perCausale[causale] = Math.round(riga.perCausale[causale]);
+      }
+    }
+
+    riga.totali.persi = somma(riga.perCausale);
   }
 
   const elenco = [...righe.values()].sort((x, y) => x.nome.localeCompare(y.nome));
@@ -207,6 +305,7 @@ export function calcolaProspetto({
   for (const r of elenco) {
     totale.programmati += r.totali.programmati;
     totale.persi += r.totali.persi;
+    totale.saltati += r.totali.saltati;
     totale.effettivi += r.totali.effettivi;
     if (r.totali.attesi !== null) {
       totale.attesi = (totale.attesi ?? 0) + r.totali.attesi;
