@@ -106,4 +106,12 @@ export type CompanyRow = Company & {
   created_at: string;
   people: number;
   responsabili: { full_name: string; email: string }[];
+  /** Tutte le persone, per poterle elencare e aggiungerne dal pannello. */
+  persone: {
+    id: string;
+    full_name: string;
+    email: string;
+    role: Role;
+    must_change_password: boolean;
+  }[];
 };

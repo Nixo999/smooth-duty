@@ -132,28 +132,20 @@ export function Prospetto({
 
       <p className="px-1 text-[12px] text-faint">
         Le ore di assenza sono le ore di turno che quel giorno sarebbero state
-        lavorate: chi è assente in un giorno di riposo non perde ore. Le ore
-        attese vengono dal contratto settimanale, riproporzionato sui{" "}
-        {dati.giorni} giorni del periodo.
+        lavorate: chi è assente in un giorno di riposo non perde ore, e la
+        colonna resta vuota pur tenendo il conto dei giorni.
       </p>
     </div>
   );
 }
 
+/** Solo quello che manca. Le ore effettive e quelle attese stavano qui e non
+ *  servivano a niente: le prime sono gia' sotto ogni nome, le seconde su un
+ *  anno confrontano un contratto intero con un tabellone fatto per due
+ *  settimane, e il numero che ne esce non vuol dire nulla. */
 function Riepilogo({ totali, scoperti }: { totali: Totali; scoperti: number }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Dato
-        etichetta="Ore effettive"
-        valore={formatDuration(totali.effettivi)}
-        nota="quelle che verranno lavorate"
-        forte
-      />
-      <Dato
-        etichetta="Ore attese"
-        valore={totali.attesi === null ? "—" : formatDuration(Math.round(totali.attesi))}
-        nota="somma dei contratti nel periodo"
-      />
+    <div className="grid gap-3 sm:grid-cols-2">
       <Dato
         etichetta="Perse per assenza"
         valore={formatDuration(totali.persi)}
@@ -174,13 +166,11 @@ function Dato({
   etichetta,
   valore,
   nota,
-  forte,
   allerta,
 }: {
   etichetta: string;
   valore: string;
   nota: string;
-  forte?: boolean;
   allerta?: boolean;
 }) {
   return (
@@ -189,8 +179,7 @@ function Dato({
       <p
         className={cn(
           "mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight",
-          allerta && "text-warning",
-          forte && "text-accent",
+          allerta ? "text-warning" : "text-muted",
         )}
       >
         {valore}
@@ -263,11 +252,7 @@ function Tabella({ dati }: { dati: Dati }) {
                     </div>
                     <p className="text-[11.5px] text-faint">
                       {formatDuration(r.totali.effettivi)} lavorate
-                      {r.aChiamata
-                        ? " · a chiamata"
-                        : r.contratto !== null
-                          ? ` di ${formatDuration(Math.round(r.totali.attesi ?? 0))}`
-                          : ""}
+                      {r.aChiamata ? " · a chiamata" : ""}
                     </p>
                   </td>
 

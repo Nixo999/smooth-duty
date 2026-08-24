@@ -134,6 +134,77 @@ export async function eliminaAzienda(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+const accountSchema = z.object({
+  company_id: z.string().uuid(),
+  fullName: z.string().trim().min(2, "Inserisci nome e cognome."),
+  email: z.string().trim().toLowerCase().email("Indirizzo email non valido."),
+  password: z.string().min(5, "La password deve avere almeno 5 caratteri."),
+  role: z.enum(["capo", "dipendente"]),
+});
+
+/** Crea un account dentro un'azienda, da amministratore.
+ *
+ *  E' la stessa cosa che fa il responsabile dalla sua Squadra, ma senza
+ *  passare da lui: serve per rimettere in piedi un'azienda che e' rimasta
+ *  senza nessuno che possa entrarci, o per aggiungere un secondo
+ *  responsabile. */
+export async function creaAccountInAzienda(
+  input: z.input<typeof accountSchema>,
+): Promise<ActionResult> {
+  await requirePlatformAdmin();
+
+  const parsed = accountSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { company_id, fullName, email, password, role } = parsed.data;
+
+  const admin = createAdminClient();
+
+  // L'azienda deve esistere: senza questo controllo un identificativo
+  // inventato creerebbe un account che non appartiene a nessuno.
+  const { data: azienda } = await admin
+    .from("companies")
+    .select("id")
+    .eq("id", company_id)
+    .maybeSingle();
+
+  if (!azienda) return { ok: false, error: "Azienda non trovata." };
+
+  const { data: creato, error: userError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+
+  if (userError || !creato.user) {
+    return {
+      ok: false,
+      error: userError?.message.toLowerCase().includes("already")
+        ? "Esiste già un account con questa email."
+        : "Non è stato possibile creare l'account.",
+    };
+  }
+
+  const { error: profileError } = await admin.from("profiles").insert({
+    id: creato.user.id,
+    company_id,
+    full_name: fullName,
+    email,
+    role,
+    // La password gliela consegni tu: la cambia al primo accesso.
+    must_change_password: true,
+  });
+
+  if (profileError) {
+    // Niente account orfani: si torna indietro.
+    await admin.auth.admin.deleteUser(creato.user.id);
+    return { ok: false, error: "Non è stato possibile creare il profilo." };
+  }
+
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 /** Assegna una nuova password provvisoria: da usare quando qualcuno la
  *  dimentica. Al primo accesso dovra' comunque cambiarla. */
 export async function reimpostaPassword(

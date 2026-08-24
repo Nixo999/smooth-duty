@@ -7,7 +7,13 @@ type Row = {
   id: string;
   name: string;
   created_at: string;
-  profiles: { id: string; full_name: string; email: string; role: string }[];
+  profiles: {
+    id: string;
+    full_name: string;
+    email: string;
+    role: "capo" | "dipendente";
+    must_change_password: boolean;
+  }[];
 };
 
 export default async function AdminPage() {
@@ -16,7 +22,9 @@ export default async function AdminPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("companies")
-    .select("id, name, created_at, profiles(id, full_name, email, role)")
+    .select(
+      "id, name, created_at, profiles(id, full_name, email, role, must_change_password)",
+    )
     .order("created_at", { ascending: false });
 
   const companies: CompanyRow[] = ((data ?? []) as Row[]).map((c) => ({
@@ -27,6 +35,9 @@ export default async function AdminPage() {
     responsabili: c.profiles
       .filter((p) => p.role === "capo")
       .map((p) => ({ full_name: p.full_name, email: p.email })),
+    persone: [...c.profiles].sort(
+      (x, y) => x.role.localeCompare(y.role) || x.full_name.localeCompare(y.full_name),
+    ),
   }));
 
   return <Aziende companies={companies} />;

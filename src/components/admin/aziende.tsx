@@ -1,20 +1,21 @@
 "use client";
 
-import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import {
+  creaAccountInAzienda,
   creaAzienda,
   eliminaAzienda,
   rinominaAzienda,
 } from "@/app/(admin)/admin/actions";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { PasswordField } from "@/components/ui/password-field";
 import { generatePassword } from "@/lib/password";
-import type { CompanyRow } from "@/lib/types";
+import type { CompanyRow, Role } from "@/lib/types";
 
 export function Aziende({ companies }: { companies: CompanyRow[] }) {
   const router = useRouter();
@@ -204,6 +205,134 @@ function CreateDialog({
   );
 }
 
+/** Le persone dell'azienda, con la possibilità di aggiungerne.
+ *
+ *  L'amministratore normalmente non ci mette mano — gli account li fa il
+ *  responsabile dalla sua Squadra — ma serve quando un'azienda resta senza
+ *  nessuno che possa entrarci, o quando ne serve un secondo. */
+function Persone({
+  company,
+  onFatto,
+}: {
+  company: CompanyRow;
+  onFatto: () => void;
+}) {
+  const router = useRouter();
+  const [attesa, start] = React.useTransition();
+  const [aggiungi, setAggiungi] = React.useState(false);
+  const [password, setPassword] = React.useState(generatePassword);
+
+  function onCrea(formData: FormData) {
+    start(async () => {
+      const r = await creaAccountInAzienda({
+        company_id: company.id,
+        fullName: String(formData.get("fullName")),
+        email: String(formData.get("email")),
+        password: String(formData.get("password")),
+        role: String(formData.get("role")) as Role,
+      });
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success("Account creato. Consegna email e password.");
+      setAggiungi(false);
+      router.refresh();
+      onFatto();
+    });
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-surface-2 p-3.5">
+      <p className="mb-2 text-[11px] uppercase tracking-wide text-faint">
+        Persone
+      </p>
+
+      {company.persone.length === 0 ? (
+        <p className="mb-2 rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] text-warning">
+          Nessuno può entrare in questa azienda. Creane almeno un responsabile.
+        </p>
+      ) : (
+        <ul className="mb-2 space-y-1">
+          {company.persone.map((p) => (
+            <li
+              key={p.id}
+              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px]"
+            >
+              <span className="font-medium">{p.full_name}</span>
+              {p.role === "capo" ? (
+                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-medium text-muted">
+                  responsabile
+                </span>
+              ) : null}
+              {p.must_change_password ? (
+                <span
+                  className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent"
+                  title="Non ha ancora fatto il primo accesso"
+                >
+                  password provvisoria
+                </span>
+              ) : null}
+              <span className="truncate text-[12.5px] text-muted">{p.email}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {aggiungi ? (
+        <form action={onCrea} className="space-y-3 border-t border-border pt-3">
+          <Field label="Nome e cognome" htmlFor="acc-nome">
+            <Input id="acc-nome" name="fullName" placeholder="Mario Rossi" required />
+          </Field>
+          <Field label="Email" htmlFor="acc-email">
+            <Input
+              id="acc-email"
+              name="email"
+              type="email"
+              placeholder="mario@azienda.it"
+              required
+            />
+          </Field>
+          <PasswordField value={password} onChange={setPassword} />
+          <Field label="Ruolo" htmlFor="acc-ruolo">
+            <Select id="acc-ruolo" name="role" defaultValue="dipendente">
+              <option value="dipendente">Dipendente — vede solo i suoi turni</option>
+              <option value="capo">Responsabile — gestisce turni e squadra</option>
+            </Select>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setAggiungi(false)}
+            >
+              Annulla
+            </Button>
+            <Button type="submit" size="sm" loading={attesa}>
+              Crea account
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          block
+          onClick={() => {
+            setPassword(generatePassword());
+            setAggiungi(true);
+          }}
+        >
+          <UserPlus className="size-3.5" />
+          Aggiungi account
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function EditDialog({
   company,
   onClose,
@@ -309,6 +438,8 @@ function EditDialog({
           account e tutti i turni. Non si torna indietro.
         </p>
       </form>
+
+      <Persone company={company} onFatto={onDone} />
     </Modal>
   );
 }
