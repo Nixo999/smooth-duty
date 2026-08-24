@@ -101,9 +101,12 @@ ws.getCell(1, 12).value = "ORARI LIMBIATE";
 ws.getCell(1, 30).value = "da lun 17 agosto a dom 23 agosto";
 ws.getCell(2, 1).value = "Stampa del: 30/07/2026, 12:06";
 
-// Intestazione dei giorni: una cella ogni cinque colonne, a partire da D.
+// Intestazione dei giorni. Nei fogli veri e' una cella unita che copre tutto
+// il blocco, e quando la si legge il valore arriva ripetuto su tutte e cinque
+// le colonne: l'esempio deve comportarsi allo stesso modo, altrimenti prova
+// una cosa che nella realta' non capita.
 GIORNI.forEach((giorno, i) => {
-  ws.getCell(3, 4 + i * 5).value = giorno;
+  for (let c = 0; c < 5; c++) ws.getCell(3, 4 + i * 5 + c).value = giorno;
 });
 
 ws.getCell(4, 1).value = "Nome";

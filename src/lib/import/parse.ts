@@ -165,10 +165,20 @@ function findDayRow(grid: Grid): { rowIndex: number; days: DayColumn[] } | null 
 
   for (let r = 0; r < limit; r++) {
     const found: DayColumn[] = [];
+    let precedente: string | null = null;
+
     for (let c = 0; c < grid[r].length; c++) {
       const date = parseDateCell(grid[r][c]);
-      if (date) found.push({ col: c, date });
+      if (!date) continue;
+
+      // Nei fogli veri l'intestazione del giorno e' una cella unita che copre
+      // tutto il blocco, e arriva ripetuta su ogni colonna. Vale la prima:
+      // e' li' che comincia il giorno.
+      if (date === precedente) continue;
+      found.push({ col: c, date });
+      precedente = date;
     }
+
     // Tre date sulla stessa riga non capitano per caso: una intestazione di
     // stampa ne contiene una sola, e viene scartata qui.
     if (found.length >= 3) {
