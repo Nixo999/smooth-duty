@@ -11,6 +11,11 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { RepartiSheet } from "@/components/supervisione/reparti-sheet";
+import {
+  ShiftDialog,
+  shiftToDraft,
+  type ShiftDraft,
+} from "@/components/turni/shift-dialog";
 import { Button } from "@/components/ui/button";
 import { dayLong, fromISODate, isToday, toISODate } from "@/lib/date";
 import {
@@ -39,6 +44,7 @@ export function Supervisione({
   reparti,
   fasce,
   assenze,
+  repartoFrequente,
   capo,
 }: {
   giorno: string;
@@ -49,11 +55,25 @@ export function Supervisione({
   fasce: CoverageBand[];
   /** Solo i giorni: qui il motivo non arriva nemmeno dal server. */
   assenze: AbsenceDay[];
+  /** Per ciascuna persona, il reparto in cui lavora piu' spesso. */
+  repartoFrequente: Record<string, string>;
   capo: boolean;
 }) {
   const router = useRouter();
   const [impostazioni, setImpostazioni] = React.useState(false);
   const [inCorso, startNavigazione] = React.useTransition();
+  const [daModificare, setDaModificare] = React.useState<ShiftDraft | null>(null);
+
+  /** Il turno intero dietro una barra. La barra sa solo che ore occupa in
+   *  questo giorno — di un 18:00-02:00 vede mezzo pezzo — mentre per
+   *  modificarlo servono la data e gli orari veri, che sono quelli del
+   *  turno da cui il pezzo e' stato ritagliato. */
+  const perId = React.useMemo(() => new Map(turni.map((t) => [t.id, t])), [turni]);
+
+  const apri = (turnoId: string) => {
+    const turno = perId.get(turnoId);
+    if (turno) setDaModificare(shiftToDraft(turno));
+  };
 
   const vai = (g: string) =>
     startNavigazione(() => router.push(`/supervisione?g=${g}`, { scroll: false }));
@@ -227,19 +247,26 @@ export function Supervisione({
                       g.righe.map((riga) => (
                         <Corsia key={riga.chiave} ore={oreIntere} pct={pct}>
                           {riga.segmenti.map((s) => (
-                            <span
+                            <button
                               key={s.turnoId}
+                              type="button"
+                              // Il dipendente la barra la guarda e basta: senza
+                              // il bottone niente cursore, niente fuoco da
+                              // tastiera, niente da premere per sbaglio.
+                              disabled={!capo}
+                              onClick={() => apri(s.turnoId)}
                               className={cn(
-                                "barra absolute inset-y-0 flex items-center overflow-hidden rounded-md px-2",
+                                "barra absolute inset-y-0 flex items-center overflow-hidden rounded-md px-2 text-left",
                                 !s.profileId && "border-dashed",
                                 s.assenza && "assente",
+                                capo && "tap cursor-pointer",
                               )}
                               style={{
                                 ["--tinta" as string]: riga.tinta,
                                 left: `${pct(s.da)}%`,
                                 width: `${pct(s.a) - pct(s.da)}%`,
                               }}
-                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}`}
+                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${capo ? " · tocca per modificare" : ""}`}
                             >
                               <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
                                 {s.daPrima ? "◂ " : ""}
@@ -249,7 +276,7 @@ export function Supervisione({
                               <span className="orario ml-1.5 shrink-0 truncate text-[11px] tabular-nums opacity-70">
                                 {s.assenza ? "assente" : `${oraDa(s.da)}–${oraDa(s.a)}`}
                               </span>
-                            </span>
+                            </button>
                           ))}
                         </Corsia>
                       ))
@@ -335,6 +362,16 @@ export function Supervisione({
       )}
 
       <Legenda capo={capo} />
+
+      {capo ? (
+        <ShiftDialog
+          draft={daModificare}
+          profiles={persone}
+          departments={reparti}
+          repartoFrequente={repartoFrequente}
+          onClose={() => setDaModificare(null)}
+        />
+      ) : null}
 
       {impostazioni ? (
         <RepartiSheet

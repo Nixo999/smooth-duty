@@ -27,7 +27,7 @@ export default async function SupervisionePage({
 
   // Si leggono due giorni, non uno: un turno 18:00–02:00 di ieri copre le
   // prime ore di oggi, e senza guardare indietro la notte sembrerebbe scoperta.
-  const [persone, turni, reparti, fasce, assenze] = await Promise.all([
+  const [persone, turni, reparti, fasce, assenze, frequente] = await Promise.all([
     supabase
       .from("profiles")
       .select(COLONNE_PROFILO_CON_REPARTI)
@@ -57,6 +57,9 @@ export default async function SupervisionePage({
       .select("id, profile_id, start_date, end_date")
       .lte("start_date", giorno)
       .or(`end_date.is.null,end_date.gte.${giornoPrima}`),
+    // Il reparto in cui ciascuno lavora piu' spesso: e' la proposta di
+    // partenza quando da qui si apre un turno, come nei Turni.
+    supabase.from("reparto_piu_frequente").select("profile_id, department_id"),
   ]);
 
   return (
@@ -68,6 +71,12 @@ export default async function SupervisionePage({
       reparti={(reparti.data ?? []) as Department[]}
       fasce={(fasce.data ?? []) as CoverageBand[]}
       assenze={(assenze.data ?? []) as AbsenceDay[]}
+      repartoFrequente={Object.fromEntries(
+        ((frequente.data ?? []) as {
+          profile_id: string;
+          department_id: string;
+        }[]).map((r) => [r.profile_id, r.department_id]),
+      )}
       capo={user.role === "capo"}
     />
   );

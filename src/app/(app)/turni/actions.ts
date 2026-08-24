@@ -66,6 +66,8 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");
+  // Anche la Supervisione: da li' il responsabile modifica i turni.
+  revalidatePath("/supervisione");
   return { ok: true };
 }
 
@@ -77,6 +79,8 @@ export async function eliminaTurno(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");
+  // Anche la Supervisione: da li' il responsabile modifica i turni.
+  revalidatePath("/supervisione");
   return { ok: true };
 }
 
@@ -193,6 +197,7 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
   if (insertError) return { ok: false, error: insertError.message };
 
   revalidatePath("/turni");
+  revalidatePath("/supervisione");
   return {
     ok: true,
     copiati: righe.length,
