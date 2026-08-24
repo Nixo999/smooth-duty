@@ -1,9 +1,11 @@
-/** Il prospetto del responsabile: quanto ha lavorato ciascuno, quanto il
- *  reparto, quanto l'azienda.
+/** Il prospetto del responsabile: quanto ha lavorato ciascuno, quanto ha
+ *  perso per assenza e per quale motivo.
  *
  *  Funzioni pure, provabili senza database e senza browser. */
 
 import { assenzaDelGiorno, type AssenzaInput } from "@/lib/assenze";
+
+export type Livello = "settimana" | "mese" | "anno";
 
 export type PersonaProspetto = {
   id: string;
@@ -36,33 +38,39 @@ export type Totali = {
 export type RigaProspetto = {
   profileId: string;
   nome: string;
+  reparto: string | null;
+  tinta: number;
   contratto: number | null;
   aChiamata: boolean;
   totali: Totali;
-  /** Giorni di calendario coperti da un'assenza, per causale. */
-  assenzePerCausale: { causale: string; giorni: number }[];
+  /** Ore di assenza per causale, in minuti. Sono le ore di turno che quel
+   *  giorno sarebbero state lavorate: chi è assente in un giorno di riposo
+   *  non perde ore, e qui non compare. */
+  perCausale: Record<string, number>;
+  /** Giorni di calendario coperti da un'assenza, per causale. Serve a dire
+   *  "sette giorni di malattia", che è un numero diverso dalle ore. */
+  giorniPerCausale: Record<string, number>;
   giorniAssenza: number;
-  /** Giorni in cui un turno è saltato: quelli che il responsabile deve coprire. */
+  /** Turni saltati: quelli che il responsabile deve coprire. */
   turniSaltati: number;
-};
-
-export type GruppoProspetto = {
-  repartoId: string | null;
-  nome: string;
-  tinta: number;
-  righe: RigaProspetto[];
-  totali: Totali;
 };
 
 export type Prospetto = {
   giorni: number;
-  gruppi: GruppoProspetto[];
+  righe: RigaProspetto[];
   totale: Totali;
   /** Turni di nessuno: non appartengono a una persona ma vanno pur coperti. */
   scopertiMinuti: number;
+  /** Le causali che compaiono nel periodo, una colonna per ciascuna.
+   *  «malattia» c'è sempre, anche a zero: è la voce che si va a cercare. */
+  causali: string[];
+  totalePerCausale: Record<string, number>;
+  totaleAssenze: number;
 };
 
-export const SENZA_REPARTO = "__senza__";
+/** Sempre in tabella, anche quando nessuno si è ammalato: una colonna che
+ *  sparisce a seconda del mese rende impossibile confrontare due periodi. */
+export const CAUSALE_SEMPRE = "malattia";
 
 function minuti(inizio: string, fine: string): number {
   const [sh, sm] = inizio.split(":").map(Number);
@@ -88,13 +96,6 @@ export function giorniDelPeriodo(da: string, a: string): string[] {
 
 const vuoti = (): Totali => ({ programmati: 0, persi: 0, effettivi: 0, attesi: null });
 
-function somma(dentro: Totali, riga: Totali) {
-  dentro.programmati += riga.programmati;
-  dentro.persi += riga.persi;
-  dentro.effettivi += riga.effettivi;
-  if (riga.attesi !== null) dentro.attesi = (dentro.attesi ?? 0) + riga.attesi;
-}
-
 export function calcolaProspetto({
   da,
   a,
@@ -111,24 +112,32 @@ export function calcolaProspetto({
   assenze: AssenzaInput[];
 }): Prospetto {
   const giorni = giorniDelPeriodo(da, a);
+  const nomeReparto = new Map(reparti.map((r) => [r.id, r]));
 
   const righe = new Map<string, RigaProspetto>();
   for (const p of persone) {
     // Le ore da contratto sono settimanali: su un periodo diverso da sette
     // giorni si riproporzionano. Su una settimana il conto torna esatto, su
-    // un mese e' una attesa, non un obbligo — ed e' cosi' che va letta.
+    // un mese o un anno e' un'attesa, non un obbligo — e cosi' va letta.
     const attesi =
       p.on_call || p.contract_hours === null
         ? null
         : (Number(p.contract_hours) * 60 * giorni.length) / 7;
 
+    const reparto = p.department_id ? nomeReparto.get(p.department_id) : undefined;
+
     righe.set(p.id, {
       profileId: p.id,
       nome: p.full_name,
+      // Il reparto non raggruppa piu' la tabella, ma resta scritto accanto al
+      // nome: senza, in trenta persone non si capisce chi fa cosa.
+      reparto: reparto?.name ?? null,
+      tinta: reparto?.hue ?? 220,
       contratto: p.contract_hours === null ? null : Number(p.contract_hours),
       aChiamata: p.on_call,
       totali: { programmati: 0, persi: 0, effettivi: 0, attesi },
-      assenzePerCausale: [],
+      perCausale: {},
+      giorniPerCausale: {},
       giorniAssenza: 0,
       turniSaltati: 0,
     });
@@ -149,66 +158,68 @@ export function calcolaProspetto({
     if (!riga) continue;
 
     riga.totali.programmati += durata;
-    if (assenzaDelGiorno(assenze, t.profile_id, t.date)) {
+
+    const assenza = assenzaDelGiorno(assenze, t.profile_id, t.date);
+    if (assenza) {
       riga.totali.persi += durata;
       riga.turniSaltati += 1;
+      const causale = assenza.type ?? "altro";
+      riga.perCausale[causale] = (riga.perCausale[causale] ?? 0) + durata;
     } else {
       riga.totali.effettivi += durata;
     }
   }
 
-  // Giorni di calendario coperti da un'assenza: e' il numero che serve per
-  // dire "sette giorni di malattia", diverso dai turni saltati.
   for (const riga of righe.values()) {
-    const perCausale = new Map<string, number>();
     for (const g of giorni) {
       const assenza = assenzaDelGiorno(assenze, riga.profileId, g);
       if (!assenza) continue;
       riga.giorniAssenza += 1;
       const causale = assenza.type ?? "altro";
-      perCausale.set(causale, (perCausale.get(causale) ?? 0) + 1);
+      riga.giorniPerCausale[causale] = (riga.giorniPerCausale[causale] ?? 0) + 1;
     }
-    riga.assenzePerCausale = [...perCausale]
-      .map(([causale, giorni]) => ({ causale, giorni }))
-      .sort((x, y) => y.giorni - x.giorni);
   }
 
-  const perReparto = new Map<string, PersonaProspetto[]>();
-  for (const p of persone) {
-    const chiave = p.department_id ?? SENZA_REPARTO;
-    const elenco = perReparto.get(chiave);
-    if (elenco) elenco.push(p);
-    else perReparto.set(chiave, [p]);
+  const elenco = [...righe.values()].sort((x, y) => x.nome.localeCompare(y.nome));
+
+  /* ------------------------------------------------------------ colonne */
+
+  const totalePerCausale: Record<string, number> = { [CAUSALE_SEMPRE]: 0 };
+  for (const r of elenco) {
+    for (const [causale, m] of Object.entries(r.perCausale)) {
+      totalePerCausale[causale] = (totalePerCausale[causale] ?? 0) + m;
+    }
+    // Anche una causale con zero ore merita la colonna, se qualcuno l'ha
+    // avuta: sono i permessi presi in un giorno di riposo, e vederli a zero
+    // dice qualcosa (che non sono costati ore) invece di nascondere il fatto.
+    for (const causale of Object.keys(r.giorniPerCausale)) {
+      totalePerCausale[causale] = totalePerCausale[causale] ?? 0;
+    }
   }
 
-  const elencoReparti: { id: string; nome: string; tinta: number }[] = [
-    ...reparti.map((r) => ({ id: r.id, nome: r.name, tinta: r.hue })),
-    ...(perReparto.has(SENZA_REPARTO)
-      ? [{ id: SENZA_REPARTO, nome: "Senza reparto", tinta: 220 }]
-      : []),
-  ];
+  const causali = Object.keys(totalePerCausale).sort((x, y) => {
+    if (x === CAUSALE_SEMPRE) return -1;
+    if (y === CAUSALE_SEMPRE) return 1;
+    return totalePerCausale[y] - totalePerCausale[x] || x.localeCompare(y);
+  });
 
   const totale = vuoti();
-  const gruppi: GruppoProspetto[] = [];
-
-  for (const reparto of elencoReparti) {
-    const sue = (perReparto.get(reparto.id) ?? [])
-      .map((p) => righe.get(p.id)!)
-      .filter(Boolean)
-      .sort((x, y) => x.nome.localeCompare(y.nome));
-
-    const totaliReparto = vuoti();
-    for (const r of sue) somma(totaliReparto, r.totali);
-    somma(totale, totaliReparto);
-
-    gruppi.push({
-      repartoId: reparto.id === SENZA_REPARTO ? null : reparto.id,
-      nome: reparto.nome,
-      tinta: reparto.tinta,
-      righe: sue,
-      totali: totaliReparto,
-    });
+  for (const r of elenco) {
+    totale.programmati += r.totali.programmati;
+    totale.persi += r.totali.persi;
+    totale.effettivi += r.totali.effettivi;
+    if (r.totali.attesi !== null) {
+      totale.attesi = (totale.attesi ?? 0) + r.totali.attesi;
+    }
   }
 
-  return { giorni: giorni.length, gruppi, totale, scopertiMinuti };
+  return {
+    giorni: giorni.length,
+    righe: elenco,
+    totale,
+    scopertiMinuti,
+    causali,
+    totalePerCausale,
+    totaleAssenze: Object.values(totalePerCausale).reduce((n, m) => n + m, 0),
+  };
 }

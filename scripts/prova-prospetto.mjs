@@ -26,6 +26,7 @@ const REPARTI = [
 const t = (profile_id, date, start_time, end_time) => ({
   profile_id, date, start_time, end_time,
 });
+const ore = (m) => Math.round((m / 60) * 100) / 100;
 
 uguale("il periodo conta i giorni compresi", 7,
   giorniDelPeriodo("2026-08-17", "2026-08-23").length);
@@ -46,23 +47,20 @@ const base = calcolaProspetto({
   ],
 });
 
-const ore = (m) => Math.round((m / 60) * 100) / 100;
-
-uguale("ore effettive per reparto", { Cucina: 21, Sala: 4 },
-  Object.fromEntries(base.gruppi.map((g) => [g.nome, ore(g.totali.effettivi)])));
+uguale("una tabella sola, non piu' divisa per reparto",
+  ["Davide", "Giulia", "Youssef"], base.righe.map((r) => r.nome));
+uguale("il reparto resta come etichetta accanto al nome",
+  { Davide: "Cucina", Giulia: "Cucina", Youssef: "Sala" },
+  Object.fromEntries(base.righe.map((r) => [r.nome, r.reparto])));
 uguale("totale azienda", 25, ore(base.totale.effettivi));
 uguale("i turni scoperti restano fuori dalle persone", 4, ore(base.scopertiMinuti));
-// Le righe escono in ordine alfabetico dentro il reparto: e' cosi' che le
-// cerca l'occhio in un elenco di trenta persone.
 uguale("ore attese: su una settimana valgono esattamente il contratto",
   { Davide: 24, Giulia: 40, Youssef: null },
   Object.fromEntries(
-    base.gruppi.flatMap((g) =>
-      g.righe.map((r) => [r.nome, r.totali.attesi === null ? null : ore(r.totali.attesi)]),
-    ),
+    base.righe.map((r) => [r.nome, r.totali.attesi === null ? null : ore(r.totali.attesi)]),
   ));
-uguale("chi e' a chiamata non ha ore attese, e non le somma al reparto",
-  64, ore(base.gruppi.find((g) => g.nome === "Cucina").totali.attesi));
+uguale("senza assenze c'e' comunque la colonna malattia", ["malattia"], base.causali);
+uguale("e il totale assenze e' zero", 0, base.totaleAssenze);
 
 /* ------------------------------------------------------- con una malattia */
 
@@ -81,9 +79,7 @@ const conAssenza = calcolaProspetto({
   ],
 });
 
-const giulia = conAssenza.gruppi
-  .find((g) => g.nome === "Cucina")
-  .righe.find((r) => r.nome === "Giulia");
+const giulia = conAssenza.righe.find((r) => r.nome === "Giulia");
 
 uguale("programmate restano tutte", 24, ore(giulia.totali.programmati));
 uguale("le ore perse per assenza sono separate", 16, ore(giulia.totali.persi));
@@ -91,9 +87,11 @@ uguale("le effettive sono quelle che restano", 8, ore(giulia.totali.effettivi));
 uguale("programmate = perse + effettive", true,
   giulia.totali.programmati === giulia.totali.persi + giulia.totali.effettivi);
 uguale("turni saltati da coprire", 2, giulia.turniSaltati);
+uguale("le ore di assenza finiscono sotto la loro causale",
+  { malattia: 16 },
+  Object.fromEntries(Object.entries(giulia.perCausale).map(([c, m]) => [c, ore(m)])));
 uguale("giorni di calendario in assenza (aperta, fino a domenica)", 6, giulia.giorniAssenza);
-uguale("ripartiti per causale", [{ causale: "malattia", giorni: 6 }],
-  giulia.assenzePerCausale);
+uguale("il totale della colonna", 16, ore(conAssenza.totalePerCausale.malattia));
 
 /* ----------------------------------------------- causali diverse insieme */
 
@@ -103,12 +101,38 @@ const MISTE = [
 ];
 const miste = calcolaProspetto({
   da: "2026-08-17", a: "2026-08-23",
-  persone: PERSONE, reparti: REPARTI, assenze: MISTE, turni: [],
+  persone: PERSONE, reparti: REPARTI, assenze: MISTE,
+  turni: [
+    t("p2", "2026-08-17", "09:00", "13:00"), // 4h di 104
+    t("p2", "2026-08-20", "18:00", "23:00"), // 5h di ferie
+    t("p2", "2026-08-22", "18:00", "23:00"), // lavorate
+  ],
 });
-const davide = miste.gruppi.find((g) => g.nome === "Cucina").righe.find((r) => r.nome === "Davide");
-uguale("due causali nello stesso periodo restano distinte",
-  [{ causale: "legge_104", giorni: 2 }, { causale: "ferie", giorni: 2 }],
-  davide.assenzePerCausale);
+const davide = miste.righe.find((r) => r.nome === "Davide");
+
+uguale("due causali, due colonne separate",
+  { legge_104: 4, ferie: 5 },
+  Object.fromEntries(Object.entries(davide.perCausale).map(([c, m]) => [c, ore(m)])));
+uguale("malattia resta la prima colonna anche se nessuno si e' ammalato",
+  "malattia", miste.causali[0]);
+uguale("le altre colonne ci sono tutte",
+  ["malattia", "ferie", "legge_104"], miste.causali);
+uguale("il totale delle assenze somma le causali", 9, ore(miste.totaleAssenze));
+uguale("le ore lavorate escludono i giorni di assenza", 5, ore(davide.totali.effettivi));
+
+/* --------------------- un permesso in un giorno di riposo non costa ore -- */
+
+const inRiposo = calcolaProspetto({
+  da: "2026-08-17", a: "2026-08-23",
+  persone: PERSONE, reparti: REPARTI,
+  assenze: [{ id: "c1", profile_id: "p1", type: "lutto", start_date: "2026-08-19", end_date: "2026-08-19" }],
+  turni: [t("p1", "2026-08-17", "09:00", "17:00")], // il 19 non lavorava
+});
+const senzaOre = inRiposo.righe.find((r) => r.nome === "Giulia");
+uguale("zero ore perse, perche' quel giorno non lavorava", 0,
+  ore(Object.values(senzaOre.perCausale).reduce((n, m) => n + m, 0)));
+uguale("ma il giorno resta contato", { lutto: 1 }, senzaOre.giorniPerCausale);
+uguale("e la colonna compare lo stesso", ["malattia", "lutto"], inRiposo.causali);
 
 /* ------------------------------------------------------------- un mese --- */
 
@@ -117,7 +141,17 @@ const mese = calcolaProspetto({
   persone: PERSONE, reparti: REPARTI, assenze: [], turni: [],
 });
 uguale("su un mese le ore attese si riproporzionano", 171.43,
-  ore(mese.gruppi.find((g) => g.nome === "Cucina").righe.find((r) => r.nome === "Giulia").totali.attesi));
+  ore(mese.righe.find((r) => r.nome === "Giulia").totali.attesi));
+
+/* ------------------------------------------------------------- un anno --- */
+
+const anno = calcolaProspetto({
+  da: "2026-01-01", a: "2026-12-31",
+  persone: PERSONE, reparti: REPARTI, assenze: [], turni: [],
+});
+uguale("l'anno conta 365 giorni", 365, anno.giorni);
+uguale("e le attese si riproporzionano su tutto l'anno", 2085.71,
+  ore(anno.righe.find((r) => r.nome === "Giulia").totali.attesi));
 
 console.log("");
 console.log(errori === 0 ? "tutto a posto" : `${errori} controlli falliti`);
