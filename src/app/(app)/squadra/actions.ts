@@ -213,13 +213,28 @@ export async function modificaPersona(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { id, fullName, role, active, reparti, ...campi } = parsed.data;
 
-  // Se il capo togliesse a se stesso il ruolo o l'accesso, l'azienda
-  // resterebbe senza nessuno che puo' gestirla.
-  if (id === capo.id && (role !== "capo" || !active)) {
-    return { ok: false, error: "Non puoi togliere a te stesso i permessi." };
-  }
-
   const supabase = await createClient();
+
+  // Un responsabile puo' smettere di esserlo, purche' ne resti un altro:
+  // il vincolo vero non e' "non toccare te stesso", e' che l'azienda non
+  // rimanga senza nessuno che possa gestirla.
+  if (id === capo.id && (role !== "capo" || !active)) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", capo.company_id)
+      .eq("role", "capo")
+      .eq("active", true)
+      .neq("id", capo.id);
+
+    if (!count) {
+      return {
+        ok: false,
+        error:
+          "Sei l'unico responsabile: nominane un altro prima di togliere a te stesso il ruolo.",
+      };
+    }
+  }
 
   // Un responsabile deve poter entrare: promuovere qualcuno che non ha un
   // accesso creerebbe un'azienda con un capo che non puo' accedervi.

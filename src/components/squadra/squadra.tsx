@@ -160,6 +160,11 @@ export function Squadra({
           reparti={reparti}
           inCorso={assenzaAperta(assenze, editing.id)}
           isSelf={editing.id === currentUserId}
+          altriCapi={
+            people.filter(
+              (p) => p.role === "capo" && p.active && p.id !== editing.id,
+            ).length
+          }
           onClose={() => setEditing(null)}
           onDone={() => {
             setEditing(null);
@@ -261,6 +266,7 @@ function EditDialog({
   reparti,
   inCorso,
   isSelf,
+  altriCapi,
   onClose,
   onDone,
 }: {
@@ -268,12 +274,20 @@ function EditDialog({
   reparti: Department[];
   inCorso: Absence | null;
   isSelf: boolean;
+  /** Quanti altri responsabili attivi ci sono. Se sono zero, questo non può
+   *  smettere di esserlo: l'azienda resterebbe senza nessuno che la gestisce. */
+  altriCapi: number;
   onClose: () => void;
   onDone: () => void;
 }) {
   const [pending, startTransition] = React.useTransition();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [resetting, setResetting] = React.useState(false);
+
+  // Ruolo e accesso si bloccano solo nell'unico caso in cui toglierli fa
+  // danno: l'ultimo responsabile che smette di esserlo lascia l'azienda senza
+  // nessuno che possa gestirla.
+  const ultimoCapo = isSelf && person.role === "capo" && altriCapi === 0;
   const [newPassword, setNewPassword] = React.useState(generatePassword);
   const [rapporto, setRapporto] = React.useState<Rapporto>({
     department_id: person.department_id,
@@ -301,8 +315,11 @@ function EditDialog({
       const result = await modificaPersona({
         id: person.id,
         fullName: String(formData.get("fullName")),
-        role: String(formData.get("role")) as Role,
-        active: formData.get("active") === "attivo",
+        // Un campo disabilitato non viene inviato: leggerlo darebbe null, e
+        // la validazione rifiuterebbe tutto il salvataggio — comprese le
+        // modifiche che invece erano permesse.
+        role: ultimoCapo ? person.role : (String(formData.get("role")) as Role),
+        active: ultimoCapo ? person.active : formData.get("active") === "attivo",
         ...rapporto,
       });
       if (!result.ok) {
@@ -394,7 +411,7 @@ function EditDialog({
             id="edit-role"
             name="role"
             defaultValue={person.role}
-            disabled={isSelf}
+            disabled={ultimoCapo}
           >
             <option value="dipendente">Dipendente — vede solo i suoi turni</option>
             <option value="capo">Responsabile — gestisce turni e squadra</option>
@@ -412,8 +429,8 @@ function EditDialog({
           label="Accesso"
           htmlFor="edit-active"
           hint={
-            isSelf
-              ? "Non puoi sospendere te stesso."
+            ultimoCapo
+              ? "Sei l'unico responsabile: finché non ce n'è un altro, ruolo e accesso restano come sono."
               : "Chi è sospeso non può più entrare, ma i suoi turni restano."
           }
         >
@@ -421,7 +438,7 @@ function EditDialog({
             id="edit-active"
             name="active"
             defaultValue={person.active ? "attivo" : "sospeso"}
-            disabled={isSelf}
+            disabled={ultimoCapo}
           >
             <option value="attivo">Attivo</option>
             <option value="sospeso">Sospeso</option>
