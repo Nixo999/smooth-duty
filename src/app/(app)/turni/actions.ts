@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo } from "@/lib/auth";
 import { giorniCoinvolti } from "@/lib/week";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,30 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
   const v = parsed.data;
 
   const supabase = await createClient();
+
+  // A chi e' assente quel giorno un turno nuovo non si assegna: verrebbe al
+  // mondo gia' "in trasparenza", non contato da nessuna parte, e chi lo ha
+  // messo crederebbe di aver coperto un buco. I turni che esistevano gia'
+  // quando l'assenza e' arrivata restano: sono loro il buco da coprire.
+  if (v.profile_id) {
+    const { data: assenza } = await supabase
+      .from("absences")
+      .select("type, start_date, end_date")
+      .eq("profile_id", v.profile_id)
+      .lte("start_date", v.date)
+      .or(`end_date.is.null,end_date.gte.${v.date}`)
+      .limit(1)
+      .maybeSingle();
+    if (assenza) {
+      const fino = assenza.end_date
+        ? ` fino al ${assenza.end_date.split("-").reverse().join("/")}`
+        : ", senza data di rientro";
+      return {
+        ok: false,
+        error: `Quel giorno la persona è assente (${ETICHETTA(assenza.type).toLowerCase()}${fino}): scegli un altro giorno o un'altra persona.`,
+      };
+    }
+  }
 
   const row = {
     company_id: user.company_id,

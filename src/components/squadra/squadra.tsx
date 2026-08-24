@@ -23,7 +23,6 @@ import { PasswordField } from "@/components/ui/password-field";
 import { Ricerca } from "@/components/ui/ricerca";
 import { generatePassword } from "@/lib/password";
 import { corrisponde } from "@/lib/ricerca";
-import { AssenzaPersona } from "@/components/squadra/assenza-persona";
 import { assenzaAperta, ETICHETTA } from "@/lib/assenze";
 import type { Absence, Department, Profile, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -182,7 +181,6 @@ export function Squadra({
         <EditDialog
           person={editing}
           reparti={reparti}
-          inCorso={assenzaAperta(assenze, editing.id)}
           isSelf={editing.id === currentUserId}
           altriCapi={
             people.filter(
@@ -288,7 +286,6 @@ function DaiAccesso({
 function EditDialog({
   person,
   reparti,
-  inCorso,
   isSelf,
   altriCapi,
   onClose,
@@ -296,7 +293,6 @@ function EditDialog({
 }: {
   person: Profile;
   reparti: Department[];
-  inCorso: Absence | null;
   isSelf: boolean;
   /** Quanti altri responsabili attivi ci sono. Se sono zero, questo non può
    *  smettere di esserlo: l'azienda resterebbe senza nessuno che la gestisce. */
@@ -470,11 +466,8 @@ function EditDialog({
         </Field>
       </form>
 
-      <AssenzaPersona
-        profileId={person.id}
-        inCorso={inCorso}
-        onFatto={onDone}
-      />
+      {/* Le assenze si registrano e si chiudono dalla pagina Permessi:
+          qui resta solo la spia di chi e' assente adesso, nell'elenco. */}
 
       {/* Fuori dal form: sono azioni a se', non vanno salvate col resto. */}
       {!person.user_id ? (

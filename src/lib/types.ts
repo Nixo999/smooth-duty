@@ -47,13 +47,15 @@ export type Absence = {
   note: string | null;
 };
 
-/** Una richiesta di ferie: nasce "con riserva" e vale solo quando il
- *  responsabile la conferma. L'assenza vera (causale ferie) la crea
+/** Una richiesta di permesso o assenza: nasce "con riserva" e vale solo
+ *  quando il responsabile la conferma. L'assenza vera la crea
  *  l'approvazione, e absence_id ricorda quale, per poterla revocare. */
 export type VacationRequest = {
   id: string;
   company_id: string;
   profile_id: string;
+  /** Causale, stesso elenco di absences: all'approvazione passa pari pari. */
+  type: string;
   start_date: string; // YYYY-MM-DD
   /** Ultimo giorno compreso: una richiesta senza fine non esiste. */
   end_date: string;

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { CODICI_CAUSALE } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,7 +11,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 const giorno = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida.");
 
 function aggiorna() {
-  revalidatePath("/ferie");
+  revalidatePath("/permessi");
   // L'approvazione crea un'assenza vera: la vedono anche le altre pagine.
   revalidatePath("/turni");
   revalidatePath("/supervisione");
@@ -20,6 +21,9 @@ function aggiorna() {
 
 const richiestaSchema = z
   .object({
+    type: z
+      .string()
+      .refine((v) => CODICI_CAUSALE.includes(v), "Causale non riconosciuta."),
     start_date: giorno,
     end_date: giorno,
     note: z.string().trim().max(300).optional().or(z.literal("")),
@@ -31,9 +35,10 @@ const richiestaSchema = z
 
 export type RichiestaInput = z.input<typeof richiestaSchema>;
 
-/** Chiunque chiede per sé: anche il responsabile ha le ferie. La richiesta
- *  nasce «con riserva» — lo impone anche la policy sul database. */
-export async function chiediFerie(input: RichiestaInput): Promise<ActionResult> {
+/** Chiunque chiede per sé, con la sua causale: ferie, malattia, permessi.
+ *  La richiesta nasce «con riserva» — lo impone anche la policy sul
+ *  database. */
+export async function chiediPermesso(input: RichiestaInput): Promise<ActionResult> {
   const user = await requireMember();
 
   const parsed = richiestaSchema.safeParse(input);
@@ -44,13 +49,14 @@ export async function chiediFerie(input: RichiestaInput): Promise<ActionResult> 
   const { error } = await supabase.from("vacation_requests").insert({
     company_id: user.company_id,
     profile_id: user.id,
+    type: v.type,
     start_date: v.start_date,
     end_date: v.end_date,
     note: v.note?.trim() || null,
   });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/ferie");
+  revalidatePath("/permessi");
   return { ok: true };
 }
 
@@ -71,13 +77,13 @@ export async function ritiraRichiesta(id: string): Promise<ActionResult> {
     return { ok: false, error: "Questa richiesta è già stata decisa: parlane col responsabile." };
   }
 
-  revalidatePath("/ferie");
+  revalidatePath("/permessi");
   return { ok: true };
 }
 
-/** La decisione del responsabile. Approvare crea l'assenza vera (causale
- *  ferie), che è ciò che toglie le ore dai turni; rifiutare una richiesta
- *  già approvata la cancella. absence_id lega le due cose. */
+/** La decisione del responsabile. Approvare crea l'assenza vera con la
+ *  causale della richiesta; rifiutare una richiesta già approvata la
+ *  cancella. absence_id lega le due cose. */
 export async function decidiRichiesta(
   id: string,
   approva: boolean,
@@ -87,7 +93,7 @@ export async function decidiRichiesta(
   const supabase = await createClient();
   const { data: richiesta, error: erroreLettura } = await supabase
     .from("vacation_requests")
-    .select("id, profile_id, start_date, end_date, note, status, absence_id")
+    .select("id, profile_id, type, start_date, end_date, note, status, absence_id")
     .eq("id", id)
     .maybeSingle();
   if (erroreLettura) return { ok: false, error: erroreLettura.message };
@@ -104,7 +110,7 @@ export async function decidiRichiesta(
       .insert({
         company_id: capo.company_id,
         profile_id: richiesta.profile_id,
-        type: "ferie",
+        type: richiesta.type,
         start_date: richiesta.start_date,
         end_date: richiesta.end_date,
         note: richiesta.note,
