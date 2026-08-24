@@ -1,10 +1,19 @@
 "use client";
 
-import { Building2, CalendarDays, ClipboardList, Eye, LogOut, Users } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  Eye,
+  KeyRound,
+  LogOut,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { CambiaLaMiaPassword } from "@/components/auth/cambia-la-mia-password";
+import { PannelloCambiaPassword } from "@/components/auth/cambia-la-mia-password";
 import { ThemeToggle } from "@/components/ui/theme";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +48,8 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [cambioPassword, setCambioPassword] = React.useState(false);
+  const moduloEsci = React.useRef<HTMLFormElement>(null);
 
   const initials = identity.name
     .split(/\s+/)
@@ -91,18 +102,35 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle className="hidden sm:inline-flex" />
 
-            <div className="group relative">
-              <button
-                type="button"
-                className="tap grid size-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent"
-                aria-label={identity.name}
-              >
-                {initials}
-              </button>
+            {/* Si apre al tocco, non al passaggio del mouse: su iPhone il
+                mouse non passa mai, e la vecchia tendina appesa a
+                `group-hover` la' non si apriva proprio. Il menu di Radix
+                risponde al puntatore vero, qualunque sia — dito, mouse o
+                tastiera — e si chiude da solo toccando fuori o con Esc. */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  type="button"
+                  className="tap grid size-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent"
+                  aria-label={identity.name}
+                >
+                  {initials}
+                </button>
+              </DropdownMenu.Trigger>
 
-              {/* Tendina su hover e su focus: da tastiera resta raggiungibile. */}
-              <div className="invisible absolute right-0 top-full z-40 w-56 pt-2 opacity-0 transition-[opacity,visibility] group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                <div className="animate-pop rounded-xl border border-border bg-surface p-1.5 shadow-float">
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  // Senza questo, chiudendosi la tendina si riprende il fuoco
+                  // e lo strappa al pannello della password che sta aprendo.
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                  // L'animazione va legata allo stato aperto, non messa
+                  // sempre: Radix tiene in vita la tendina finche' un
+                  // fotogramma resta da disegnare, e una che si anima anche
+                  // da chiusa resterebbe nel documento a coprire i click.
+                  className="z-40 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+                >
                   <div className="px-2.5 py-2">
                     <p className="truncate text-[13px] font-medium">
                       {identity.name}
@@ -115,30 +143,49 @@ export function AppShell({
                     </p>
                   </div>
 
+                  {/* Fuori dalle voci di menu: toccando il tema la tendina
+                      non si deve chiudere, si sta solo cambiando idea. */}
                   <div className="my-1 flex items-center justify-between gap-2 border-t border-border px-2.5 pt-2 sm:hidden">
                     <span className="text-[13px] text-muted">Tema</span>
                     <ThemeToggle />
                   </div>
 
                   <div className="border-t border-border pt-1">
-                    <CambiaLaMiaPassword />
+                    <DropdownMenu.Item
+                      onSelect={() => setCambioPassword(true)}
+                      className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-muted outline-none data-[highlighted]:bg-surface-3 data-[highlighted]:text-text"
+                    >
+                      <KeyRound className="size-3.5" />
+                      Cambia password
+                    </DropdownMenu.Item>
                   </div>
 
-                  <form action={esci} className="border-t border-border pt-1">
-                    <button
-                      type="submit"
-                      className="tap flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-danger hover:bg-danger-soft"
+                  <div className="border-t border-border pt-1">
+                    {/* Il modulo di uscita sta fuori dalla tendina, e lo si
+                        invia a mano: scegliendo la voce la tendina si smonta,
+                        e un bottone che si porta via da solo il proprio invio
+                        e' il modo silenzioso di non uscire mai. */}
+                    <DropdownMenu.Item
+                      onSelect={() => moduloEsci.current?.requestSubmit()}
+                      className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-danger outline-none data-[highlighted]:bg-danger-soft"
                     >
                       <LogOut className="size-3.5" />
                       Esci
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
+                    </DropdownMenu.Item>
+                  </div>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </div>
         </div>
       </header>
+
+      <form ref={moduloEsci} action={esci} className="hidden" />
+
+      <PannelloCambiaPassword
+        aperto={cambioPassword}
+        onClose={() => setCambioPassword(false)}
+      />
 
       {/* min-h-0 flex-1: il figlio prende lo spazio rimasto senza sforare
           l'altezza dell'intestazione, cosa che h-full farebbe. */}

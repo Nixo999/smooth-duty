@@ -1,6 +1,5 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
 import * as React from "react";
 import { useActionState } from "react";
 import { toast } from "sonner";
@@ -11,25 +10,19 @@ import { Modal } from "@/components/ui/modal";
 
 const iniziale: FormState = {};
 
-/** La voce nel menu del proprio nome. Il pannello si monta solo da aperto,
- *  così ogni volta riparte pulito: i campi vuoti e nessun errore vecchio. */
-export function CambiaLaMiaPassword() {
-  const [aperto, setAperto] = React.useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setAperto(true)}
-        className="tap flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-muted hover:bg-surface-3 hover:text-text"
-      >
-        <KeyRound className="size-3.5" />
-        Cambia password
-      </button>
-
-      {aperto ? <Pannello onClose={() => setAperto(false)} /> : null}
-    </>
-  );
+/** Lo apre il menu del proprio nome, ma vive fuori da quel menu: montato
+ *  dentro, si smonterebbe insieme alla tendina nell'istante stesso in cui la
+ *  voce viene scelta. Si monta solo da aperto, così ogni volta riparte
+ *  pulito — campi vuoti e nessun errore vecchio. */
+export function PannelloCambiaPassword({
+  aperto,
+  onClose,
+}: {
+  aperto: boolean;
+  onClose: () => void;
+}) {
+  if (!aperto) return null;
+  return <Pannello onClose={onClose} />;
 }
 
 function Pannello({ onClose }: { onClose: () => void }) {
