@@ -9,7 +9,22 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { crossesMidnight, durationMinutes, formatDuration, hhmm } from "@/lib/date";
+import type { TurnoBozza } from "@/lib/turni-staging";
 import type { Department, Profile, Shift } from "@/lib/types";
+
+/** Chi vuole intercettare il salvataggio al posto del server: lo usano la
+ *  modalita' Modifica dei Turni e la Supervisione, che accumulano le
+ *  modifiche in locale e le applicano solo alla conferma. `id` e' null per
+ *  un turno nuovo: l'identificativo provvisorio lo decide il gestore. */
+export type GestoreTurni = {
+  salva: (
+    id: string | null,
+    dati: Omit<TurnoBozza, "id">,
+  ) => Promise<{ ok: boolean; error?: string }> | { ok: boolean; error?: string };
+  elimina: (
+    id: string,
+  ) => Promise<{ ok: boolean; error?: string }> | { ok: boolean; error?: string };
+};
 
 /** Quando si apre la finestra da una cella vuota si conosce gia' giorno e
  *  persona: sono i due campi che l'utente non deve ridigitare. */
@@ -44,12 +59,15 @@ export function ShiftDialog({
   profiles,
   departments,
   repartoFrequente,
+  gestore,
   onClose,
 }: {
   draft: ShiftDraft | null;
   profiles: Profile[];
   departments: Department[];
   repartoFrequente: Record<string, string>;
+  /** Se c'e', salvataggio ed eliminazione passano da qui, non dal server. */
+  gestore?: GestoreTurni;
   onClose: () => void;
 }) {
   if (!draft) return null;
@@ -67,6 +85,7 @@ export function ShiftDialog({
       profiles={profiles}
       departments={departments}
       repartoFrequente={repartoFrequente}
+      gestore={gestore}
       onClose={onClose}
     />
   );
@@ -77,12 +96,14 @@ function Contenuto({
   profiles,
   departments,
   repartoFrequente,
+  gestore,
   onClose,
 }: {
   draft: ShiftDraft;
   profiles: Profile[];
   departments: Department[];
   repartoFrequente: Record<string, string>;
+  gestore?: GestoreTurni;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -121,24 +142,42 @@ function Contenuto({
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
-      const result = await salvaTurno({
-        id: draft.id,
-        profile_id: profileId === "" ? null : profileId,
-        department_id: departmentId === "" ? null : departmentId,
-        date: String(formData.get("date")),
-        start_time: String(formData.get("start_time")),
-        end_time: String(formData.get("end_time")),
-        title: String(formData.get("title") ?? ""),
-        location: String(formData.get("location") ?? ""),
-        notes: String(formData.get("notes") ?? ""),
-      });
+      const vuoto = (v: FormDataEntryValue | null) => {
+        const testo = String(v ?? "").trim();
+        return testo === "" ? null : testo;
+      };
+
+      const result = gestore
+        ? await gestore.salva(draft.id ?? null, {
+            profile_id: profileId === "" ? null : profileId,
+            department_id: departmentId === "" ? null : departmentId,
+            date: String(formData.get("date")),
+            start_time: String(formData.get("start_time")),
+            end_time: String(formData.get("end_time")),
+            title: vuoto(formData.get("title")),
+            location: vuoto(formData.get("location")),
+            notes: vuoto(formData.get("notes")),
+          })
+        : await salvaTurno({
+            id: draft.id,
+            profile_id: profileId === "" ? null : profileId,
+            department_id: departmentId === "" ? null : departmentId,
+            date: String(formData.get("date")),
+            start_time: String(formData.get("start_time")),
+            end_time: String(formData.get("end_time")),
+            title: String(formData.get("title") ?? ""),
+            location: String(formData.get("location") ?? ""),
+            notes: String(formData.get("notes") ?? ""),
+          });
 
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.error ?? "Salvataggio non riuscito.");
         return;
       }
-      toast.success(editing ? "Turno aggiornato." : "Turno creato.");
-      router.refresh();
+      if (!gestore) {
+        toast.success(editing ? "Turno aggiornato." : "Turno creato.");
+        router.refresh();
+      }
       onClose();
     });
   }
@@ -147,13 +186,17 @@ function Contenuto({
     if (!draft.id) return;
     const id = draft.id;
     startTransition(async () => {
-      const result = await eliminaTurno(id);
+      const result = gestore
+        ? await gestore.elimina(id)
+        : await eliminaTurno(id);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.error ?? "Eliminazione non riuscita.");
         return;
       }
-      toast.success("Turno eliminato.");
-      router.refresh();
+      if (!gestore) {
+        toast.success("Turno eliminato.");
+        router.refresh();
+      }
       onClose();
     });
   }

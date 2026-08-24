@@ -8,20 +8,41 @@ import {
   FileUp,
   PencilLine,
   Plus,
+  Redo2,
+  Trash2,
+  Undo2,
   Users,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { pubblicaSettimana } from "@/app/(app)/turni/actions";
+import {
+  eliminaTurno,
+  eliminaTuttiITurni,
+  pubblicaSettimana,
+  salvaTurno,
+} from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
-import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/shift-dialog";
+import {
+  ShiftDialog,
+  shiftToDraft,
+  type GestoreTurni,
+  type ShiftDraft,
+} from "@/components/turni/shift-dialog";
 import { WeekNav } from "@/components/turni/week-nav";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { Ricerca } from "@/components/ui/ricerca";
 import { repartoDelTurno } from "@/lib/reparto";
+import {
+  compatta,
+  proietta,
+  turnoBozzaDa,
+  type Operazione,
+  type TurnoBozza,
+} from "@/lib/turni-staging";
 import { corrisponde } from "@/lib/ricerca";
 import {
   dayLong,
@@ -113,10 +134,10 @@ export function Roster({
   inBozza: boolean;
 }) {
   const router = useRouter();
-  const [bozzaInCorso, startBozza] = React.useTransition();
+  const [inLavoro, startLavoro] = React.useTransition();
 
   const pubblica = () =>
-    startBozza(async () => {
+    startLavoro(async () => {
       const esito = await pubblicaSettimana(monday);
       if (!esito.ok) {
         toast.error(esito.error);
@@ -126,6 +147,241 @@ export function Roster({
       router.refresh();
     });
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
+
+  /* -------------------------------------------- modifiche in sospeso ----
+   * Una settimana pubblicata si tocca solo premendo Modifica: da li' le
+   * modifiche restano locali — i dipendenti continuano a vedere la
+   * versione pubblicata — e partono tutte insieme con Conferma. Le frecce
+   * annullano e ripetono sull'elenco locale. */
+  const [sospese, setSospese] = React.useState<{
+    monday: string;
+    attivo: boolean;
+    fatte: Operazione[];
+    annullate: Operazione[];
+  }>({ monday, attivo: false, fatte: [], annullate: [] });
+  // Cambio settimana = altro tabellone: le sospese dell'altra non valgono.
+  if (sospese.monday !== monday) {
+    setSospese({ monday, attivo: false, fatte: [], annullate: [] });
+  }
+  const contatoreNuovi = React.useRef(0);
+
+  /** Il tabellone che si vede: quello vero, oppure quello con le modifiche
+   *  in sospeso applicate sopra. Niente memo: la proiezione costa meno del
+   *  ragionarci, e cosi' puo' stare prima del gestore che la usa. */
+  const turniVivi = sospese.attivo ? proietta(shifts, sospese.fatte) : shifts;
+
+  /* ------------------------------------------------ storia (in bozza) ---
+   * In bozza si salva subito, ma ogni passo si sa disfare: le voci portano
+   * l'operazione contraria, e l'id vivo sta in una scatola condivisa
+   * perche' rifare una creazione produce un id nuovo. */
+  type VoceStoria = {
+    desfai: () => Promise<{ ok: boolean; error?: string }>;
+    rifai: () => Promise<{ ok: boolean; error?: string }>;
+  };
+  const [storia, setStoria] = React.useState<{
+    monday: string;
+    passato: VoceStoria[];
+    futuro: VoceStoria[];
+  }>({ monday, passato: [], futuro: [] });
+  if (storia.monday !== monday) {
+    setStoria({ monday, passato: [], futuro: [] });
+  }
+
+  const inputDa = (id: string | undefined, d: Omit<TurnoBozza, "id">) => ({
+    id,
+    profile_id: d.profile_id,
+    department_id: d.department_id,
+    date: d.date,
+    start_time: d.start_time,
+    end_time: d.end_time,
+    title: d.title ?? "",
+    location: d.location ?? "",
+    notes: d.notes ?? "",
+  });
+
+  /** Il gestore del pannello turno: diretto in bozza (con storia), locale
+   *  in modalita' Modifica. */
+  const gestore: GestoreTurni = sospese.attivo
+    ? {
+        salva: (id, dati) => {
+          const vero = id ?? `nuovo:${contatoreNuovi.current++}`;
+          setSospese((s0) => ({
+            ...s0,
+            fatte: [...s0.fatte, { tipo: "salva", dopo: { id: vero, ...dati } }],
+            annullate: [],
+          }));
+          return { ok: true };
+        },
+        elimina: (id) => {
+          const turno = turniVivi.find((t) => t.id === id);
+          if (!turno) return { ok: false, error: "Turno non trovato." };
+          setSospese((s0) => ({
+            ...s0,
+            fatte: [...s0.fatte, { tipo: "elimina", prima: turnoBozzaDa(turno) }],
+            annullate: [],
+          }));
+          return { ok: true };
+        },
+      }
+    : {
+        salva: async (id, dati) => {
+          const prima = id ? shifts.find((t) => t.id === id) : null;
+          const esito = await salvaTurno(inputDa(id ?? undefined, dati));
+          if (!esito.ok) return esito;
+
+          const scatola = { id: esito.id };
+          const voce: VoceStoria = prima
+            ? {
+                desfai: () =>
+                  salvaTurno(inputDa(scatola.id, turnoBozzaDa(prima))),
+                rifai: () => salvaTurno(inputDa(scatola.id, dati)),
+              }
+            : {
+                desfai: () => eliminaTurno(scatola.id),
+                rifai: async () => {
+                  const r = await salvaTurno(inputDa(undefined, dati));
+                  if (r.ok) scatola.id = r.id;
+                  return r;
+                },
+              };
+          setStoria((s0) => ({ ...s0, passato: [...s0.passato, voce], futuro: [] }));
+          toast.success(prima ? "Turno aggiornato." : "Turno creato.");
+          router.refresh();
+          return esito;
+        },
+        elimina: async (id) => {
+          const prima = shifts.find((t) => t.id === id);
+          if (!prima) return { ok: false, error: "Turno non trovato." };
+          const esito = await eliminaTurno(id);
+          if (!esito.ok) return esito;
+
+          const dati = turnoBozzaDa(prima);
+          const scatola = { id };
+          const voce: VoceStoria = {
+            desfai: async () => {
+              const r = await salvaTurno(inputDa(undefined, dati));
+              if (r.ok) scatola.id = r.id;
+              return r;
+            },
+            rifai: () => eliminaTurno(scatola.id),
+          };
+          setStoria((s0) => ({ ...s0, passato: [...s0.passato, voce], futuro: [] }));
+          toast.success("Turno eliminato.");
+          router.refresh();
+          return esito;
+        },
+      };
+
+  const annulla = () => {
+    if (sospese.attivo) {
+      setSospese((s0) => {
+        const fatte = [...s0.fatte];
+        const ultima = fatte.pop();
+        return ultima
+          ? { ...s0, fatte, annullate: [...s0.annullate, ultima] }
+          : s0;
+      });
+      return;
+    }
+    startLavoro(async () => {
+      const voce = storia.passato[storia.passato.length - 1];
+      if (!voce) return;
+      const esito = await voce.desfai();
+      if (!esito.ok) {
+        toast.error(esito.error ?? "Annullamento non riuscito.");
+        return;
+      }
+      setStoria((s0) => ({
+        ...s0,
+        passato: s0.passato.slice(0, -1),
+        futuro: [...s0.futuro, voce],
+      }));
+      router.refresh();
+    });
+  };
+
+  const ripeti = () => {
+    if (sospese.attivo) {
+      setSospese((s0) => {
+        const annullate = [...s0.annullate];
+        const ultima = annullate.pop();
+        return ultima
+          ? { ...s0, annullate, fatte: [...s0.fatte, ultima] }
+          : s0;
+      });
+      return;
+    }
+    startLavoro(async () => {
+      const voce = storia.futuro[storia.futuro.length - 1];
+      if (!voce) return;
+      const esito = await voce.rifai();
+      if (!esito.ok) {
+        toast.error(esito.error ?? "Ripetizione non riuscita.");
+        return;
+      }
+      setStoria((s0) => ({
+        ...s0,
+        futuro: s0.futuro.slice(0, -1),
+        passato: [...s0.passato, voce],
+      }));
+      router.refresh();
+    });
+  };
+
+  const puoAnnullare = sospese.attivo
+    ? sospese.fatte.length > 0
+    : storia.passato.length > 0;
+  const puoRipetere = sospese.attivo
+    ? sospese.annullate.length > 0
+    : storia.futuro.length > 0;
+
+  /** Le sospese partono tutte insieme: prima le cancellazioni, poi i
+   *  salvataggi. Il server ricalcola assenze e conferme su ciascuna. */
+  const confermaSospese = () =>
+    startLavoro(async () => {
+      const { daEliminare, daSalvare } = compatta(sospese.fatte);
+      let errori = 0;
+      let richieste = 0;
+      for (const id of daEliminare) {
+        const r = await eliminaTurno(id);
+        if (!r.ok) errori++;
+      }
+      for (const t of daSalvare) {
+        const r = await salvaTurno(
+          inputDa(t.creazione ? undefined : t.id, t),
+        );
+        if (!r.ok) errori++;
+        else if (r.richiede) richieste++;
+      }
+      setSospese({ monday, attivo: false, fatte: [], annullate: [] });
+      router.refresh();
+      if (errori > 0) {
+        toast.error(
+          `${errori} ${errori === 1 ? "modifica non applicata" : "modifiche non applicate"}: controlla il tabellone.`,
+        );
+      } else {
+        toast.success(
+          richieste > 0
+            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno aspetta" : "turni aspettano"} la conferma dell'interessato, con la motivazione scritta.`
+            : "Modifiche applicate.",
+        );
+      }
+    });
+
+  const [confermaSvuota, setConfermaSvuota] = React.useState(false);
+  const svuota = () =>
+    startLavoro(async () => {
+      const esito = await eliminaTuttiITurni(monday);
+      if (!esito.ok) {
+        toast.error(esito.error);
+        return;
+      }
+      setConfermaSvuota(false);
+      setSospese({ monday, attivo: false, fatte: [], annullate: [] });
+      setStoria({ monday, passato: [], futuro: [] });
+      toast.success("Settimana svuotata: torna in bozza.");
+      router.refresh();
+    });
   const [copiaAperta, setCopiaAperta] = React.useState(false);
   const [cerca, setCerca] = React.useState("");
   const [filtroReparto, setFiltroReparto] = React.useState("");
@@ -143,9 +399,9 @@ export function Roster({
 
   /** Indice turni[persona][giorno]: la griglia lo consulta 7 volte per riga,
    *  filtrare l'array ogni volta sarebbe quadratico. */
-  const byCell = React.useMemo(() => {
+  const byCell = (() => {
     const map = new Map<string, Shift[]>();
-    for (const s of shifts) {
+    for (const s of turniVivi) {
       const key = `${s.profile_id ?? UNASSIGNED}|${s.date}`;
       const list = map.get(key);
       if (list) list.push(s);
@@ -155,7 +411,7 @@ export function Roster({
       list.sort((a, b) => a.start_time.localeCompare(b.start_time));
     }
     return map;
-  }, [shifts]);
+  })();
 
   const cell = (profileId: string, day: string) =>
     byCell.get(`${profileId}|${day}`) ?? [];
@@ -176,9 +432,9 @@ export function Roster({
       profiles.find((p) => p.id === s.profile_id)?.department_id ?? null,
     );
 
-  const weeklyMinutes = React.useMemo(() => {
+  const weeklyMinutes = (() => {
     const totals = new Map<string, number>();
-    for (const s of shifts) {
+    for (const s of turniVivi) {
       // Le ore di chi e' assente non si sommano: il monte ore deve dire
       // quanto lavorera' davvero, non quanto era stato messo in programma.
       if (assenzaDelGiorno(assenze, s.profile_id, s.date)) continue;
@@ -186,9 +442,9 @@ export function Roster({
       totals.set(key, (totals.get(key) ?? 0) + durationMinutes(s.start_time, s.end_time));
     }
     return totals;
-  }, [shifts, assenze]);
+  })();
 
-  const hasUnassigned = shifts.some((s) => s.profile_id === null);
+  const hasUnassigned = turniVivi.some((s) => s.profile_id === null);
 
   const rows: Riga[] = [
     ...profiles.map((p) => ({
@@ -249,8 +505,25 @@ export function Roster({
       passaOre(r),
   );
 
-  const openNew = (day: string, profileId: string | null) =>
+  /** Su una settimana pubblicata si interviene solo da modalita'
+   *  Modifica: senza, il click spiega invece di agire. */
+  const modificabile = inBozza || sospese.attivo;
+
+  const apriTurno = (s: Shift) => {
+    if (!modificabile) {
+      toast.info("Settimana pubblicata: premi \u00abModifica\u00bb per cambiarla.");
+      return;
+    }
+    setDraft(shiftToDraft(s));
+  };
+
+  const openNew = (day: string, profileId: string | null) => {
+    if (!modificabile) {
+      toast.info("Settimana pubblicata: premi \u00abModifica\u00bb per cambiarla.");
+      return;
+    }
     setDraft({ date: day, profile_id: profileId === UNASSIGNED ? null : profileId });
+  };
 
   return (
     <div className="space-y-4">
@@ -309,17 +582,107 @@ export function Roster({
               <option value="pari">In pari</option>
             </Select>
 
+            {/* --------------------- variazioni, in fondo alla riga */}
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={annulla}
+              disabled={!puoAnnullare || inLavoro}
+              aria-label="Annulla l'ultima modifica"
+              title="Annulla l'ultima modifica"
+            >
+              <Undo2 className="size-4" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={ripeti}
+              disabled={!puoRipetere || inLavoro}
+              aria-label="Ripeti la modifica annullata"
+              title="Ripeti la modifica annullata"
+            >
+              <Redo2 className="size-4" />
+            </Button>
+
             {inBozza ? (
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={pubblica}
-                loading={bozzaInCorso}
+                loading={inLavoro}
                 title="Rendi la settimana visibile ai dipendenti"
               >
                 Pubblica
               </Button>
-            ) : null}
+            ) : sospese.attivo ? (
+              <>
+                <Button
+                  size="sm"
+                  onClick={confermaSospese}
+                  loading={inLavoro}
+                  disabled={sospese.fatte.length === 0}
+                >
+                  Conferma modifiche
+                  {sospese.fatte.length > 0 ? (
+                    <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                      {sospese.fatte.length}
+                    </span>
+                  ) : null}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setSospese({ monday, attivo: false, fatte: [], annullate: [] })
+                  }
+                  title="Scarta le modifiche non confermate"
+                >
+                  <X className="size-3.5" />
+                  Annulla
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  setSospese({ monday, attivo: true, fatte: [], annullate: [] })
+                }
+                title="Modifica la settimana pubblicata: le modifiche valgono solo alla conferma"
+              >
+                <PencilLine className="size-3.5" />
+                Modifica
+              </Button>
+            )}
+
+            {confermaSvuota ? (
+              <span className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-2 py-1">
+                <span className="text-[12.5px] font-medium text-danger">
+                  Tutta la settimana?
+                </span>
+                <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
+                  Elimina
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfermaSvuota(false)}
+                >
+                  No
+                </Button>
+              </span>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-danger hover:bg-danger-soft"
+                onClick={() => setConfermaSvuota(true)}
+                aria-label="Elimina tutti i turni della settimana"
+                title="Elimina tutti i turni della settimana"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            )}
 
             {/* I tre modi di creare turni, raccolti in un'isoletta: tre
                 bottoni sciolti si contendevano la riga coi filtri. */}
@@ -369,6 +732,12 @@ export function Roster({
             <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
               Settimana in bozza, come ogni settimana nuova: i dipendenti la
               vedranno solo quando premi «Pubblica».
+            </p>
+          ) : sospese.attivo ? (
+            <p className="rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] font-medium text-accent">
+              Stai modificando una settimana pubblicata: i dipendenti vedono
+              ancora la versione di prima, finché non premi «Conferma
+              modifiche».
             </p>
           ) : null}
 
@@ -468,7 +837,7 @@ export function Roster({
                               shift={s}
                               reparto={repartoDi(s)?.name ?? null}
                               assente={assente(s)}
-                              onOpen={() => setDraft(shiftToDraft(s))}
+                              onOpen={() => apriTurno(s)}
                             />
                           ))}
                           {list.length === 0 ? (
@@ -534,7 +903,7 @@ export function Roster({
                 assente={assente}
                 reparto={(s) => repartoDi(s)?.name ?? null}
                 soloConTurni={!cerca.trim()}
-                onOpen={(s) => setDraft(shiftToDraft(s))}
+                onOpen={(s) => apriTurno(s)}
                 onAdd={(profileId) => openNew(selectedDay, profileId)}
               />
             ) : null}
@@ -547,6 +916,7 @@ export function Roster({
         profiles={profiles}
         departments={departments}
         repartoFrequente={repartoFrequente}
+        gestore={gestore}
         onClose={() => setDraft(null)}
       />
 

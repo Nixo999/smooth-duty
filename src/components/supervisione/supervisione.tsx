@@ -8,15 +8,21 @@ import {
   ChevronLeft,
   ChevronRight,
   ListFilter,
+  PencilLine,
   Settings2,
+  Undo2,
   Users,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
+import { eliminaTurno, salvaTurno } from "@/app/(app)/turni/actions";
 import { RepartiSheet } from "@/components/supervisione/reparti-sheet";
 import {
   ShiftDialog,
   shiftToDraft,
+  type GestoreTurni,
   type ShiftDraft,
 } from "@/components/turni/shift-dialog";
 import { Button } from "@/components/ui/button";
@@ -32,6 +38,13 @@ import {
   type Segmento,
 } from "@/lib/supervisione/copertura";
 import type { AbsenceDay, CoverageBand, Department, Profile, Shift } from "@/lib/types";
+import {
+  compatta,
+  proietta,
+  turnoBozzaDa,
+  type Operazione,
+  type TurnoBozza,
+} from "@/lib/turni-staging";
 import { addDays } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
@@ -129,13 +142,90 @@ export function Supervisione({
   const [inCorso, startNavigazione] = React.useTransition();
   const [daModificare, setDaModificare] = React.useState<ShiftDraft | null>(null);
 
+  /* -------------------------------------------- modifiche in sospeso ----
+   * Da qui si modifica solo premendo Modifica: le barre diventano
+   * premibili, le modifiche restano locali, e partono tutte insieme con
+   * «Pubblica modifiche». La freccia toglie solo l'ultima. */
+  const [sospese, setSospese] = React.useState<{
+    attivo: boolean;
+    fatte: Operazione[];
+  }>({ attivo: false, fatte: [] });
+  const [inApplica, startApplica] = React.useTransition();
+
+  /** I turni che si vedono: quelli veri, o quelli con le modifiche in
+   *  sospeso applicate sopra. Niente memo: deve stare prima del gestore
+   *  che la usa, e la proiezione costa meno del ragionarci. */
+  const turniVivi = sospese.attivo ? proietta(turni, sospese.fatte) : turni;
+
+  const inputDa = (id: string | undefined, d: Omit<TurnoBozza, "id">) => ({
+    id,
+    profile_id: d.profile_id,
+    department_id: d.department_id,
+    date: d.date,
+    start_time: d.start_time,
+    end_time: d.end_time,
+    title: d.title ?? "",
+    location: d.location ?? "",
+    notes: d.notes ?? "",
+  });
+
+  const gestore: GestoreTurni = {
+    salva: (id, dati) => {
+      if (!id) return { ok: false, error: "Da qui si modificano turni esistenti." };
+      setSospese((s0) => ({
+        ...s0,
+        fatte: [...s0.fatte, { tipo: "salva", dopo: { id, ...dati } }],
+      }));
+      return { ok: true };
+    },
+    elimina: (id) => {
+      const turno = turniVivi.find((t) => t.id === id);
+      if (!turno) return { ok: false, error: "Turno non trovato." };
+      setSospese((s0) => ({
+        ...s0,
+        fatte: [...s0.fatte, { tipo: "elimina", prima: turnoBozzaDa(turno) }],
+      }));
+      return { ok: true };
+    },
+  };
+
+  const pubblicaModifiche = () =>
+    startApplica(async () => {
+      const { daEliminare, daSalvare } = compatta(sospese.fatte);
+      let errori = 0;
+      let richieste = 0;
+      for (const id of daEliminare) {
+        const r = await eliminaTurno(id);
+        if (!r.ok) errori++;
+      }
+      for (const t of daSalvare) {
+        const r = await salvaTurno(inputDa(t.creazione ? undefined : t.id, t));
+        if (!r.ok) errori++;
+        else if (r.richiede) richieste++;
+      }
+      setSospese({ attivo: false, fatte: [] });
+      router.refresh();
+      if (errori > 0) {
+        toast.error(
+          `${errori} ${errori === 1 ? "modifica non applicata" : "modifiche non applicate"}: controlla il tabellone.`,
+        );
+      } else {
+        toast.success(
+          richieste > 0
+            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno aspetta" : "turni aspettano"} la conferma dell'interessato, con la motivazione scritta.`
+            : "Modifiche applicate.",
+        );
+      }
+    });
+
   /** Il turno intero dietro una barra. La barra sa solo che ore occupa in
    *  questo giorno — di un 18:00-02:00 vede mezzo pezzo — mentre per
    *  modificarlo servono la data e gli orari veri, che sono quelli del
    *  turno da cui il pezzo e' stato ritagliato. */
-  const perId = React.useMemo(() => new Map(turni.map((t) => [t.id, t])), [turni]);
+  const perId = new Map(turniVivi.map((t) => [t.id, t]));
 
   const apri = (turnoId: string) => {
+    if (!sospese.attivo) return;
     const turno = perId.get(turnoId);
     if (turno) setDaModificare(shiftToDraft(turno));
   };
@@ -143,8 +233,8 @@ export function Supervisione({
   const vai = (g: string) =>
     startNavigazione(() => router.push(`/supervisione?g=${g}`, { scroll: false }));
 
-  const dati = React.useMemo(() => {
-    const segmenti = segmentiDelGiorno(turni, persone, giorno, giornoPrima, assenze);
+  const dati = (() => {
+    const segmenti = segmentiDelGiorno(turniVivi, persone, giorno, giornoPrima, assenze);
     const fasceOggi = fasceDelGiorno(
       fasce.map((f) => ({ ...f, weekdays: f.weekdays ?? [] })),
       giorno,
@@ -170,7 +260,7 @@ export function Supervisione({
     // un giorno di riposo quello di appartenenza. Il responsabile tiene
     // l'ordine che ha scelto lui nelle impostazioni.
     if (!capo) {
-      const mieiTurni = turni
+      const mieiTurni = turniVivi
         .filter((t) => t.profile_id === mioId && t.date === giorno)
         .sort((a, b) => a.start_time.localeCompare(b.start_time));
       const mioPrincipale =
@@ -232,7 +322,7 @@ export function Supervisione({
     });
 
     return { vista, gruppi };
-  }, [turni, persone, fasce, reparti, assenze, giorno, giornoPrima, mioId, capo]);
+  })();
 
   const { vista, gruppi } = dati;
   const visibili = gruppi.filter((g) => !nascosti.has(g.id));
@@ -282,7 +372,58 @@ export function Supervisione({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {capo ? (
+            sospese.attivo ? (
+              <>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() =>
+                    setSospese((s0) => ({ ...s0, fatte: s0.fatte.slice(0, -1) }))
+                  }
+                  disabled={sospese.fatte.length === 0 || inApplica}
+                  aria-label="Togli l'ultima modifica"
+                  title="Togli l'ultima modifica"
+                >
+                  <Undo2 className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSospese({ attivo: false, fatte: [] })}
+                  disabled={inApplica}
+                  title="Scarta tutte le modifiche non pubblicate"
+                >
+                  <X className="size-3.5" />
+                  Elimina le modifiche
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={pubblicaModifiche}
+                  loading={inApplica}
+                  disabled={sospese.fatte.length === 0}
+                >
+                  Pubblica modifiche
+                  {sospese.fatte.length > 0 ? (
+                    <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                      {sospese.fatte.length}
+                    </span>
+                  ) : null}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSospese({ attivo: true, fatte: [] })}
+                title="Modifica i turni da qui: valgono solo quando li pubblichi"
+              >
+                <PencilLine className="size-3.5" />
+                Modifica
+              </Button>
+            )
+          ) : null}
           {gruppi.length > 1 ? (
             <FiltroReparti
               gruppi={gruppi}
@@ -361,20 +502,20 @@ export function Supervisione({
                               // Il dipendente la barra la guarda e basta: senza
                               // il bottone niente cursore, niente fuoco da
                               // tastiera, niente da premere per sbaglio.
-                              disabled={!capo}
+                              disabled={!capo || !sospese.attivo}
                               onClick={() => apri(s.turnoId)}
                               className={cn(
                                 "barra absolute inset-y-0 flex items-center overflow-hidden rounded-md px-2 text-left",
                                 !s.profileId && "border-dashed",
                                 s.assenza && "assente",
-                                capo && "tap cursor-pointer",
+                                capo && sospese.attivo && "tap cursor-pointer",
                               )}
                               style={{
                                 ["--tinta" as string]: riga.tinta,
                                 left: `${pct(s.da)}%`,
                                 width: `${pct(s.a) - pct(s.da)}%`,
                               }}
-                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${capo ? " · tocca per modificare" : ""}`}
+                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${capo && sospese.attivo ? " · tocca per modificare" : ""}`}
                             >
                               <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
                                 {s.daPrima ? "◂ " : ""}
@@ -454,6 +595,7 @@ export function Supervisione({
           profiles={persone}
           departments={reparti}
           repartoFrequente={repartoFrequente}
+          gestore={gestore}
           onClose={() => setDaModificare(null)}
         />
       ) : null}

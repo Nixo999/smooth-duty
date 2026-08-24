@@ -14,6 +14,36 @@ import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/** Esito di un salvataggio: l'id serve a chi tiene la storia delle
+ *  modifiche (annulla/ripeti), `richiede` a contare quanti turni
+ *  aspettano un si' dell'interessato. */
+export type SalvaResult =
+  | { ok: true; id: string; richiede: string | null }
+  | { ok: false; error: string };
+
+/** Se la settimana e' rimasta senza turni torna bozza da sola: una
+ *  settimana svuotata non e' "pubblicata e vuota", e' da rifare. */
+async function riportaInBozzaSeVuota(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  lunedi: string,
+) {
+  const giorni = weekDaysISO(lunedi);
+  const { count } = await supabase
+    .from("shifts")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .gte("date", giorni[0])
+    .lte("date", giorni[6]);
+  if (!count) {
+    await supabase
+      .from("published_weeks")
+      .delete()
+      .eq("company_id", companyId)
+      .eq("monday", lunedi);
+  }
+}
+
 const time = z.string().regex(/^\d{2}:\d{2}$/, "Orario non valido.");
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida.");
 
@@ -42,7 +72,7 @@ export type ShiftInput = z.input<typeof shiftSchema>;
  *  finire NULL, altrimenti le viste dovrebbero distinguere due casi identici. */
 const orNull = (v?: string) => (v && v.trim() ? v.trim() : null);
 
-export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
+export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   const user = await requireCapo();
 
   const parsed = shiftSchema.safeParse(input);
@@ -52,6 +82,18 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
   const v = parsed.data;
 
   const supabase = await createClient();
+
+  // La data di prima, se il turno esiste: spostarlo di settimana puo'
+  // lasciare vuota quella vecchia, che allora torna bozza.
+  let dataPrima: string | null = null;
+  if (v.id) {
+    const { data: vecchio } = await supabase
+      .from("shifts")
+      .select("date")
+      .eq("id", v.id)
+      .maybeSingle();
+    dataPrima = vecchio?.date ?? null;
+  }
 
   // A chi e' assente quel giorno un turno nuovo non si assegna: verrebbe al
   // mondo gia' "in trasparenza", non contato da nessuna parte, e chi lo ha
@@ -173,11 +215,49 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
     confermato_at: null,
   };
 
-  const { error } = v.id
-    ? await supabase.from("shifts").update(row).eq("id", v.id)
-    : await supabase.from("shifts").insert({ ...row, created_by: user.id });
+  let id = v.id ?? "";
+  if (v.id) {
+    const { error } = await supabase.from("shifts").update(row).eq("id", v.id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { data: creato, error } = await supabase
+      .from("shifts")
+      .insert({ ...row, created_by: user.id })
+      .select("id")
+      .single();
+    if (error || !creato) return { ok: false, error: error?.message ?? "Salvataggio non riuscito." };
+    id = creato.id;
+  }
 
+  if (dataPrima && mondayOf(dataPrima) !== mondayOf(v.date)) {
+    await riportaInBozzaSeVuota(supabase, user.company_id, mondayOf(dataPrima));
+  }
+
+  revalidatePath("/turni");
+  // Anche la Supervisione: da li' il responsabile modifica i turni.
+  revalidatePath("/supervisione");
+  return { ok: true, id, richiede };
+}
+
+export async function eliminaTurno(id: string): Promise<ActionResult> {
+  const user = await requireCapo();
+
+  const supabase = await createClient();
+
+  // La data prima di cancellare: se era l'ultimo turno della settimana,
+  // la settimana torna bozza.
+  const { data: turno } = await supabase
+    .from("shifts")
+    .select("date")
+    .eq("id", id)
+    .maybeSingle();
+
+  const { error } = await supabase.from("shifts").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  if (turno?.date) {
+    await riportaInBozzaSeVuota(supabase, user.company_id, mondayOf(turno.date));
+  }
 
   revalidatePath("/turni");
   // Anche la Supervisione: da li' il responsabile modifica i turni.
@@ -185,15 +265,32 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function eliminaTurno(id: string): Promise<ActionResult> {
-  await requireCapo();
+/** Svuota la settimana, bozza o pubblicata che sia. Vuota, torna bozza:
+ *  la conferma la chiede l'interfaccia, qui si esegue e basta. */
+export async function eliminaTuttiITurni(monday: string): Promise<ActionResult> {
+  const user = await requireCapo();
+
+  const parsed = day.safeParse(monday);
+  if (!parsed.success) return { ok: false, error: "Data non valida." };
+  const lunedi = mondayOf(parsed.data);
+  const giorni = weekDaysISO(lunedi);
 
   const supabase = await createClient();
-  const { error } = await supabase.from("shifts").delete().eq("id", id);
+  const { error } = await supabase
+    .from("shifts")
+    .delete()
+    .eq("company_id", user.company_id)
+    .gte("date", giorni[0])
+    .lte("date", giorni[6]);
   if (error) return { ok: false, error: error.message };
 
+  await supabase
+    .from("published_weeks")
+    .delete()
+    .eq("company_id", user.company_id)
+    .eq("monday", lunedi);
+
   revalidatePath("/turni");
-  // Anche la Supervisione: da li' il responsabile modifica i turni.
   revalidatePath("/supervisione");
   return { ok: true };
 }
