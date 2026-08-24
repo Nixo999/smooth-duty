@@ -77,6 +77,7 @@ export default async function SupervisionePage({
           department_id: string;
         }[]).map((r) => [r.profile_id, r.department_id]),
       )}
+      mioId={user.id}
       capo={user.role === "capo"}
     />
   );

@@ -31,3 +31,6 @@ export const COLONNE_ASSENZA =
 
 export const COLONNE_FASCIA =
   "id, company_id, department_id, name, start_time, end_time, required, weekdays, position";
+
+export const COLONNE_FERIE =
+  "id, company_id, profile_id, start_date, end_date, note, status, absence_id";

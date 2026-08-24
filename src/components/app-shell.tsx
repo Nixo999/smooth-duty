@@ -8,6 +8,7 @@ import {
   Eye,
   KeyRound,
   LogOut,
+  Sun,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +27,7 @@ const ICONS = {
   building: Building2,
   eye: Eye,
   prospetto: ClipboardList,
+  sun: Sun,
 } as const;
 
 export type Section = {

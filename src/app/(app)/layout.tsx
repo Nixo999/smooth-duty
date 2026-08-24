@@ -16,6 +16,8 @@ export default async function AppLayout({
     { href: "/turni", label: profile.role === "capo" ? "Turni" : "I miei turni", icon: "calendar" },
     // Anche il dipendente: serve a lui per sapere se la giornata è coperta.
     { href: "/supervisione", label: "Supervisione", icon: "eye" },
+    // Per tutti: il dipendente chiede, il responsabile conferma.
+    { href: "/ferie", label: "Ferie", icon: "sun" },
     ...(profile.role === "capo"
       ? ([
           { href: "/prospetto", label: "Prospetto", icon: "prospetto" },

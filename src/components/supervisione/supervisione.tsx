@@ -95,6 +95,7 @@ export function Supervisione({
   fasce,
   assenze,
   repartoFrequente,
+  mioId,
   capo,
 }: {
   giorno: string;
@@ -107,6 +108,8 @@ export function Supervisione({
   assenze: AbsenceDay[];
   /** Per ciascuna persona, il reparto in cui lavora piu' spesso. */
   repartoFrequente: Record<string, string>;
+  /** Il profilo di chi sta guardando: decide quale reparto viene primo. */
+  mioId: string;
   capo: boolean;
 }) {
   const router = useRouter();
@@ -147,12 +150,35 @@ export function Supervisione({
 
     const conSegmenti = new Set(segmenti.map((s) => s.departmentId ?? SENZA_REPARTO));
 
-    const elenco: { id: string; nome: string; tinta: number }[] = [
+    let elenco: { id: string; nome: string; tinta: number }[] = [
       ...reparti.map((r) => ({ id: r.id, nome: r.name, tinta: r.hue })),
       ...(conSegmenti.has(SENZA_REPARTO)
         ? [{ id: SENZA_REPARTO, nome: "Senza reparto", tinta: 220 }]
         : []),
     ];
+
+    // Al dipendente il suo reparto va per primo: apre la pagina per sapere
+    // chi c'e' con lui, non per scorrere reparti altrui. "Suo" e' quello del
+    // turno che ha quel giorno — un turno puo' spostarlo di reparto — e in
+    // un giorno di riposo quello di appartenenza. Il responsabile tiene
+    // l'ordine che ha scelto lui nelle impostazioni.
+    if (!capo) {
+      const mieiTurni = turni
+        .filter((t) => t.profile_id === mioId && t.date === giorno)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+      const mioPrincipale =
+        persone.find((p) => p.id === mioId)?.department_id ?? null;
+      const mio =
+        mieiTurni.length > 0
+          ? (mieiTurni[0].department_id ?? mioPrincipale ?? SENZA_REPARTO)
+          : mioPrincipale;
+      if (mio) {
+        elenco = [
+          ...elenco.filter((e) => e.id === mio),
+          ...elenco.filter((e) => e.id !== mio),
+        ];
+      }
+    }
 
     const gruppi = elenco.map((reparto) => {
       const suoi = segmenti.filter(
@@ -194,7 +220,7 @@ export function Supervisione({
     });
 
     return { vista, gruppi };
-  }, [turni, persone, fasce, reparti, assenze, giorno, giornoPrima]);
+  }, [turni, persone, fasce, reparti, assenze, giorno, giornoPrima, mioId, capo]);
 
   const { vista, gruppi } = dati;
   const visibili = gruppi.filter((g) => !nascosti.has(g.id));

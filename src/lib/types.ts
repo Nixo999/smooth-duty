@@ -47,6 +47,21 @@ export type Absence = {
   note: string | null;
 };
 
+/** Una richiesta di ferie: nasce "con riserva" e vale solo quando il
+ *  responsabile la conferma. L'assenza vera (causale ferie) la crea
+ *  l'approvazione, e absence_id ricorda quale, per poterla revocare. */
+export type VacationRequest = {
+  id: string;
+  company_id: string;
+  profile_id: string;
+  start_date: string; // YYYY-MM-DD
+  /** Ultimo giorno compreso: una richiesta senza fine non esiste. */
+  end_date: string;
+  note: string | null;
+  status: "richiesta" | "approvata" | "rifiutata";
+  absence_id: string | null;
+};
+
 /** Quello che di un'assenza possono vedere i colleghi: i giorni, non il
  *  perché. Arriva dalla vista `absence_days`, che il motivo non lo contiene
  *  proprio — così non c'è niente da dimenticare di nascondere. */
