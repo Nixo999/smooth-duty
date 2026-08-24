@@ -198,6 +198,33 @@ android/             guscio Capacitor per l'APK di prova
 scripts/             generazione icone e prova del lettore su un file finto
 ```
 
+## Pubblicare
+
+Su Netlify o Vercel il progetto si riconosce da solo e non serve nessuna
+configurazione, ma **le variabili d'ambiente vanno impostate a mano**:
+`.env.local` non sta in git, quindi lassù l'app non sa a quale Supabase
+collegarsi. Senza, la prima pagina risponde «Your project's URL and Key are
+required to create a Supabase client».
+
+| Variabile | Valore |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | l'indirizzo del progetto |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la *publishable key* |
+| `SUPABASE_SERVICE_ROLE_KEY` | la *secret key* |
+
+⚠️ La terza **non deve mai avere il prefisso `NEXT_PUBLIC_`**: quel prefisso
+dice a Next.js di includere il valore nel codice che arriva al browser, e la
+chiave che scavalca ogni regola di sicurezza diventerebbe leggibile a
+chiunque apra il sito.
+
+Le variabili si leggono in fase di build: dopo averle aggiunte serve un nuovo
+deploy, non basta ricaricare.
+
+⚠️ **Prima di lasciare il sito raggiungibile**, cambia la password
+dell'amministratore. Su localhost una password debole è un fastidio teorico;
+su internet è la porta d'ingresso a tutte le aziende, e alle causali di
+malattia e legge 104 che il resto dell'app protegge con cura.
+
 ## Segreti
 
 Nel repository non c'è nessuna credenziale, ed è una regola da tenere:
