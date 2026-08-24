@@ -4,6 +4,7 @@ import { Building2, CalendarDays, ClipboardList, Eye, LogOut, Users } from "luci
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
+import { CambiaLaMiaPassword } from "@/components/auth/cambia-la-mia-password";
 import { ThemeToggle } from "@/components/ui/theme";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +118,10 @@ export function AppShell({
                   <div className="my-1 flex items-center justify-between gap-2 border-t border-border px-2.5 pt-2 sm:hidden">
                     <span className="text-[13px] text-muted">Tema</span>
                     <ThemeToggle />
+                  </div>
+
+                  <div className="border-t border-border pt-1">
+                    <CambiaLaMiaPassword />
                   </div>
 
                   <form action={esci} className="border-t border-border pt-1">

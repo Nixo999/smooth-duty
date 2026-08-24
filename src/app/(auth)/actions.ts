@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
-export type FormState = { error?: string };
+/** `ok` lo usa solo il cambio password volontario: le altre azioni finiscono
+ *  con un redirect, e chi resta sulla pagina ha bisogno di sapere che è
+ *  andata bene per chiudersi il pannello da sola. */
+export type FormState = { error?: string; ok?: boolean };
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Indirizzo email non valido."),
@@ -84,6 +87,73 @@ export async function cambiaPassword(
   }
 
   redirect("/turni");
+}
+
+const miaPasswordSchema = z
+  .object({
+    attuale: z.string().min(1, "Scrivi la password che usi adesso."),
+    password: z.string().min(8, "La nuova password deve avere almeno 8 caratteri."),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    message: "Le due password non coincidono.",
+    path: ["confirm"],
+  })
+  .refine((v) => v.password !== v.attuale, {
+    message: "La nuova password è uguale a quella di adesso.",
+    path: ["password"],
+  });
+
+/** Il cambio password voluto, quello che si può fare in qualsiasi momento.
+ *  È un'altra cosa da `cambiaPassword`, che serve solo al primo accesso.
+ *
+ *  Qui si chiede anche la password di adesso e la si verifica rifacendo
+ *  l'accesso: Supabase da solo non la controlla, e senza quel passaggio
+ *  chiunque trovasse aperta l'app di un collega — su un telefono lasciato
+ *  sul bancone — potrebbe prendersi il suo account in tre secondi.
+ *
+ *  Il flag `must_change_password` non si tocca: chi ce l'ha alzato non
+ *  arriva nemmeno a vedere questo pannello, viene mandato prima alla pagina
+ *  che glielo abbassa. */
+export async function cambiaLaMiaPassword(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = miaPasswordSchema.safeParse({
+    attuale: formData.get("attuale"),
+    password: formData.get("password"),
+    confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) redirect("/login");
+
+  const { error: accessoError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: parsed.data.attuale,
+  });
+  if (accessoError) {
+    return { error: "La password di adesso non è corretta." };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+  if (error) {
+    return {
+      error: error.message.toLowerCase().includes("different")
+        ? "Scegli una password diversa da quella di adesso."
+        : "Non è stato possibile salvare la password.",
+    };
+  }
+
+  return { ok: true };
 }
 
 export async function esci() {
