@@ -8,44 +8,24 @@ import {
 } from "@/lib/colonne";
 import { toISODate } from "@/lib/date";
 import { createClient } from "@/lib/supabase/server";
-import { vistaGiorno, vistaPeriodo } from "@/lib/supervisione/vista";
 import type { AbsenceDay, CoverageBand, Department, Profile, Shift } from "@/lib/types";
 import { addDays } from "@/lib/week";
-
-type Livello = "giorno" | "mese" | "anno";
-
-/** Gli estremi del periodo mostrato, compresi. */
-function estremi(livello: Livello, dentro: string) {
-  if (livello === "giorno") return { da: dentro, a: dentro };
-
-  const [y, m] = dentro.split("-").map(Number);
-  if (livello === "mese") {
-    // Giorno zero del mese dopo: l'ultimo di questo, senza tabelle di giorni.
-    const ultimo = new Date(Date.UTC(y, m, 0));
-    return { da: `${y}-${String(m).padStart(2, "0")}-01`, a: toISODate(ultimo) };
-  }
-  return { da: `${y}-01-01`, a: `${y}-12-31` };
-}
 
 export default async function SupervisionePage({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string; d?: string }>;
+  searchParams: Promise<{ g?: string }>;
 }) {
   const user = await requireMember();
-  const { v, d } = await searchParams;
+  const { g } = await searchParams;
 
-  const livello: Livello =
-    v === "mese" ? "mese" : v === "anno" ? "anno" : "giorno";
-  const dentro = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : toISODate(new Date());
-  const { da, a } = estremi(livello, dentro);
+  const giorno = g && /^\d{4}-\d{2}-\d{2}$/.test(g) ? g : toISODate(new Date());
+  const giornoPrima = addDays(giorno, -1);
 
   const supabase = await createClient();
 
-  // Si parte dal giorno prima: un turno 18:00–02:00 copre le prime ore del
-  // giorno dopo, e senza guardare indietro quelle sembrerebbero scoperte.
-  const primo = addDays(da, -1);
-
+  // Si leggono due giorni, non uno: un turno 18:00–02:00 di ieri copre le
+  // prime ore di oggi, e senza guardare indietro la notte sembrerebbe scoperta.
   const [persone, turni, reparti, fasce, assenze] = await Promise.all([
     supabase
       .from("profiles")
@@ -57,8 +37,7 @@ export default async function SupervisionePage({
       .from("shifts")
       .select(COLONNE_TURNO)
       .eq("company_id", user.company_id)
-      .gte("date", primo)
-      .lte("date", a)
+      .in("date", [giornoPrima, giorno])
       .order("start_time"),
     supabase
       .from("departments")
@@ -75,49 +54,19 @@ export default async function SupervisionePage({
     supabase
       .from("absence_days")
       .select("id, profile_id, start_date, end_date")
-      .lte("start_date", a)
-      .or(`end_date.is.null,end_date.gte.${primo}`),
+      .lte("start_date", giorno)
+      .or(`end_date.is.null,end_date.gte.${giornoPrima}`),
   ]);
-
-  const elencoPersone = (persone.data ?? []) as Profile[];
-  const elencoTurni = (turni.data ?? []) as Shift[];
-  const elencoReparti = (reparti.data ?? []) as Department[];
-  const elencoFasce = (fasce.data ?? []) as CoverageBand[];
-  const elencoAssenze = (assenze.data ?? []) as AbsenceDay[];
-
-  // Il conto si fa qui: un anno di turni sono migliaia di righe, e mandarle
-  // tutte al browser per farle sommare lì sarebbe mezzo megabyte di dati per
-  // mostrare venti numeri.
-  const vista =
-    livello === "giorno"
-      ? vistaGiorno({
-          giorno: da,
-          turni: elencoTurni,
-          persone: elencoPersone,
-          reparti: elencoReparti,
-          fasce: elencoFasce,
-          assenze: elencoAssenze,
-        })
-      : vistaPeriodo({
-          tipo: livello,
-          da,
-          a,
-          turni: elencoTurni,
-          persone: elencoPersone,
-          reparti: elencoReparti,
-          fasce: elencoFasce,
-          assenze: elencoAssenze,
-        });
 
   return (
     <Supervisione
-      livello={livello}
-      dentro={dentro}
-      da={da}
-      a={a}
-      vista={vista}
-      reparti={elencoReparti}
-      fasce={elencoFasce}
+      giorno={giorno}
+      giornoPrima={giornoPrima}
+      persone={(persone.data ?? []) as Profile[]}
+      turni={(turni.data ?? []) as Shift[]}
+      reparti={(reparti.data ?? []) as Department[]}
+      fasce={(fasce.data ?? []) as CoverageBand[]}
+      assenze={(assenze.data ?? []) as AbsenceDay[]}
       capo={user.role === "capo"}
     />
   );

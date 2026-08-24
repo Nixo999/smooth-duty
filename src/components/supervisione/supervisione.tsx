@@ -12,70 +12,122 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { RepartiSheet } from "@/components/supervisione/reparti-sheet";
 import { Button } from "@/components/ui/button";
-import { ETICHETTA } from "@/lib/assenze";
-import { dayLong, formatDuration, fromISODate, toISODate } from "@/lib/date";
-import { oraDa, tintaDa, type Segmento } from "@/lib/supervisione/copertura";
-import type {
-  BucoEtichettato,
-  PersonaGiorno,
-  PersonaPeriodo,
-  Vista,
-  VistaGiorno,
-  VistaPeriodo,
-} from "@/lib/supervisione/vista";
-import type { CoverageBand, Department } from "@/lib/types";
+import { dayLong, fromISODate, isToday, toISODate } from "@/lib/date";
+import {
+  buchi as calcolaBuchi,
+  copertura,
+  fasceDelGiorno,
+  intervalloVisibile,
+  oraDa,
+  segmentiDelGiorno,
+  tintaDa,
+  type Segmento,
+} from "@/lib/supervisione/copertura";
+import type { AbsenceDay, CoverageBand, Department, Profile, Shift } from "@/lib/types";
+import { addDays } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
-type Livello = "giorno" | "mese" | "anno";
+const SENZA_REPARTO = "__senza__";
 
-const MESI = [
-  "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
-  "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre",
-];
-
-function sposta(livello: Livello, dentro: string, passo: number): string {
-  const d = new Date(`${dentro}T12:00:00`);
-  if (livello === "giorno") d.setDate(d.getDate() + passo);
-  else if (livello === "mese") d.setMonth(d.getMonth() + passo, 1);
-  else d.setFullYear(d.getFullYear() + passo, 0, 1);
-  return toISODate(d);
-}
+type Riga = { chiave: string; nome: string; tinta: number; segmenti: Segmento[] };
 
 export function Supervisione({
-  livello,
-  dentro,
-  da,
-  a,
-  vista,
+  giorno,
+  giornoPrima,
+  persone,
+  turni,
   reparti,
   fasce,
+  assenze,
   capo,
 }: {
-  livello: Livello;
-  dentro: string;
-  da: string;
-  a: string;
-  vista: Vista;
+  giorno: string;
+  giornoPrima: string;
+  persone: Profile[];
+  turni: Shift[];
   reparti: Department[];
   fasce: CoverageBand[];
+  /** Solo i giorni: qui il motivo non arriva nemmeno dal server. */
+  assenze: AbsenceDay[];
   capo: boolean;
 }) {
   const router = useRouter();
   const [impostazioni, setImpostazioni] = React.useState(false);
-  const [inCorso, start] = React.useTransition();
+  const [inCorso, startNavigazione] = React.useTransition();
 
-  const vai = (v: Livello, d: string) =>
-    start(() => router.push(`/supervisione?v=${v}&d=${d}`, { scroll: false }));
+  const vai = (g: string) =>
+    startNavigazione(() => router.push(`/supervisione?g=${g}`, { scroll: false }));
 
-  const oggi = toISODate(new Date());
-  const corrente = oggi >= da && oggi <= a;
+  const dati = React.useMemo(() => {
+    const segmenti = segmentiDelGiorno(turni, persone, giorno, giornoPrima, assenze);
+    const fasceOggi = fasceDelGiorno(
+      fasce.map((f) => ({ ...f, weekdays: f.weekdays ?? [] })),
+      giorno,
+    );
 
-  const titolo =
-    livello === "giorno"
-      ? dayLong(fromISODate(da))
-      : livello === "mese"
-        ? `${MESI[Number(da.slice(5, 7)) - 1]} ${da.slice(0, 4)}`
-        : da.slice(0, 4);
+    // Un asse solo per tutti i reparti: con scale diverse due colonne alla
+    // stessa altezza vorrebbero dire ore diverse, ed e' proprio il confronto
+    // che questa pagina deve permettere.
+    const vista = intervalloVisibile(segmenti, fasceOggi);
+
+    const conSegmenti = new Set(segmenti.map((s) => s.departmentId ?? SENZA_REPARTO));
+
+    const elenco: { id: string; nome: string; tinta: number }[] = [
+      ...reparti.map((r) => ({ id: r.id, nome: r.name, tinta: r.hue })),
+      ...(conSegmenti.has(SENZA_REPARTO)
+        ? [{ id: SENZA_REPARTO, nome: "Senza reparto", tinta: 220 }]
+        : []),
+    ];
+
+    const gruppi = elenco.map((reparto) => {
+      const suoi = segmenti.filter(
+        (s) => (s.departmentId ?? SENZA_REPARTO) === reparto.id,
+      );
+      const sueFasce = fasceOggi.filter((f) => f.departmentId === reparto.id);
+
+      // Una riga per persona: chi fa un turno spezzato resta su una riga sola,
+      // con due barre. I turni scoperti prendono una riga per ciascuno.
+      const perRiga = new Map<string, Riga>();
+      for (const s of suoi) {
+        const chiave = s.profileId ?? `scoperto:${s.turnoId}`;
+        const esistente = perRiga.get(chiave);
+        if (esistente) esistente.segmenti.push(s);
+        else
+          perRiga.set(chiave, {
+            chiave,
+            nome: s.nome,
+            tinta: s.profileId ? tintaDa(s.profileId) : 40,
+            segmenti: [s],
+          });
+      }
+
+      const righe = [...perRiga.values()].sort(
+        (a, b) => a.segmenti[0].da - b.segmenti[0].da || a.nome.localeCompare(b.nome),
+      );
+
+      const fette = copertura(suoi, sueFasce, vista.da, vista.a);
+      return {
+        ...reparto,
+        righe,
+        fasce: sueFasce,
+        fette,
+        buchi: calcolaBuchi(fette),
+        persone: new Set(
+          suoi.filter((s) => s.profileId && !s.assenza).map((s) => s.profileId),
+        ).size,
+      };
+    });
+
+    return { vista, gruppi };
+  }, [turni, persone, fasce, reparti, assenze, giorno, giornoPrima]);
+
+  const { vista, gruppi } = dati;
+  const ore = (vista.a - vista.da) / 60;
+  const larghezzaMinima = Math.max(560, ore * 62);
+  const pct = (m: number) => ((m - vista.da) / (vista.a - vista.da)) * 100;
+
+  const oreIntere: number[] = [];
+  for (let m = Math.ceil(vista.da / 60) * 60; m <= vista.a; m += 60) oreIntere.push(m);
 
   return (
     <div className="space-y-4">
@@ -84,8 +136,8 @@ export function Supervisione({
           <div className="flex items-center rounded-lg border border-border bg-surface shadow-soft">
             <button
               type="button"
-              aria-label="Periodo precedente"
-              onClick={() => vai(livello, sposta(livello, dentro, -1))}
+              aria-label="Giorno precedente"
+              onClick={() => vai(addDays(giorno, -1))}
               className="tap grid h-9 w-9 place-items-center rounded-l-lg text-muted hover:bg-surface-2 hover:text-text"
             >
               <ChevronLeft className="size-4" />
@@ -93,8 +145,8 @@ export function Supervisione({
             <span className="w-px self-stretch bg-border" />
             <button
               type="button"
-              aria-label="Periodo successivo"
-              onClick={() => vai(livello, sposta(livello, dentro, 1))}
+              aria-label="Giorno successivo"
+              onClick={() => vai(addDays(giorno, 1))}
               className="tap grid h-9 w-9 place-items-center rounded-r-lg text-muted hover:bg-surface-2 hover:text-text"
             >
               <ChevronRight className="size-4" />
@@ -106,57 +158,174 @@ export function Supervisione({
             aria-live="polite"
             data-pending={inCorso || undefined}
           >
-            {titolo}
+            {dayLong(fromISODate(giorno))}
           </p>
 
-          {!corrente ? (
-            <Button variant="ghost" size="sm" onClick={() => vai(livello, oggi)}>
+          {!isToday(fromISODate(giorno)) ? (
+            <Button variant="ghost" size="sm" onClick={() => vai(toISODate(new Date()))}>
               Oggi
             </Button>
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div
-            role="radiogroup"
-            aria-label="Livello"
-            className="flex items-center gap-0.5 rounded-full bg-surface-3 p-0.5"
-          >
-            {(["giorno", "mese", "anno"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={livello === v}
-                onClick={() => vai(v, dentro)}
-                className={cn(
-                  "tap h-7 rounded-full px-3 text-[13px] font-medium capitalize",
-                  livello === v
-                    ? "bg-surface text-text shadow-soft"
-                    : "text-muted hover:text-text",
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
-          {capo ? (
-            <Button variant="secondary" size="sm" onClick={() => setImpostazioni(true)}>
-              <Settings2 className="size-3.5" />
-              <span className="hidden sm:inline">Reparti e coperture</span>
-            </Button>
-          ) : null}
-        </div>
+        {capo ? (
+          <Button variant="secondary" size="sm" onClick={() => setImpostazioni(true)}>
+            <Settings2 className="size-3.5" />
+            <span className="hidden sm:inline">Reparti e coperture</span>
+            <span className="sm:hidden">Reparti</span>
+          </Button>
+        ) : null}
       </div>
 
-      {reparti.length === 0 ? (
+      {gruppi.length === 0 ? (
         <Vuoto capo={capo} onApri={() => setImpostazioni(true)} />
-      ) : vista.tipo === "giorno" ? (
-        <GiornataIntera vista={vista} />
       ) : (
-        <PeriodoIntero vista={vista} />
+        <div className="stagger space-y-4">
+          {gruppi.map((g) => (
+            <section
+              key={g.id}
+              className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card"
+            >
+              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-2 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="pastiglia-reparto rounded-full px-2.5 py-1 text-[12.5px] font-semibold uppercase tracking-wide"
+                    style={{ ["--tinta" as string]: g.tinta }}
+                  >
+                    {g.nome}
+                  </span>
+                  <span className="text-[12.5px] text-muted">
+                    {g.persone} {g.persone === 1 ? "persona" : "persone"}
+                  </span>
+                </div>
+                <Stato buchi={g.buchi.length} conRegole={g.fasce.length > 0} />
+              </header>
+
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: larghezzaMinima }} className="px-4 pb-3 pt-2">
+                  {/* asse delle ore */}
+                  <div className="relative mb-1.5 h-4">
+                    {oreIntere.map((m) => (
+                      <span
+                        key={m}
+                        className="absolute -translate-x-1/2 text-[11px] tabular-nums text-faint"
+                        style={{ left: `${pct(m)}%` }}
+                      >
+                        {oraDa(m).slice(0, 2)}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1">
+                    {g.righe.length === 0 ? (
+                      <p className="py-3 text-center text-[13px] text-faint">
+                        Nessuno in turno in questo giorno
+                      </p>
+                    ) : (
+                      g.righe.map((riga) => (
+                        <Corsia key={riga.chiave} ore={oreIntere} pct={pct}>
+                          {riga.segmenti.map((s) => (
+                            <span
+                              key={s.turnoId}
+                              className={cn(
+                                "barra absolute inset-y-0 flex items-center overflow-hidden rounded-md px-2",
+                                !s.profileId && "border-dashed",
+                                s.assenza && "assente",
+                              )}
+                              style={{
+                                ["--tinta" as string]: riga.tinta,
+                                left: `${pct(s.da)}%`,
+                                width: `${pct(s.a) - pct(s.da)}%`,
+                              }}
+                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}`}
+                            >
+                              <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
+                                {s.daPrima ? "◂ " : ""}
+                                {riga.nome}
+                                {s.finoADopo ? " ▸" : ""}
+                              </span>
+                              <span className="orario ml-1.5 shrink-0 truncate text-[11px] tabular-nums opacity-70">
+                                {s.assenza ? "assente" : `${oraDa(s.da)}–${oraDa(s.a)}`}
+                              </span>
+                            </span>
+                          ))}
+                        </Corsia>
+                      ))
+                    )}
+                  </div>
+
+                  {/* quanto serve, e quanto e' coperto */}
+                  <div className="mt-3 border-t border-border pt-2.5">
+                    {g.fasce.length > 0 ? (
+                      <Corsia ore={oreIntere} pct={pct} alta={false}>
+                        {g.fasce.map((f) => (
+                          <span
+                            key={`${f.id}-${f.da}`}
+                            className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded border border-dashed border-border-strong bg-surface-3 px-1.5 text-[11px] text-muted"
+                            style={{
+                              left: `${pct(f.da)}%`,
+                              width: `${pct(f.a) - pct(f.da)}%`,
+                            }}
+                            title={`${f.nome}: servono ${f.richiesti} · ${oraDa(f.da)}–${oraDa(f.a)}`}
+                          >
+                            <span className="truncate">
+                              {f.nome} · {f.richiesti}
+                            </span>
+                          </span>
+                        ))}
+                      </Corsia>
+                    ) : null}
+
+                    <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-surface-3">
+                      {g.fette.map((f) => (
+                        <span
+                          key={f.da}
+                          className={cn(
+                            "h-full",
+                            f.richiesti === 0
+                              ? "bg-transparent"
+                              : f.presenti >= f.richiesti
+                                ? "bg-success"
+                                : "bg-danger",
+                          )}
+                          style={{ width: `${(100 * (f.a - f.da)) / (vista.a - vista.da)}%` }}
+                          title={`${oraDa(f.da)}–${oraDa(f.a)}: ${f.presenti} presenti su ${f.richiesti} richiesti`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {g.buchi.length > 0 ? (
+                <ul className="space-y-1 border-t border-border bg-danger-soft px-4 py-3">
+                  {g.buchi.map((b) => (
+                    <li
+                      key={b.da}
+                      className="flex items-center gap-2 text-[13px] text-danger"
+                    >
+                      <AlertTriangle className="size-3.5 shrink-0" />
+                      <span>
+                        <strong className="tabular-nums">
+                          {oraDa(b.da)}–{oraDa(b.a)}
+                        </strong>{" "}
+                        scoperto: servono {b.richiesti},{" "}
+                        {b.presenti === 0
+                          ? "non c'è nessuno"
+                          : b.presenti === 1
+                            ? "c'è una persona"
+                            : `ce ne sono ${b.presenti}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ))}
+        </div>
       )}
+
+      <Legenda />
 
       {impostazioni ? (
         <RepartiSheet
@@ -169,462 +338,81 @@ export function Supervisione({
   );
 }
 
-/* =================================================================== giorno */
-
-function GiornataIntera({ vista }: { vista: VistaGiorno }) {
-  const { finestra } = vista;
-  const ore = (finestra.a - finestra.da) / 60;
-  const larghezza = Math.max(520, ore * 58);
-  const pct = (m: number) => ((m - finestra.da) / (finestra.a - finestra.da)) * 100;
-
-  const oreIntere: number[] = [];
-  for (let m = Math.ceil(finestra.da / 60) * 60; m <= finestra.a; m += 60) {
-    oreIntere.push(m);
-  }
-
-  const inTurno = vista.persone.filter((p) => p.segmenti.length > 0);
-  const riposo = vista.persone.filter((p) => p.segmenti.length === 0);
-
-  return (
-    <div className="space-y-4">
-      <Mancanze
-        minuti={vista.minutiScoperti}
-        righe={vista.buchi}
-        daAssegnare={vista.daAssegnare}
-      />
-
-      {inTurno.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
-          Nessuno in turno in questo giorno.
-        </p>
-      ) : (
-        <div className="stagger space-y-2.5">
-          {inTurno.map((p) => (
-            <SchedaPersona
-              key={p.id}
-              persona={p}
-              pct={pct}
-              ore={oreIntere}
-              larghezza={larghezza}
-            />
-          ))}
-        </div>
-      )}
-
-      {riposo.length > 0 ? (
-        <div className="rounded-2xl border border-border bg-surface px-4 py-3 shadow-soft">
-          <p className="text-[12px] uppercase tracking-wide text-faint">
-            A riposo oggi
-          </p>
-          <p className="mt-1 text-[13.5px] text-muted">
-            {riposo.map((p) => p.nome).join(" · ")}
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function SchedaPersona({
-  persona,
-  pct,
+/** Una corsia della linea del tempo, con le righe verticali delle ore. */
+function Corsia({
   ore,
-  larghezza,
+  pct,
+  alta = true,
+  children,
 }: {
-  persona: PersonaGiorno;
-  pct: (m: number) => number;
   ore: number[];
-  larghezza: number;
+  pct: (m: number) => number;
+  alta?: boolean;
+  children: React.ReactNode;
 }) {
-  const tinta = tintaDa(persona.id);
-
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-2xl border bg-surface shadow-card",
-        persona.assenza ? "border-warning/40" : "border-border",
-      )}
-    >
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3">
-        <p className="text-[14.5px] font-semibold tracking-tight">{persona.nome}</p>
-        {persona.reparto ? (
-          <span
-            className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide"
-            style={{ ["--tinta" as string]: persona.tinta }}
-          >
-            {persona.reparto}
-          </span>
-        ) : null}
-        {persona.assenza ? (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
-            {persona.assenza} — non conta
-          </span>
-        ) : null}
-        <span className="ml-auto text-[13px] font-semibold tabular-nums text-muted">
-          {persona.assenza ? "0h" : formatDuration(persona.minuti)}
-        </span>
-      </header>
-
-      <div className="overflow-x-auto">
-        <div style={{ minWidth: larghezza }} className="px-4 pb-3.5 pt-2">
-          {/* Le ore sopra la barra: ogni scheda ha la sua riga perché
-              scorrendo un elenco lungo, un asse solo in cima si perde. */}
-          <div className="relative mb-1 h-3.5">
-            {ore.map((m) => (
-              <span
-                key={m}
-                className="absolute -translate-x-1/2 text-[10.5px] tabular-nums text-faint"
-                style={{ left: `${pct(m)}%` }}
-              >
-                {oraDa(m).slice(0, 2)}
-              </span>
-            ))}
-          </div>
-
-          <div className="relative h-9">
-            {ore.map((m) => (
-              <span
-                key={m}
-                aria-hidden
-                className="absolute inset-y-0 w-px bg-border"
-                style={{ left: `${pct(m)}%` }}
-              />
-            ))}
-
-            {persona.segmenti.map((s) => (
-              <span
-                key={s.turnoId}
-                className={cn(
-                  "barra absolute inset-y-0 flex items-center overflow-hidden rounded-lg px-2.5",
-                  persona.assenza && "assente",
-                )}
-                style={{
-                  ["--tinta" as string]: tinta,
-                  left: `${pct(s.da)}%`,
-                  width: `${pct(s.a) - pct(s.da)}%`,
-                }}
-                title={`${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}`}
-              >
-                <span className="orario truncate text-[12.5px] font-semibold tabular-nums">
-                  {s.daPrima ? "◂ " : ""}
-                  {oraDa(s.da)}–{oraDa(s.a)}
-                  {s.finoADopo ? " ▸" : ""}
-                </span>
-                {s.title ? (
-                  <span className="ml-2 truncate text-[11.5px] opacity-75">
-                    {s.title}
-                  </span>
-                ) : null}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ============================================================ mese e anno */
-
-function PeriodoIntero({ vista }: { vista: VistaPeriodo }) {
-  const massimo = Math.max(1, ...vista.persone.flatMap((p) => p.valori));
-
-  return (
-    <div className="space-y-4">
-      <MancanzePeriodo vista={vista} />
-
-      {vista.persone.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
-          Nessuno in squadra.
-        </p>
-      ) : (
-        <div className="stagger space-y-2.5">
-          {vista.persone.map((p) => (
-            <SchedaPeriodo key={p.id} persona={p} vista={vista} massimo={massimo} />
-          ))}
-        </div>
-      )}
+    <div className={cn("relative", alta ? "h-8" : "h-6")}>
+      {ore.map((m) => (
+        <span
+          key={m}
+          aria-hidden
+          className="absolute inset-y-0 w-px bg-border"
+          style={{ left: `${pct(m)}%` }}
+        />
+      ))}
+      {children}
     </div>
   );
 }
 
-/** Etichette sotto le colonne: nel mese una ogni cinque giorni, altrimenti
- *  diventano una riga illeggibile di numeri appiccicati. */
-function mostraEtichetta(vista: VistaPeriodo, i: number) {
-  return vista.tipo === "anno" || i === 0 || (i + 1) % 5 === 0;
-}
-
-function SchedaPeriodo({
-  persona,
-  vista,
-  massimo,
-}: {
-  persona: PersonaPeriodo;
-  vista: VistaPeriodo;
-  massimo: number;
-}) {
-  const differenza =
-    persona.attesi === null ? null : persona.minuti - persona.attesi;
-
+function Stato({ buchi, conRegole }: { buchi: number; conRegole: boolean }) {
+  if (!conRegole) {
+    return (
+      <span className="rounded-full bg-surface-3 px-2.5 py-1 text-[12px] text-muted">
+        Nessuna regola di copertura
+      </span>
+    );
+  }
+  if (buchi === 0) {
+    return (
+      <span className="flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[12px] font-medium text-success">
+        <CheckCircle2 className="size-3.5" />
+        Coperto
+      </span>
+    );
+  }
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3">
-        <p className="text-[14.5px] font-semibold tracking-tight">{persona.nome}</p>
-        {persona.reparto ? (
-          <span
-            className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide"
-            style={{ ["--tinta" as string]: persona.tinta }}
-          >
-            {persona.reparto}
-          </span>
-        ) : null}
-        <span className="ml-auto text-[13px] font-semibold tabular-nums">
-          {formatDuration(persona.minuti)}
-          {persona.attesi !== null ? (
-            <span className="font-normal text-muted">
-              {" "}
-              di {formatDuration(Math.round(persona.attesi))}
-            </span>
-          ) : null}
-        </span>
-      </header>
-
-      <div className="px-4 pb-2 pt-3">
-        <div
-          className="flex h-12 items-end gap-px"
-          role="img"
-          aria-label={`Ore lavorate per ${vista.tipo === "mese" ? "giorno" : "mese"}`}
-        >
-          {persona.valori.map((v, i) => (
-            <span
-              key={vista.colonne[i].chiave}
-              className={cn(
-                "min-w-[3px] flex-1 rounded-sm",
-                v > 0 ? "bg-accent" : "bg-surface-3",
-              )}
-              style={{ height: v > 0 ? `${Math.max(8, (v / massimo) * 100)}%` : "3px" }}
-              title={`${vista.colonne[i].etichetta}: ${v > 0 ? formatDuration(v) : "niente"}`}
-            />
-          ))}
-        </div>
-
-        <div className="mt-1 flex gap-px">
-          {vista.colonne.map((c, i) => (
-            <span
-              key={c.chiave}
-              className="min-w-[3px] flex-1 text-center text-[9.5px] tabular-nums text-faint"
-            >
-              {mostraEtichetta(vista, i) ? c.corta : ""}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-surface-2 px-4 py-2.5 text-[12.5px]">
-        {differenza !== null ? (
-          <span
-            className={cn(
-              "tabular-nums",
-              Math.abs(differenza) < 60
-                ? "text-success"
-                : differenza > 0
-                  ? "text-warning"
-                  : "text-muted",
-            )}
-          >
-            {differenza >= 0 ? "+" : "−"}
-            {formatDuration(Math.abs(Math.round(differenza)))} sul contratto
-          </span>
-        ) : (
-          <span className="text-muted">a chiamata</span>
-        )}
-
-        {persona.turniSaltati > 0 ? (
-          <span className="text-warning">
-            {persona.turniSaltati}{" "}
-            {persona.turniSaltati === 1 ? "turno saltato" : "turni saltati"} ·{" "}
-            {formatDuration(persona.minutiPersi)}
-          </span>
-        ) : null}
-
-        {persona.assenze.map((c) => (
-          <span key={c.causale} className="text-muted">
-            {ETICHETTA(c.causale)} · {c.giorni}
-            {c.giorni === 1 ? " giorno" : " giorni"}
-          </span>
-        ))}
-      </footer>
-    </section>
+    <span className="flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-[12px] font-medium text-danger">
+      <AlertTriangle className="size-3.5" />
+      {buchi} {buchi === 1 ? "buco" : "buchi"}
+    </span>
   );
 }
 
-/* ================================================================ mancanze */
-
-function Mancanze({
-  minuti,
-  righe,
-  daAssegnare,
-}: {
-  minuti: number;
-  righe: BucoEtichettato[];
-  daAssegnare: Segmento[];
-}) {
-  const nulla = righe.length === 0 && daAssegnare.length === 0;
-
+function Legenda() {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-      <header
-        className={cn(
-          "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3",
-          nulla ? "bg-success-soft" : "bg-danger-soft",
-        )}
-      >
-        {nulla ? (
-          <CheckCircle2 className="size-4 shrink-0 text-success" />
-        ) : (
-          <AlertTriangle className="size-4 shrink-0 text-danger" />
-        )}
-        <p
-          className={cn(
-            "text-[14px] font-semibold",
-            nulla ? "text-success" : "text-danger",
-          )}
-        >
-          {nulla ? "Tutto coperto" : `${formatDuration(minuti)} scoperte`}
-        </p>
-        {!nulla ? (
-          <span className="text-[12.5px] text-danger/80">
-            {righe.length} {righe.length === 1 ? "mancanza" : "mancanze"}
-            {daAssegnare.length > 0
-              ? ` · ${daAssegnare.length} da assegnare`
-              : ""}
-          </span>
-        ) : null}
-      </header>
-
-      {!nulla ? (
-        <ul className="divide-y divide-border">
-          {righe.map((b, i) => (
-            <li
-              key={`${b.reparto}-${b.da}-${i}`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]"
-            >
-              <span className="font-semibold tabular-nums">
-                {oraDa(b.da)}–{oraDa(b.a)}
-              </span>
-              <span
-                className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide"
-                style={{ ["--tinta" as string]: b.tinta }}
-              >
-                {b.reparto}
-              </span>
-              <span className="text-muted">
-                servono {b.richiesti},{" "}
-                {b.presenti === 0
-                  ? "non c'è nessuno"
-                  : b.presenti === 1
-                    ? "c'è una persona"
-                    : `ce ne sono ${b.presenti}`}
-              </span>
-            </li>
-          ))}
-
-          {daAssegnare.map((s) => (
-            <li
-              key={s.turnoId}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]"
-            >
-              <span className="font-semibold tabular-nums">
-                {oraDa(s.da)}–{oraDa(s.a)}
-              </span>
-              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
-                da assegnare
-              </span>
-              {s.title ? <span className="text-muted">{s.title}</span> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  );
-}
-
-function MancanzePeriodo({ vista }: { vista: VistaPeriodo }) {
-  const nulla = vista.minutiScoperti === 0;
-  const massimo = Math.max(1, ...vista.scopertiPerColonna);
-
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-      <header
-        className={cn(
-          "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3",
-          nulla ? "bg-success-soft" : "bg-danger-soft",
-        )}
-      >
-        {nulla ? (
-          <CheckCircle2 className="size-4 shrink-0 text-success" />
-        ) : (
-          <AlertTriangle className="size-4 shrink-0 text-danger" />
-        )}
-        <p
-          className={cn(
-            "text-[14px] font-semibold",
-            nulla ? "text-success" : "text-danger",
-          )}
-        >
-          {nulla
-            ? "Nessuna mancanza nel periodo"
-            : `${formatDuration(vista.minutiScoperti)} scoperte`}
-        </p>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-[12px] text-muted">
+      <span className="flex items-center gap-1.5">
+        <span className="h-2 w-6 rounded-full bg-success" />
+        abbastanza persone
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-2 w-6 rounded-full bg-danger" />
+        ne mancano
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-2 w-6 rounded-full bg-surface-3" />
+        nessuna regola per quell&apos;ora
+      </span>
+      <span className="flex items-center gap-1.5">
         <span
-          className={cn(
-            "text-[12.5px]",
-            nulla ? "text-success/80" : "text-danger/80",
-          )}
-        >
-          {nulla
-            ? `su ${vista.giorni - vista.giorniSenzaTurni} giorni pianificati`
-            : `in ${vista.giorniConBuchi} ${vista.giorniConBuchi === 1 ? "giorno" : "giorni"} su ${vista.giorni - vista.giorniSenzaTurni} pianificati`}
-        </span>
-        {vista.giorniSenzaTurni > 0 ? (
-          <span className="ml-auto text-[12.5px] text-muted">
-            {vista.giorniSenzaTurni}{" "}
-            {vista.giorniSenzaTurni === 1 ? "giorno" : "giorni"} senza turni —
-            tabellone non ancora fatto
-          </span>
-        ) : null}
-      </header>
-
-      {!nulla ? (
-        <div className="px-4 pb-3 pt-3.5">
-          <div className="flex h-10 items-end gap-px">
-            {vista.scopertiPerColonna.map((v, i) => (
-              <span
-                key={vista.colonne[i].chiave}
-                className={cn(
-                  "min-w-[3px] flex-1 rounded-sm",
-                  v > 0 ? "bg-danger" : "bg-surface-3",
-                )}
-                style={{
-                  height: v > 0 ? `${Math.max(10, (v / massimo) * 100)}%` : "3px",
-                }}
-                title={`${vista.colonne[i].etichetta}: ${v > 0 ? `${formatDuration(v)} scoperte` : "tutto coperto"}`}
-              />
-            ))}
-          </div>
-          <div className="mt-1 flex gap-px">
-            {vista.colonne.map((c, i) => (
-              <span
-                key={c.chiave}
-                className="min-w-[3px] flex-1 text-center text-[9.5px] tabular-nums text-faint"
-              >
-                {mostraEtichetta(vista, i) ? c.corta : ""}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </section>
+          className="barra assente h-3 w-6 rounded"
+          style={{ ["--tinta" as string]: 210 }}
+        />
+        assente: il turno resta visibile ma non conta
+      </span>
+      <span>◂ ▸ il turno continua nel giorno prima o dopo</span>
+    </div>
   );
 }
 
@@ -638,7 +426,7 @@ function Vuoto({ capo, onApri }: { capo: boolean; onApri: () => void }) {
         <p className="text-[15px] font-medium">Nessun reparto</p>
         <p className="mt-1 text-[13.5px] text-muted">
           {capo
-            ? "I reparti servono a sapere quante persone servono in ogni fascia: senza, questa pagina non può dire se manca qualcuno."
+            ? "Crea i reparti e di' quante persone servono in ogni fascia: da lì in poi questa pagina dice da sola se la giornata è coperta."
             : "Il responsabile non ha ancora impostato i reparti."}
         </p>
       </div>
