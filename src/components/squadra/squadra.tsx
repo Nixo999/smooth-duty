@@ -1,15 +1,16 @@
 "use client";
 
-import { KeyRound, Plus, Trash2, UserCog } from "lucide-react";
+import { KeyRound, LogIn, Plus, Trash2, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import {
-  aggiungiPersona,
+  creaAccesso,
   modificaPersona,
   reimpostaPassword,
   rimuoviPersona,
 } from "@/app/(app)/squadra/actions";
+import { AggiungiPersone } from "@/components/squadra/aggiungi-persone";
 import {
   CampiRapporto,
   etichettaRapporto,
@@ -106,6 +107,14 @@ export function Squadra({
                       {ETICHETTA(assenzaAperta(assenze, p.id)?.type)}
                     </span>
                   ) : null}
+                  {!p.user_id ? (
+                    <span
+                      className="rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-medium text-muted"
+                      title="Sta in squadra e va in turno, ma non può entrare nell'app"
+                    >
+                      nessun accesso
+                    </span>
+                  ) : null}
                   {p.must_change_password ? (
                     <span
                       className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent"
@@ -116,7 +125,7 @@ export function Squadra({
                   ) : null}
                 </div>
                 <p className="truncate text-[13px] text-muted">
-                  {p.email}
+                  {p.email ?? "—"}
                   {rapporto ? ` · ${rapporto}` : ""}
                 </p>
               </div>
@@ -135,7 +144,7 @@ export function Squadra({
       </ul>
 
       {adding ? (
-        <AddDialog
+        <AggiungiPersone
           reparti={reparti}
           onClose={() => setAdding(false)}
           onDone={() => {
@@ -162,90 +171,88 @@ export function Squadra({
   );
 }
 
-function AddDialog({
-  reparti,
-  onClose,
-  onDone,
+/** Dare l'accesso a chi è già in squadra ma finora non entrava nell'app. */
+function DaiAccesso({
+  person,
+  onFatto,
 }: {
-  reparti: Department[];
-  onClose: () => void;
-  onDone: () => void;
+  person: Profile;
+  onFatto: () => void;
 }) {
-  const [pending, startTransition] = React.useTransition();
+  const [attesa, start] = React.useTransition();
+  const [aperto, setAperto] = React.useState(false);
   const [password, setPassword] = React.useState(generatePassword);
-  const [rapporto, setRapporto] = React.useState<Rapporto>({
-    department_id: null,
-    on_call: false,
-    contract_hours: 40,
-  });
 
-  function onSubmit(formData: FormData) {
-    startTransition(async () => {
-      const result = await aggiungiPersona({
-        fullName: String(formData.get("fullName")),
-        email: String(formData.get("email")),
-        password: String(formData.get("password")),
-        role: String(formData.get("role")) as Role,
-        ...rapporto,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
+  function crea(formData: FormData) {
+    start(async () => {
+      const r = await creaAccesso(
+        person.id,
+        String(formData.get("email")),
+        String(formData.get("password")),
+      );
+      if (!r.ok) {
+        toast.error(r.error);
         return;
       }
-      toast.success("Persona aggiunta.");
-      onDone();
+      toast.success("Accesso creato. Consegna email e password.");
+      onFatto();
     });
   }
 
+  if (!aperto) {
+    return (
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 p-3.5">
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-medium">Nessun accesso</p>
+          <p className="text-[12.5px] text-muted">
+            Va in turno e compare nei conti, ma nell&apos;app non può entrare.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setPassword(generatePassword());
+            setAperto(true);
+          }}
+        >
+          <LogIn className="size-3.5" />
+          Dai accesso
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <Modal
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title="Aggiungi persona"
-      description="Consegnale email e password: le serviranno per entrare."
-      footer={
-        <>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Annulla
-          </Button>
-          <Button type="submit" form="add-person" loading={pending}>
-            Aggiungi
-          </Button>
-        </>
-      }
+    <form
+      action={crea}
+      className="mt-4 space-y-3 rounded-xl border border-border bg-surface-2 p-3.5"
     >
-      <form id="add-person" action={onSubmit} className="space-y-4">
-        <Field label="Nome e cognome" htmlFor="fullName">
-          <Input id="fullName" name="fullName" placeholder="Giulia Bianchi" required />
-        </Field>
-
-        <Field label="Email" htmlFor="email">
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="giulia@azienda.it"
-            required
-          />
-        </Field>
-
-        <PasswordField value={password} onChange={setPassword} />
-
-        <Field label="Ruolo" htmlFor="role">
-          <Select id="role" name="role" defaultValue="dipendente">
-            <option value="dipendente">Dipendente — vede solo i suoi turni</option>
-            <option value="capo">Responsabile — gestisce turni e squadra</option>
-          </Select>
-        </Field>
-
-        <CampiRapporto
-          reparti={reparti}
-          valore={rapporto}
-          onChange={setRapporto}
-          idPrefisso="nuovo-"
+      <Field label="Email" htmlFor="accesso-email">
+        <Input
+          id="accesso-email"
+          name="email"
+          type="email"
+          placeholder="nome@azienda.it"
+          required
         />
-      </form>
-    </Modal>
+      </Field>
+      <PasswordField value={password} onChange={setPassword} />
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setAperto(false)}
+        >
+          Annulla
+        </Button>
+        <Button type="submit" size="sm" loading={attesa}>
+          Crea accesso
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -323,7 +330,7 @@ function EditDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title={person.full_name}
-      description={person.email}
+      description={person.email ?? "Nessun accesso"}
       footer={
         <>
           {!isSelf ? (
@@ -427,8 +434,12 @@ function EditDialog({
         onFatto={onDone}
       />
 
-      {/* Fuori dal form: e' un'azione a se', non va salvata col resto. */}
-      {!isSelf ? (
+      {/* Fuori dal form: sono azioni a se', non vanno salvate col resto. */}
+      {!person.user_id ? (
+        <DaiAccesso person={person} onFatto={onDone} />
+      ) : null}
+
+      {!isSelf && person.user_id ? (
         <div className="mt-4 rounded-xl border border-border bg-surface-2 p-3.5">
           {resetting ? (
             <div className="space-y-3">

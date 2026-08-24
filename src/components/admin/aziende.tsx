@@ -1,20 +1,22 @@
 "use client";
 
-import { Building2, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
+import { Building2, ListPlus, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import {
   creaAccountInAzienda,
   creaAzienda,
+  creaPersoneInAzienda,
   eliminaAzienda,
   rinominaAzienda,
 } from "@/app/(admin)/admin/actions";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { PasswordField } from "@/components/ui/password-field";
 import { generatePassword } from "@/lib/password";
+import { nomiDaElenco } from "@/lib/elenco";
 import type { CompanyRow, Role } from "@/lib/types";
 
 export function Aziende({ companies }: { companies: CompanyRow[] }) {
@@ -135,20 +137,33 @@ function CreateDialog({
 }) {
   const [pending, startTransition] = React.useTransition();
   const [password, setPassword] = React.useState(generatePassword);
+  const [conResponsabile, setConResponsabile] = React.useState(true);
+  const [elenco, setElenco] = React.useState("");
+
+  const nomi = React.useMemo(() => nomiDaElenco(elenco), [elenco]);
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
       const result = await creaAzienda({
         companyName: String(formData.get("companyName")),
-        fullName: String(formData.get("fullName")),
-        email: String(formData.get("email")),
-        password: String(formData.get("password")),
+        responsabile: conResponsabile
+          ? {
+              fullName: String(formData.get("fullName")),
+              email: String(formData.get("email")),
+              password: String(formData.get("password")),
+            }
+          : null,
+        elenco: elenco.trim() || null,
       });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success("Azienda creata. Consegna le credenziali al responsabile.");
+      toast.success(
+        conResponsabile
+          ? "Azienda creata. Consegna le credenziali al responsabile."
+          : "Azienda creata.",
+      );
       onDone();
     });
   }
@@ -158,7 +173,7 @@ function CreateDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title="Nuova azienda"
-      description="Insieme all'azienda crei l'account del suo responsabile."
+      description="Il responsabile e la squadra si possono aggiungere anche dopo."
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
@@ -181,25 +196,63 @@ function CreateDialog({
         </Field>
 
         <div className="rounded-xl border border-border bg-surface-2 p-3.5">
-          <p className="mb-3 text-[11px] uppercase tracking-wide text-faint">
-            Responsabile
-          </p>
-          <div className="space-y-4">
-            <Field label="Nome e cognome" htmlFor="fullName">
-              <Input id="fullName" name="fullName" placeholder="Mario Rossi" required />
-            </Field>
-            <Field label="Email" htmlFor="email">
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="mario@barcentrale.it"
-                required
-              />
-            </Field>
-            <PasswordField value={password} onChange={setPassword} />
-          </div>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={conResponsabile}
+              onChange={(e) => setConResponsabile(e.target.checked)}
+              className="mt-0.5 size-4 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="block text-[13.5px] font-medium">
+                Crea anche il responsabile
+              </span>
+              <span className="block text-[12.5px] text-muted">
+                Senza, l&apos;azienda nasce vuota e nessuno pu&ograve; ancora
+                entrarci: l&apos;accesso si d&agrave; pi&ugrave; avanti.
+              </span>
+            </span>
+          </label>
+
+          {conResponsabile ? (
+            <div className="mt-3 space-y-4 border-t border-border pt-3">
+              <Field label="Nome e cognome" htmlFor="fullName">
+                <Input id="fullName" name="fullName" placeholder="Mario Rossi" required />
+              </Field>
+              <Field label="Email" htmlFor="email">
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="mario@barcentrale.it"
+                  required
+                />
+              </Field>
+              <PasswordField value={password} onChange={setPassword} />
+            </div>
+          ) : null}
         </div>
+
+        <Field
+          label="Squadra"
+          htmlFor="elenco"
+          hint="Facoltativa. Nomi separati da virgola: entrano in squadra senza accesso all'app."
+        >
+          <Textarea
+            id="elenco"
+            value={elenco}
+            onChange={(e) => setElenco(e.target.value)}
+            placeholder="Mario Rossi, Anna Bianchi, Luca Verdi"
+            className="min-h-20"
+          />
+        </Field>
+
+        {nomi.length > 0 ? (
+          <p className="rounded-lg bg-surface-2 px-3 py-2 text-[12.5px] text-muted">
+            {nomi.length} {nomi.length === 1 ? "persona" : "persone"}: {nomi.slice(0, 8).join(", ")}
+            {nomi.length > 8 ? ` e altri ${nomi.length - 8}` : ""}
+          </p>
+        ) : null}
       </form>
     </Modal>
   );
@@ -220,7 +273,28 @@ function Persone({
   const router = useRouter();
   const [attesa, start] = React.useTransition();
   const [aggiungi, setAggiungi] = React.useState(false);
+  const [elencoAperto, setElencoAperto] = React.useState(false);
+  const [elenco, setElenco] = React.useState("");
   const [password, setPassword] = React.useState(generatePassword);
+
+  const nomi = React.useMemo(() => nomiDaElenco(elenco), [elenco]);
+
+  function onElenco() {
+    start(async () => {
+      const r = await creaPersoneInAzienda(company.id, elenco);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        `${r.creati} ${r.creati === 1 ? "persona aggiunta" : "persone aggiunte"}.`,
+      );
+      setElenco("");
+      setElencoAperto(false);
+      router.refresh();
+      onFatto();
+    });
+  }
 
   function onCrea(formData: FormData) {
     start(async () => {
@@ -265,6 +339,11 @@ function Persone({
                   responsabile
                 </span>
               ) : null}
+              {!p.user_id ? (
+                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-medium text-muted">
+                  nessun accesso
+                </span>
+              ) : null}
               {p.must_change_password ? (
                 <span
                   className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent"
@@ -273,7 +352,9 @@ function Persone({
                   password provvisoria
                 </span>
               ) : null}
-              <span className="truncate text-[12.5px] text-muted">{p.email}</span>
+              <span className="truncate text-[12.5px] text-muted">
+                {p.email ?? "—"}
+              </span>
             </li>
           ))}
         </ul>
@@ -314,20 +395,73 @@ function Persone({
             </Button>
           </div>
         </form>
+      ) : elencoAperto ? (
+        <div className="space-y-3 border-t border-border pt-3">
+          <Field
+            label="Nomi"
+            htmlFor="elenco-azienda"
+            hint="Separati da virgola. Entrano in squadra senza accesso all'app."
+          >
+            <Textarea
+              id="elenco-azienda"
+              value={elenco}
+              onChange={(e) => setElenco(e.target.value)}
+              placeholder="Mario Rossi, Anna Bianchi, Luca Verdi"
+              className="min-h-20"
+            />
+          </Field>
+          {nomi.length > 0 ? (
+            <p className="text-[12.5px] text-muted">
+              {nomi.length} {nomi.length === 1 ? "nome" : "nomi"}. Chi c&apos;&egrave;
+              gi&agrave; viene saltato.
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setElencoAperto(false)}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onElenco}
+              loading={attesa}
+              disabled={nomi.length === 0}
+            >
+              Aggiungi {nomi.length || ""}
+            </Button>
+          </div>
+        </div>
       ) : (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          block
-          onClick={() => {
-            setPassword(generatePassword());
-            setAggiungi(true);
-          }}
-        >
-          <UserPlus className="size-3.5" />
-          Aggiungi account
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            onClick={() => {
+              setPassword(generatePassword());
+              setAggiungi(true);
+            }}
+          >
+            <UserPlus className="size-3.5" />
+            Un account
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            onClick={() => setElencoAperto(true)}
+          >
+            <ListPlus className="size-3.5" />
+            Elenco di nomi
+          </Button>
+        </div>
       )}
     </div>
   );

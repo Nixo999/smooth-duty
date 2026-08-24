@@ -34,7 +34,7 @@ export default async function AppLayout({
       sections={sections}
       identity={{
         name: profile.full_name,
-        email: profile.email,
+        email: profile.email ?? "",
         roleLabel: profile.role === "capo" ? "Responsabile" : "Dipendente",
       }}
       esci={esci}

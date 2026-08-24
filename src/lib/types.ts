@@ -60,8 +60,12 @@ export type AbsenceDay = {
 export type Profile = {
   id: string;
   company_id: string;
+  /** L'account con cui entra, se ce l'ha. null = sta in squadra e va in
+   *  turno, ma nell'app non può entrare. */
+  user_id: string | null;
   full_name: string;
-  email: string;
+  /** null per chi non ha un accesso: non c'è un indirizzo a cui scrivere. */
+  email: string | null;
   role: Role;
   active: boolean;
   must_change_password: boolean;
@@ -109,8 +113,9 @@ export type CompanyRow = Company & {
   /** Tutte le persone, per poterle elencare e aggiungerne dal pannello. */
   persone: {
     id: string;
+    user_id: string | null;
     full_name: string;
-    email: string;
+    email: string | null;
     role: Role;
     must_change_password: boolean;
   }[];

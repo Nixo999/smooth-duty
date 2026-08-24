@@ -19,7 +19,9 @@ export async function getViewer(): Promise<Viewer | null> {
     supabase
       .from("profiles")
       .select(`${COLONNE_PROFILO}, company:companies(id, name)`)
-      .eq("id", user.id)
+      // Per user_id, non per id: da quando una persona può esistere senza
+      // account, i due numeri sono cose diverse.
+      .eq("user_id", user.id)
       .maybeSingle(),
     supabase
       .from("platform_admins")
@@ -44,6 +46,7 @@ export async function getViewer(): Promise<Viewer | null> {
         ? {
             id: row.id,
             company_id: row.company_id,
+            user_id: row.user_id,
             full_name: row.full_name,
             email: row.email,
             role: row.role,

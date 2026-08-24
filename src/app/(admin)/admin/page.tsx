@@ -9,8 +9,9 @@ type Row = {
   created_at: string;
   profiles: {
     id: string;
+    user_id: string | null;
     full_name: string;
-    email: string;
+    email: string | null;
     role: "capo" | "dipendente";
     must_change_password: boolean;
   }[];
@@ -23,7 +24,7 @@ export default async function AdminPage() {
   const { data } = await supabase
     .from("companies")
     .select(
-      "id, name, created_at, profiles(id, full_name, email, role, must_change_password)",
+      "id, name, created_at, profiles(id, user_id, full_name, email, role, must_change_password)",
     )
     .order("created_at", { ascending: false });
 
@@ -34,7 +35,7 @@ export default async function AdminPage() {
     people: c.profiles.length,
     responsabili: c.profiles
       .filter((p) => p.role === "capo")
-      .map((p) => ({ full_name: p.full_name, email: p.email })),
+      .map((p) => ({ full_name: p.full_name, email: p.email ?? "—" })),
     persone: [...c.profiles].sort(
       (x, y) => x.role.localeCompare(y.role) || x.full_name.localeCompare(y.full_name),
     ),

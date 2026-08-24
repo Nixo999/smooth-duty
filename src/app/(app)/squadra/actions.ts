@@ -4,9 +4,17 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCapo } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { creaPersoneDaElenco, type RapportoInput } from "@/lib/persone";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+function aggiorna() {
+  revalidatePath("/squadra");
+  revalidatePath("/turni");
+  revalidatePath("/supervisione");
+  revalidatePath("/prospetto");
+}
 
 /** Ore da contratto e "a chiamata" sono la stessa domanda posta in due modi:
  *  chi è a chiamata non ha un monte ore da rispettare. Tenere le due cose
@@ -23,18 +31,29 @@ const rapporto = z
     contract_hours: v.on_call ? null : v.contract_hours,
   }));
 
+/** L'accesso è facoltativo. Una persona può stare in squadra, andare in
+ *  turno e comparire nei conti senza mai entrare nell'app: su un tabellone
+ *  da trenta persone, pretendere trenta indirizzi email prima di poter
+ *  scrivere il primo turno è un ostacolo senza ragione. */
+const accesso = z
+  .object({
+    email: z.string().trim().toLowerCase().email("Indirizzo email non valido."),
+    password: z.string().min(5, "La password deve avere almeno 5 caratteri."),
+  })
+  .nullable();
+
 const nuovoSchema = z
   .object({
     fullName: z.string().trim().min(2, "Inserisci nome e cognome."),
-    email: z.string().trim().toLowerCase().email("Indirizzo email non valido."),
-    password: z.string().min(8, "La password deve avere almeno 8 caratteri."),
     role: z.enum(["capo", "dipendente"]),
+    accesso,
   })
-  .and(rapporto);
+  .and(rapporto)
+  .refine((v) => v.accesso !== null || v.role !== "capo", {
+    message: "Un responsabile deve poter entrare: dagli anche un accesso.",
+    path: ["accesso"],
+  });
 
-/** Crea l'account del dipendente gia' confermato, cosi' puo' entrare subito
- *  con le credenziali che il responsabile gli consegna. La password e'
- *  provvisoria: al primo accesso l'app lo obbliga a sceglierne una sua. */
 export async function aggiungiPersona(
   input: z.input<typeof nuovoSchema>,
 ): Promise<ActionResult> {
@@ -42,48 +61,123 @@ export async function aggiungiPersona(
 
   const parsed = nuovoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { fullName, email, password, role, department_id, contract_hours, on_call } =
-    parsed.data;
+  const { fullName, role, accesso: credenziali, ...campi } = parsed.data;
 
   const admin = createAdminClient();
 
-  const { data: created, error: userError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
-
-  if (userError || !created.user) {
-    return {
-      ok: false,
-      error: userError?.message.toLowerCase().includes("already")
-        ? "Esiste già un account con questa email."
-        : "Non è stato possibile creare l'account.",
-    };
+  let userId: string | null = null;
+  if (credenziali) {
+    const { data: creato, error } = await admin.auth.admin.createUser({
+      email: credenziali.email,
+      password: credenziali.password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+    if (error || !creato.user) {
+      return {
+        ok: false,
+        error: error?.message.toLowerCase().includes("already")
+          ? "Esiste già un account con questa email."
+          : "Non è stato possibile creare l'accesso.",
+      };
+    }
+    userId = creato.user.id;
   }
 
   const { error: profileError } = await admin.from("profiles").insert({
-    id: created.user.id,
     company_id: capo.company_id,
+    user_id: userId,
     full_name: fullName,
-    email,
+    email: credenziali?.email ?? null,
     role,
-    department_id,
-    contract_hours,
-    on_call,
-    // La password gliela consegni tu: la cambia al primo accesso.
-    must_change_password: true,
+    ...campi,
+    // Chi non ha un accesso non ha una password da cambiare.
+    must_change_password: userId !== null,
   });
 
   if (profileError) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    return { ok: false, error: "Non è stato possibile creare il profilo." };
+    if (userId) await admin.auth.admin.deleteUser(userId);
+    return { ok: false, error: "Non è stato possibile creare la persona." };
   }
 
-  revalidatePath("/squadra");
-  revalidatePath("/turni");
-  revalidatePath("/supervisione");
+  aggiorna();
+  return { ok: true };
+}
+
+/** Aggiunge piu' persone in una volta, da un elenco di nomi separati da
+ *  virgola. Nessuna di loro ha un accesso: si da' dopo, a chi serve. */
+export async function aggiungiPersoneDaElenco(
+  elenco: string,
+  rapportoBase: RapportoInput,
+) {
+  const capo = await requireCapo();
+  const esito = await creaPersoneDaElenco(capo.company_id, elenco, rapportoBase);
+  if (esito.ok) aggiorna();
+  return esito;
+}
+
+/** Dà l'accesso a chi è già in squadra ma finora non entrava nell'app. */
+export async function creaAccesso(
+  profileId: string,
+  email: string,
+  password: string,
+): Promise<ActionResult> {
+  const capo = await requireCapo();
+
+  const parsed = z
+    .object({
+      email: z.string().trim().toLowerCase().email("Indirizzo email non valido."),
+      password: z.string().min(5, "La password deve avere almeno 5 caratteri."),
+    })
+    .safeParse({ email, password });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: persona } = await supabase
+    .from("profiles")
+    .select("id, full_name, user_id, company_id")
+    .eq("id", profileId)
+    .maybeSingle();
+
+  if (!persona || persona.company_id !== capo.company_id) {
+    return { ok: false, error: "Persona non trovata." };
+  }
+  if (persona.user_id) {
+    return { ok: false, error: "Questa persona ha già un accesso." };
+  }
+
+  const admin = createAdminClient();
+  const { data: creato, error } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    email_confirm: true,
+    user_metadata: { full_name: persona.full_name },
+  });
+
+  if (error || !creato.user) {
+    return {
+      ok: false,
+      error: error?.message.toLowerCase().includes("already")
+        ? "Esiste già un account con questa email."
+        : "Non è stato possibile creare l'accesso.",
+    };
+  }
+
+  const { error: updateError } = await admin
+    .from("profiles")
+    .update({
+      user_id: creato.user.id,
+      email: parsed.data.email,
+      must_change_password: true,
+    })
+    .eq("id", profileId);
+
+  if (updateError) {
+    await admin.auth.admin.deleteUser(creato.user.id);
+    return { ok: false, error: updateError.message };
+  }
+
+  aggiorna();
   return { ok: true };
 }
 
@@ -103,8 +197,7 @@ export async function modificaPersona(
 
   const parsed = modificaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { id, fullName, role, active, department_id, contract_hours, on_call } =
-    parsed.data;
+  const { id, fullName, role, active, ...campi } = parsed.data;
 
   // Se il capo togliesse a se stesso il ruolo o l'accesso, l'azienda
   // resterebbe senza nessuno che puo' gestirla.
@@ -112,26 +205,32 @@ export async function modificaPersona(
     return { ok: false, error: "Non puoi togliere a te stesso i permessi." };
   }
 
-  // Client normale, non admin: RLS garantisce che la persona sia della
-  // stessa azienda senza doverlo ricontrollare a mano.
   const supabase = await createClient();
+
+  // Un responsabile deve poter entrare: promuovere qualcuno che non ha un
+  // accesso creerebbe un'azienda con un capo che non puo' accedervi.
+  if (role === "capo") {
+    const { data: persona } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (persona && !persona.user_id) {
+      return {
+        ok: false,
+        error: "Per fare qualcuno responsabile devi prima dargli un accesso.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update({
-      full_name: fullName,
-      role,
-      active,
-      department_id,
-      contract_hours,
-      on_call,
-    })
+    .update({ full_name: fullName, role, active, ...campi })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/squadra");
-  revalidatePath("/turni");
-  revalidatePath("/supervisione");
+  aggiorna();
   return { ok: true };
 }
 
@@ -143,8 +242,8 @@ export async function reimpostaPassword(
 ): Promise<ActionResult> {
   const capo = await requireCapo();
 
-  if (password.length < 8) {
-    return { ok: false, error: "La password deve avere almeno 8 caratteri." };
+  if (password.length < 5) {
+    return { ok: false, error: "La password deve avere almeno 5 caratteri." };
   }
   if (profileId === capo.id) {
     return {
@@ -153,35 +252,51 @@ export async function reimpostaPassword(
     };
   }
 
-  // L'update passa da RLS: se la persona fosse di un'altra azienda non
-  // toccherebbe nessuna riga, ed e' quel conteggio ad autorizzare il passo
-  // successivo con la chiave che scavalca le regole.
+  // La lettura passa da RLS: se la persona fosse di un'altra azienda non
+  // tornerebbe niente, ed e' quel controllo ad autorizzare il passo dopo.
   const supabase = await createClient();
-  const { error: flagError, count } = await supabase
+  const { data: persona } = await supabase
     .from("profiles")
-    .update({ must_change_password: true }, { count: "exact" })
-    .eq("id", profileId);
+    .select("id, user_id")
+    .eq("id", profileId)
+    .maybeSingle();
 
+  if (!persona) return { ok: false, error: "Persona non trovata." };
+  if (!persona.user_id) {
+    return { ok: false, error: "Questa persona non ha un accesso da reimpostare." };
+  }
+
+  const { error: flagError } = await supabase
+    .from("profiles")
+    .update({ must_change_password: true })
+    .eq("id", profileId);
   if (flagError) return { ok: false, error: flagError.message };
-  if (!count) return { ok: false, error: "Persona non trovata." };
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(profileId, { password });
+  const { error } = await admin.auth.admin.updateUserById(persona.user_id, {
+    password,
+  });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/squadra");
+  aggiorna();
   return { ok: true };
 }
 
 export async function rimuoviPersona(id: string): Promise<ActionResult> {
   const capo = await requireCapo();
   if (id === capo.id) {
-    return { ok: false, error: "Non puoi eliminare il tuo stesso account." };
+    return { ok: false, error: "Non puoi eliminare te stesso." };
   }
 
-  // La cancellazione del profilo passa da RLS, quindi fallisce se la persona
-  // e' di un'altra azienda: e' il controllo che autorizza il passo dopo.
   const supabase = await createClient();
+  const { data: persona } = await supabase
+    .from("profiles")
+    .select("id, user_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!persona) return { ok: false, error: "Persona non trovata." };
+
   const { error, count } = await supabase
     .from("profiles")
     .delete({ count: "exact" })
@@ -192,11 +307,11 @@ export async function rimuoviPersona(id: string): Promise<ActionResult> {
 
   // L'account di accesso vive in auth.users e non viene toccato dal delete
   // sopra: va rimosso a parte, altrimenti resterebbe un login orfano.
-  const admin = createAdminClient();
-  await admin.auth.admin.deleteUser(id);
+  if (persona.user_id) {
+    const admin = createAdminClient();
+    await admin.auth.admin.deleteUser(persona.user_id);
+  }
 
-  revalidatePath("/squadra");
-  revalidatePath("/turni");
-  revalidatePath("/supervisione");
+  aggiorna();
   return { ok: true };
 }
