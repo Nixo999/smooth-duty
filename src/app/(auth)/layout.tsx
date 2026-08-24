@@ -1,0 +1,26 @@
+import { CalendarDays } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme";
+
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-app flex flex-col">
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <div className="flex items-center gap-2">
+          <div className="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">
+            <CalendarDays className="size-4" />
+          </div>
+          <span className="text-[15px] font-semibold tracking-tight">Turni</span>
+        </div>
+        <ThemeToggle />
+      </header>
+
+      <main className="flex flex-1 items-center justify-center px-5 py-8">
+        <div className="w-full max-w-[25rem] animate-rise">{children}</div>
+      </main>
+    </div>
+  );
+}
