@@ -7,6 +7,8 @@ import { CopiaDialog } from "@/components/turni/copia-dialog";
 import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/shift-dialog";
 import { WeekNav } from "@/components/turni/week-nav";
 import { Button } from "@/components/ui/button";
+import { Ricerca } from "@/components/ui/ricerca";
+import { corrisponde } from "@/lib/ricerca";
 import {
   dayLong,
   dayShort,
@@ -87,6 +89,7 @@ export function Roster({
 }) {
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
   const [copiaAperta, setCopiaAperta] = React.useState(false);
+  const [cerca, setCerca] = React.useState("");
   // Si tiene la posizione nella settimana, non la data. Tenendo la data,
   // cambiando settimana il giorno scelto sarebbe uno che non c'e' piu' e
   // servirebbe un effetto per rimetterlo a posto; cosi' invece il martedi'
@@ -158,6 +161,11 @@ export function Roster({
       : []),
   ];
 
+  // Si filtrano le righe, non `profiles`: l'elenco del pannello «nuovo turno»
+  // deve restare intero, altrimenti cercando un nome non si potrebbe piu'
+  // assegnare il turno a nessun altro.
+  const righe = cerca.trim() ? rows.filter((r) => corrisponde(r.name, cerca)) : rows;
+
   const openNew = (day: string, profileId: string | null) =>
     setDraft({ date: day, profile_id: profileId === UNASSIGNED ? null : profileId });
 
@@ -194,6 +202,19 @@ export function Roster({
         <EmptyTeam />
       ) : (
         <>
+          <Ricerca
+            valore={cerca}
+            onChange={setCerca}
+            id="cerca-turni"
+            className="max-w-sm"
+          />
+
+          {righe.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
+              Nessuno con questo nome.
+            </p>
+          ) : null}
+
           {/* ---------------- schermo grande: tabellone ---------------- */}
           <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-card lg:block">
             <div className="overflow-x-auto">
@@ -235,7 +256,7 @@ export function Roster({
                   );
                 })}
 
-                {rows.map((row) => (
+                {righe.map((row) => (
                   <React.Fragment key={row.id}>
                     <div className="sticky left-0 z-10 flex items-center gap-2 border-b border-border bg-surface px-4 py-3">
                       <div className="min-w-0 flex-1">
@@ -337,14 +358,17 @@ export function Roster({
               })}
             </div>
 
-            <DayList
-              day={selectedDay}
-              rows={rows}
-              cell={cell}
-              assente={assente}
-              onOpen={(s) => setDraft(shiftToDraft(s))}
-              onAdd={(profileId) => openNew(selectedDay, profileId)}
-            />
+            {righe.length > 0 ? (
+              <DayList
+                day={selectedDay}
+                rows={righe}
+                cell={cell}
+                assente={assente}
+                soloConTurni={!cerca.trim()}
+                onOpen={(s) => setDraft(shiftToDraft(s))}
+                onAdd={(profileId) => openNew(selectedDay, profileId)}
+              />
+            ) : null}
           </div>
         </>
       )}
@@ -416,6 +440,7 @@ function DayList({
   rows,
   cell,
   assente,
+  soloConTurni = true,
   onOpen,
   onAdd,
 }: {
@@ -423,12 +448,17 @@ function DayList({
   rows: Riga[];
   cell: (profileId: string, day: string) => Shift[];
   assente: (s: Shift) => boolean;
+  /** Normalmente si mostra solo chi ha turni quel giorno. Quando si sta
+   *  cercando un nome no: chi cerca una persona vuole vederla anche se quel
+   *  giorno e' libera — e' proprio quello il giorno in cui le si aggiunge
+   *  un turno. */
+  soloConTurni?: boolean;
   onOpen: (s: Shift) => void;
   onAdd: (profileId: string | null) => void;
 }) {
   const withShifts = rows
     .map((row) => ({ row, list: cell(row.id, day) }))
-    .filter((r) => r.list.length > 0);
+    .filter((r) => !soloConTurni || r.list.length > 0);
 
   return (
     <div className="mt-3 space-y-3">

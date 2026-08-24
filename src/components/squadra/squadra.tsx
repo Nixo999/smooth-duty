@@ -20,7 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { PasswordField } from "@/components/ui/password-field";
+import { Ricerca } from "@/components/ui/ricerca";
 import { generatePassword } from "@/lib/password";
+import { corrisponde } from "@/lib/ricerca";
 import { AssenzaPersona } from "@/components/squadra/assenza-persona";
 import { assenzaAperta, ETICHETTA } from "@/lib/assenze";
 import type { Absence, Department, Profile, Role } from "@/lib/types";
@@ -40,9 +42,20 @@ export function Squadra({
   const router = useRouter();
   const [adding, setAdding] = React.useState(false);
   const [editing, setEditing] = React.useState<Profile | null>(null);
+  const [cerca, setCerca] = React.useState("");
 
   const nomeReparto = (id: string | null) =>
     reparti.find((r) => r.id === id) ?? null;
+
+  // Si cerca anche nell'email: due omonimi si distinguono da quella, ed e'
+  // l'unica altra cosa scritta nella riga.
+  const visibili = React.useMemo(
+    () =>
+      cerca.trim()
+        ? people.filter((p) => corrisponde(`${p.full_name} ${p.email ?? ""}`, cerca))
+        : people,
+    [people, cerca],
+  );
 
   return (
     <div className="space-y-4">
@@ -50,7 +63,9 @@ export function Squadra({
         <div>
           <h1 className="text-[19px] font-semibold tracking-tight">Squadra</h1>
           <p className="text-[13.5px] text-muted">
-            {people.length} {people.length === 1 ? "persona" : "persone"}
+            {cerca.trim() && visibili.length !== people.length
+              ? `${visibili.length} di ${people.length}`
+              : `${people.length} ${people.length === 1 ? "persona" : "persone"}`}
           </p>
         </div>
         <Button size="sm" onClick={() => setAdding(true)}>
@@ -60,8 +75,17 @@ export function Squadra({
         </Button>
       </div>
 
+      {people.length > 0 ? (
+        <Ricerca valore={cerca} onChange={setCerca} id="cerca-squadra" />
+      ) : null}
+
       <ul className="stagger overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-        {people.map((p, i) => {
+        {visibili.length === 0 ? (
+          <li className="px-4 py-10 text-center text-[13.5px] text-muted">
+            Nessuno con questo nome.
+          </li>
+        ) : null}
+        {visibili.map((p, i) => {
           const reparto = nomeReparto(p.department_id);
           const rapporto = etichettaRapporto(p);
           return (

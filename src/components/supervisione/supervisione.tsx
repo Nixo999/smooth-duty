@@ -198,7 +198,9 @@ export function Supervisione({
                     {g.persone} {g.persone === 1 ? "persona" : "persone"}
                   </span>
                 </div>
-                <Stato buchi={g.buchi.length} conRegole={g.fasce.length > 0} />
+                {capo ? (
+                  <Stato buchi={g.buchi.length} conRegole={g.fasce.length > 0} />
+                ) : null}
               </header>
 
               <div className="overflow-x-auto">
@@ -255,49 +257,56 @@ export function Supervisione({
                   </div>
 
                   {/* quanto serve, e quanto e' coperto */}
-                  <div className="mt-3 border-t border-border pt-2.5">
-                    {g.fasce.length > 0 ? (
-                      <Corsia ore={oreIntere} pct={pct} alta={false}>
-                        {g.fasce.map((f) => (
-                          <span
-                            key={`${f.id}-${f.da}`}
-                            className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded border border-dashed border-border-strong bg-surface-3 px-1.5 text-[11px] text-muted"
-                            style={{
-                              left: `${pct(f.da)}%`,
-                              width: `${pct(f.a) - pct(f.da)}%`,
-                            }}
-                            title={`${f.nome}: servono ${f.richiesti} · ${oraDa(f.da)}–${oraDa(f.a)}`}
-                          >
-                            <span className="truncate">
-                              {f.nome} · {f.richiesti}
+                  {capo || g.fasce.length > 0 ? (
+                    <div className="mt-3 border-t border-border pt-2.5">
+                      {g.fasce.length > 0 ? (
+                        <Corsia ore={oreIntere} pct={pct} alta={false}>
+                          {g.fasce.map((f) => (
+                            <span
+                              key={`${f.id}-${f.da}`}
+                              className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded border border-dashed border-border-strong bg-surface-3 px-1.5 text-[11px] text-muted"
+                              style={{
+                                left: `${pct(f.da)}%`,
+                                width: `${pct(f.a) - pct(f.da)}%`,
+                              }}
+                              title={`${f.nome}: servono ${f.richiesti} · ${oraDa(f.da)}–${oraDa(f.a)}`}
+                            >
+                              <span className="truncate">
+                                {f.nome} · {f.richiesti}
+                              </span>
                             </span>
-                          </span>
-                        ))}
-                      </Corsia>
-                    ) : null}
+                          ))}
+                        </Corsia>
+                      ) : null}
 
-                    <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-surface-3">
-                      {g.fette.map((f) => (
-                        <span
-                          key={f.da}
-                          className={cn(
-                            "h-full",
-                            f.richiesti === 0
-                              ? "bg-transparent"
-                              : f.presenti >= f.richiesti
-                                ? "bg-success"
-                                : "bg-danger",
-                          )}
-                          style={{ width: `${(100 * (f.a - f.da)) / (vista.a - vista.da)}%` }}
-                          title={`${oraDa(f.da)}–${oraDa(f.a)}: ${f.presenti} presenti su ${f.richiesti} richiesti`}
-                        />
-                      ))}
+                      {/* Il verde e il rosso sono un giudizio sulla giornata:
+                          li legge chi la deve rimediare. Al dipendente resta chi
+                          c'e' in turno con lui. */}
+                      {capo ? (
+                        <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-surface-3">
+                          {g.fette.map((f) => (
+                            <span
+                              key={f.da}
+                              className={cn(
+                                "h-full",
+                                f.richiesti === 0
+                                  ? "bg-transparent"
+                                  : f.presenti >= f.richiesti
+                                    ? "bg-success"
+                                    : "bg-danger",
+                              )}
+                              style={{ width: `${(100 * (f.a - f.da)) / (vista.a - vista.da)}%` }}
+                              title={`${oraDa(f.da)}–${oraDa(f.a)}: ${f.presenti} presenti su ${f.richiesti} richiesti`}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </div>
 
-              {g.buchi.length > 0 ? (
+              {capo && g.buchi.length > 0 ? (
                 <ul className="space-y-1 border-t border-border bg-danger-soft px-4 py-3">
                   {g.buchi.map((b) => (
                     <li
@@ -325,7 +334,7 @@ export function Supervisione({
         </div>
       )}
 
-      <Legenda />
+      <Legenda capo={capo} />
 
       {impostazioni ? (
         <RepartiSheet
@@ -389,21 +398,27 @@ function Stato({ buchi, conRegole }: { buchi: number; conRegole: boolean }) {
   );
 }
 
-function Legenda() {
+function Legenda({ capo }: { capo: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-[12px] text-muted">
-      <span className="flex items-center gap-1.5">
-        <span className="h-2 w-6 rounded-full bg-success" />
-        abbastanza persone
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="h-2 w-6 rounded-full bg-danger" />
-        ne mancano
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="h-2 w-6 rounded-full bg-surface-3" />
-        nessuna regola per quell&apos;ora
-      </span>
+      {/* Le tre voci sui colori spiegano una barra che il dipendente non
+          vede: senza il suo grafico sono indovinelli. */}
+      {capo ? (
+        <>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-6 rounded-full bg-success" />
+            abbastanza persone
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-6 rounded-full bg-danger" />
+            ne mancano
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-6 rounded-full bg-surface-3" />
+            nessuna regola per quell&apos;ora
+          </span>
+        </>
+      ) : null}
       <span className="flex items-center gap-1.5">
         <span
           className="barra assente h-3 w-6 rounded"
