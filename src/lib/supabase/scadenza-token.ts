@@ -17,10 +17,8 @@ function base64UrlDecode(s: string): string {
   return atob(pad ? conPiu + "=".repeat(4 - pad) : conPiu);
 }
 
-/** Unix seconds della scadenza, oppure null se non si riesce a leggerla.
- *  Null significa "non lo so": chi chiama deve comportarsi come se il token
- *  fosse da rinnovare. */
-export function scadenzaAccessToken(cookies: Cookie[]): number | null {
+/** I claim dell'access token, letti dai cookie e basta. Null = "non so". */
+function claimsDalCookie(cookies: Cookie[]): { exp?: number; sub?: string } | null {
   try {
     // La sessione sta in `sb-<progetto>-auth-token`, spezzata in `.0`, `.1`…
     // quando non entra in un cookie solo. Si ricompone in ordine.
@@ -38,12 +36,29 @@ export function scadenzaAccessToken(cookies: Cookie[]): number | null {
     const jwt = sessione.access_token;
     if (!jwt) return null;
 
-    const payload = JSON.parse(base64UrlDecode(jwt.split(".")[1])) as {
+    return JSON.parse(base64UrlDecode(jwt.split(".")[1])) as {
       exp?: number;
+      sub?: string;
     };
-    return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
-    // Formato inatteso: meglio un rinnovo in piu' che una sessione persa.
+    // Formato inatteso: chi chiama si comporta come se non ci fosse niente.
     return null;
   }
+}
+
+/** Unix seconds della scadenza, oppure null se non si riesce a leggerla.
+ *  Null significa "non lo so": chi chiama deve comportarsi come se il token
+ *  fosse da rinnovare. */
+export function scadenzaAccessToken(cookies: Cookie[]): number | null {
+  const exp = claimsDalCookie(cookies)?.exp;
+  return typeof exp === "number" ? exp : null;
+}
+
+/** L'id utente scritto nel token (claim `sub`), **senza validarlo**: serve a
+ *  far partire le letture sul database in parallelo alla validazione vera,
+ *  non al posto suo. Chi lo usa deve buttare i risultati se la validazione
+ *  non conferma lo stesso id. */
+export function utenteDalCookie(cookies: Cookie[]): string | null {
+  const sub = claimsDalCookie(cookies)?.sub;
+  return typeof sub === "string" && sub ? sub : null;
 }

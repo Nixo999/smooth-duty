@@ -220,6 +220,15 @@ chiunque apra il sito.
 Le variabili si leggono in fase di build: dopo averle aggiunte serve un nuovo
 deploy, non basta ricaricare.
 
+⚠️ **La regione delle funzioni deve stare vicina al database.** Le pagine
+girano in funzioni server, e Netlify le mette di default in **Ohio
+(us-east-2)**; il database Supabase sta in **Irlanda (eu-west-1)**. Ogni
+pagina fa due o tre giri fino al database, e ogni giro dall'Ohio costa
+~90 ms invece di ~10: sommati, e' quasi mezzo secondo regalato a ogni
+click — piu' la partenza a freddo della funzione, che dall'Italia si paga
+tutta. In Netlify: **Project configuration → Build & deploy → Functions →
+Region**, scegliere `eu-west-1` (Irlanda), poi rifare il deploy.
+
 ⚠️ **Prima di lasciare il sito raggiungibile**, cambia la password
 dell'amministratore. Su localhost una password debole è un fastidio teorico;
 su internet è la porta d'ingresso a tutte le aziende, e alle causali di

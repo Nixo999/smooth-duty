@@ -1,7 +1,12 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { COLONNE_PROFILO_CON_REPARTI } from "@/lib/colonne";
+import {
+  scadenzaAccessToken,
+  utenteDalCookie,
+} from "@/lib/supabase/scadenza-token";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser, Viewer } from "@/lib/types";
 
@@ -15,6 +20,38 @@ import type { SessionUser, Viewer } from "@/lib/types";
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createClient();
 
+  const leggi = (uid: string) =>
+    Promise.all([
+      supabase
+        .from("profiles")
+        .select(`${COLONNE_PROFILO_CON_REPARTI}, company:companies(id, name)`)
+        // Per user_id, non per id: da quando una persona può esistere senza
+        // account, i due numeri sono cose diverse.
+        .eq("user_id", uid)
+        .maybeSingle(),
+      supabase
+        .from("platform_admins")
+        .select("user_id")
+        .eq("user_id", uid)
+        .maybeSingle(),
+    ]);
+
+  // L'id utente sta già scritto nel token: le letture sul database possono
+  // partire subito, in parallelo alla validazione — che resta obbligatoria,
+  // non è una scorciatoia. Se non conferma lo stesso id, quello che si è
+  // letto si butta e si rilegge con l'id vero. Prima erano due giri in fila,
+  // e dal server di produzione ogni giro è un'andata fino a Supabase.
+  // Solo con un token ancora fresco: uno scaduto farebbe partire query
+  // destinate a fallire, per poi rifarle comunque.
+  const cookieStore = await cookies();
+  const tutti = cookieStore.getAll();
+  const exp = scadenzaAccessToken(tutti);
+  const fresco = exp !== null && exp - Date.now() / 1000 > 120;
+  const subOttimista = fresco ? utenteDalCookie(tutti) : null;
+  const promessaDati = subOttimista
+    ? leggi(subOttimista).catch(() => null)
+    : null;
+
   // getUser() e non getSession(): getSession legge il cookie e si fida,
   // getUser fa validare il token da Supabase. Sul server serve il secondo.
   const {
@@ -22,20 +59,9 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [profileResult, adminResult] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select(`${COLONNE_PROFILO_CON_REPARTI}, company:companies(id, name)`)
-      // Per user_id, non per id: da quando una persona può esistere senza
-      // account, i due numeri sono cose diverse.
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-  ]);
+  const anticipati =
+    subOttimista === user.id && promessaDati ? await promessaDati : null;
+  const [profileResult, adminResult] = anticipati ?? (await leggi(user.id));
 
   const row = profileResult.data;
   const company = row?.company
