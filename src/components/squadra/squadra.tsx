@@ -277,6 +277,7 @@ function EditDialog({
   const [newPassword, setNewPassword] = React.useState(generatePassword);
   const [rapporto, setRapporto] = React.useState<Rapporto>({
     department_id: person.department_id,
+    reparti: person.reparti,
     on_call: person.on_call,
     contract_hours:
       person.contract_hours === null ? null : Number(person.contract_hours),

@@ -1,19 +1,29 @@
 "use client";
 
+import { Check } from "lucide-react";
 import * as React from "react";
 import { Field, Input, Select } from "@/components/ui/field";
 import type { Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type Rapporto = {
+  /** Reparto principale: quello scritto accanto al nome. */
   department_id: string | null;
+  /** Tutti quelli in cui può lavorare, principale compreso. */
+  reparti: string[];
   on_call: boolean;
   contract_hours: number | null;
 };
 
-/** Reparto e tipo di rapporto. Le ore e "a chiamata" sono due risposte alla
- *  stessa domanda, quindi si scelgono con un interruttore: così non si può
- *  salvare "a chiamata con 20 ore", che non vorrebbe dire niente. */
+/** Reparti e tipo di rapporto.
+ *
+ *  Una persona può lavorare in più reparti — non contemporaneamente: in un
+ *  turno fa una cosa sola, ma chi sta in cucina il lunedì può stare in sala
+ *  il sabato. Vale anche per il responsabile.
+ *
+ *  Le ore e "a chiamata" sono due risposte alla stessa domanda, quindi si
+ *  scelgono con un interruttore: così non si può salvare "a chiamata con 20
+ *  ore", che non vorrebbe dire niente. */
 export function CampiRapporto({
   reparti,
   valore,
@@ -26,34 +36,94 @@ export function CampiRapporto({
   idPrefisso?: string;
 }) {
   const id = (n: string) => `${idPrefisso}${n}`;
+  const scelti = valore.reparti;
+
+  function alterna(repartoId: string) {
+    const dentro = scelti.includes(repartoId);
+    const nuovi = dentro
+      ? scelti.filter((r) => r !== repartoId)
+      : [...scelti, repartoId];
+
+    // Togliendo il principale ne subentra un altro: lasciare scritto accanto
+    // al nome un reparto in cui non lavora più sarebbe una bugia.
+    const principale = nuovi.includes(valore.department_id ?? "")
+      ? valore.department_id
+      : (nuovi[0] ?? null);
+
+    onChange({ ...valore, reparti: nuovi, department_id: principale });
+  }
 
   return (
     <>
       <Field
-        label="Reparto"
-        htmlFor={id("department")}
+        label="Reparti in cui lavora"
+        htmlFor={id("reparti")}
         hint={
           reparti.length === 0
             ? "Nessun reparto ancora: si creano dalla Supervisione."
-            : undefined
+            : "Anche più di uno. In un turno ne fa uno solo, ma può cambiare da un giorno all'altro."
         }
       >
-        <Select
-          id={id("department")}
-          value={valore.department_id ?? ""}
-          onChange={(e) =>
-            onChange({ ...valore, department_id: e.target.value || null })
-          }
-          disabled={reparti.length === 0}
-        >
-          <option value="">— Nessun reparto —</option>
-          {reparti.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </Select>
+        {reparti.length === 0 ? (
+          <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-muted">
+            Senza reparti non c&apos;è niente da scegliere.
+          </p>
+        ) : (
+          <div
+            id={id("reparti")}
+            role="group"
+            aria-label="Reparti"
+            className="flex flex-wrap gap-1.5"
+          >
+            {reparti.map((r) => {
+              const dentro = scelti.includes(r.id);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={dentro}
+                  onClick={() => alterna(r.id)}
+                  className={cn(
+                    "tap flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium uppercase tracking-wide",
+                    dentro
+                      ? "pastiglia-reparto"
+                      : "bg-surface-3 text-faint hover:text-muted",
+                  )}
+                  style={dentro ? { ["--tinta" as string]: r.hue } : undefined}
+                >
+                  {dentro ? <Check className="size-3" /> : null}
+                  {r.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Field>
+
+      {/* Il principale si sceglie solo quando c'è davvero da scegliere. */}
+      {scelti.length > 1 ? (
+        <Field
+          label="Reparto principale"
+          htmlFor={id("principale")}
+          hint="Quello scritto accanto al nome, e la scelta di partenza per un turno nuovo."
+        >
+          <Select
+            id={id("principale")}
+            value={valore.department_id ?? ""}
+            onChange={(e) =>
+              onChange({ ...valore, department_id: e.target.value || null })
+            }
+          >
+            {reparti
+              .filter((r) => scelti.includes(r.id))
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+          </Select>
+        </Field>
+      ) : null}
 
       <Field label="Tipo di rapporto" htmlFor={id("ore")}>
         <div

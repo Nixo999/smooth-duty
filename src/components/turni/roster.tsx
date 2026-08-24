@@ -74,6 +74,7 @@ export function Roster({
   shifts,
   departments,
   assenze,
+  repartoFrequente,
 }: {
   monday: string;
   days: string[];
@@ -81,6 +82,8 @@ export function Roster({
   shifts: Shift[];
   departments: Department[];
   assenze: Absence[];
+  /** Per ciascuna persona, il reparto in cui lavora piu' spesso. */
+  repartoFrequente: Record<string, string>;
 }) {
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
   const [copiaAperta, setCopiaAperta] = React.useState(false);
@@ -350,6 +353,7 @@ export function Roster({
         draft={draft}
         profiles={profiles}
         departments={departments}
+        repartoFrequente={repartoFrequente}
         onClose={() => setDraft(null)}
       />
 

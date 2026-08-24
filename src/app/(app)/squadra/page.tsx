@@ -1,6 +1,11 @@
 import { Squadra } from "@/components/squadra/squadra";
 import { requireCapo } from "@/lib/auth";
-import { COLONNE_ASSENZA, COLONNE_PROFILO, COLONNE_REPARTO } from "@/lib/colonne";
+import {
+  COLONNE_ASSENZA,
+  COLONNE_PROFILO_CON_REPARTI,
+  COLONNE_REPARTO,
+  conReparti,
+} from "@/lib/colonne";
 import { createClient } from "@/lib/supabase/server";
 import type { Absence, Department, Profile } from "@/lib/types";
 
@@ -14,7 +19,7 @@ export default async function SquadraPage() {
   const [persone, reparti, assenze] = await Promise.all([
     supabase
       .from("profiles")
-      .select(COLONNE_PROFILO)
+      .select(COLONNE_PROFILO_CON_REPARTI)
       .eq("company_id", capo.company_id)
       .order("active", { ascending: false })
       .order("full_name"),
@@ -33,7 +38,7 @@ export default async function SquadraPage() {
 
   return (
     <Squadra
-      people={(persone.data ?? []) as Profile[]}
+      people={conReparti(persone.data ?? []) as unknown as Profile[]}
       reparti={(reparti.data ?? []) as Department[]}
       assenze={(assenze.data ?? []) as Absence[]}
       currentUserId={capo.id}

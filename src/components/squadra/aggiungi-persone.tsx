@@ -43,6 +43,7 @@ export function AggiungiPersone({
   const [elenco, setElenco] = React.useState("");
   const [rapporto, setRapporto] = React.useState<Rapporto>({
     department_id: null,
+    reparti: [],
     on_call: false,
     contract_hours: 40,
   });

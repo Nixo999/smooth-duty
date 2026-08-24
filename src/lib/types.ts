@@ -69,7 +69,12 @@ export type Profile = {
   role: Role;
   active: boolean;
   must_change_password: boolean;
+  /** Reparto principale: quello scritto accanto al nome, e quello che vale
+   *  quando non c'è altro da cui dedurre. */
   department_id: string | null;
+  /** Tutti i reparti in cui può lavorare — non contemporaneamente: in un
+   *  turno fa una cosa sola, ma da un giorno all'altro può cambiare. */
+  reparti: string[];
   /** Ore settimanali da contratto. null per chi è a chiamata. */
   contract_hours: number | null;
   on_call: boolean;

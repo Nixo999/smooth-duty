@@ -14,14 +14,35 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const rapportoSchema = z
   .object({
+    /** Reparto principale: quello scritto accanto al nome. */
     department_id: z.string().uuid().nullable(),
+    /** Tutti quelli in cui puo' lavorare. Il principale ci sta dentro. */
+    reparti: z.array(z.string().uuid()).max(20),
     on_call: z.boolean(),
     contract_hours: z.number().min(0).max(80).nullable(),
   })
   .transform((v) => ({
     ...v,
     contract_hours: v.on_call ? null : v.contract_hours,
+    // Il principale e' per forza fra quelli in cui lavora: non avrebbe senso
+    // scrivere accanto al nome un reparto dove non mette piede.
+    reparti: [
+      ...new Set(v.department_id ? [v.department_id, ...v.reparti] : v.reparti),
+    ],
   }));
+
+/** Riscrive i reparti di una persona. Si cancella e si riscrive invece di
+ *  calcolare le differenze: sono al massimo una manciata di righe, e il
+ *  codice che le confronta e' il posto dove nascono i doppioni. */
+export async function sincronizzaReparti(profileId: string, reparti: string[]) {
+  const admin = createAdminClient();
+  await admin.from("profile_departments").delete().eq("profile_id", profileId);
+  if (reparti.length === 0) return null;
+  const { error } = await admin
+    .from("profile_departments")
+    .insert(reparti.map((department_id) => ({ profile_id: profileId, department_id })));
+  return error;
+}
 
 export type RapportoInput = z.input<typeof rapportoSchema>;
 
@@ -65,19 +86,32 @@ export async function creaPersoneDaElenco(
     return { ok: false, error: "Sono già tutti in squadra." };
   }
 
-  const { error } = await admin.from("profiles").insert(
-    nuovi.map((nome) => ({
-      company_id: companyId,
-      user_id: null,
-      full_name: nome,
-      email: null,
-      role: "dipendente" as const,
-      must_change_password: false,
-      ...parsed.data,
-    })),
-  );
+  const { reparti, ...campi } = parsed.data;
+
+  const { data: creati, error } = await admin
+    .from("profiles")
+    .insert(
+      nuovi.map((nome) => ({
+        company_id: companyId,
+        user_id: null,
+        full_name: nome,
+        email: null,
+        role: "dipendente" as const,
+        must_change_password: false,
+        ...campi,
+      })),
+    )
+    .select("id");
 
   if (error) return { ok: false, error: error.message };
+
+  if (reparti.length > 0 && creati) {
+    await admin.from("profile_departments").insert(
+      creati.flatMap((p) =>
+        reparti.map((department_id) => ({ profile_id: p.id, department_id })),
+      ),
+    );
+  }
 
   return { ok: true, creati: nuovi.length, nomi: nuovi };
 }

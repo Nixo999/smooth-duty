@@ -2,9 +2,10 @@ import { Supervisione } from "@/components/supervisione/supervisione";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_FASCIA,
-  COLONNE_PROFILO,
+  COLONNE_PROFILO_CON_REPARTI,
   COLONNE_REPARTO,
   COLONNE_TURNO,
+  conReparti,
 } from "@/lib/colonne";
 import { toISODate } from "@/lib/date";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ export default async function SupervisionePage({
   const [persone, turni, reparti, fasce, assenze] = await Promise.all([
     supabase
       .from("profiles")
-      .select(COLONNE_PROFILO)
+      .select(COLONNE_PROFILO_CON_REPARTI)
       .eq("company_id", user.company_id)
       .eq("active", true)
       .order("full_name"),
@@ -62,7 +63,7 @@ export default async function SupervisionePage({
     <Supervisione
       giorno={giorno}
       giornoPrima={giornoPrima}
-      persone={(persone.data ?? []) as Profile[]}
+      persone={conReparti(persone.data ?? []) as unknown as Profile[]}
       turni={(turni.data ?? []) as Shift[]}
       reparti={(reparti.data ?? []) as Department[]}
       fasce={(fasce.data ?? []) as CoverageBand[]}

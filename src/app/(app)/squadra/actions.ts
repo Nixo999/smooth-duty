@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCapo } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { creaPersoneDaElenco, type RapportoInput } from "@/lib/persone";
+import {
+  creaPersoneDaElenco,
+  sincronizzaReparti,
+  type RapportoInput,
+} from "@/lib/persone";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -23,12 +27,16 @@ function aggiorna() {
 const rapporto = z
   .object({
     department_id: z.string().uuid().nullable(),
+    reparti: z.array(z.string().uuid()).max(20),
     on_call: z.boolean(),
     contract_hours: z.number().min(0).max(80).nullable(),
   })
   .transform((v) => ({
     ...v,
     contract_hours: v.on_call ? null : v.contract_hours,
+    reparti: [
+      ...new Set(v.department_id ? [v.department_id, ...v.reparti] : v.reparti),
+    ],
   }));
 
 /** L'accesso è facoltativo. Una persona può stare in squadra, andare in
@@ -61,7 +69,7 @@ export async function aggiungiPersona(
 
   const parsed = nuovoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { fullName, role, accesso: credenziali, ...campi } = parsed.data;
+  const { fullName, role, accesso: credenziali, reparti, ...campi } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -84,21 +92,27 @@ export async function aggiungiPersona(
     userId = creato.user.id;
   }
 
-  const { error: profileError } = await admin.from("profiles").insert({
-    company_id: capo.company_id,
-    user_id: userId,
-    full_name: fullName,
-    email: credenziali?.email ?? null,
-    role,
-    ...campi,
-    // Chi non ha un accesso non ha una password da cambiare.
-    must_change_password: userId !== null,
-  });
+  const { data: creata, error: profileError } = await admin
+    .from("profiles")
+    .insert({
+      company_id: capo.company_id,
+      user_id: userId,
+      full_name: fullName,
+      email: credenziali?.email ?? null,
+      role,
+      ...campi,
+      // Chi non ha un accesso non ha una password da cambiare.
+      must_change_password: userId !== null,
+    })
+    .select("id")
+    .single();
 
-  if (profileError) {
+  if (profileError || !creata) {
     if (userId) await admin.auth.admin.deleteUser(userId);
     return { ok: false, error: "Non è stato possibile creare la persona." };
   }
+
+  await sincronizzaReparti(creata.id, reparti);
 
   aggiorna();
   return { ok: true };
@@ -197,7 +211,7 @@ export async function modificaPersona(
 
   const parsed = modificaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { id, fullName, role, active, ...campi } = parsed.data;
+  const { id, fullName, role, active, reparti, ...campi } = parsed.data;
 
   // Se il capo togliesse a se stesso il ruolo o l'accesso, l'azienda
   // resterebbe senza nessuno che puo' gestirla.
@@ -229,6 +243,9 @@ export async function modificaPersona(
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };
+
+  const errore = await sincronizzaReparti(id, reparti);
+  if (errore) return { ok: false, error: errore.message };
 
   aggiorna();
   return { ok: true };

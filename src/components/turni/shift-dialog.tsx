@@ -43,11 +43,13 @@ export function ShiftDialog({
   draft,
   profiles,
   departments,
+  repartoFrequente,
   onClose,
 }: {
   draft: ShiftDraft | null;
   profiles: Profile[];
   departments: Department[];
+  repartoFrequente: Record<string, string>;
   onClose: () => void;
 }) {
   if (!draft) return null;
@@ -64,6 +66,7 @@ export function ShiftDialog({
       draft={draft}
       profiles={profiles}
       departments={departments}
+      repartoFrequente={repartoFrequente}
       onClose={onClose}
     />
   );
@@ -73,11 +76,13 @@ function Contenuto({
   draft,
   profiles,
   departments,
+  repartoFrequente,
   onClose,
 }: {
   draft: ShiftDraft;
   profiles: Profile[];
   departments: Department[];
+  repartoFrequente: Record<string, string>;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -86,14 +91,36 @@ function Contenuto({
   const [start, setStart] = React.useState(draft.start_time ?? "09:00");
   const [end, setEnd] = React.useState(draft.end_time ?? "17:00");
 
+  /** Il reparto proposto per una persona: quello in cui lavora piu' spesso,
+   *  e in mancanza di storia il suo principale. Chi fa una cosa sola non se
+   *  ne accorge nemmeno; a chi ne fa due evita di sceglierlo ogni volta. */
+  const proposto = React.useCallback(
+    (profileId: string) => {
+      if (!profileId) return "";
+      const persona = profiles.find((p) => p.id === profileId);
+      return repartoFrequente[profileId] ?? persona?.department_id ?? "";
+    },
+    [profiles, repartoFrequente],
+  );
+
+  const [profileId, setProfileId] = React.useState(draft.profile_id ?? "");
+  const [departmentId, setDepartmentId] = React.useState(
+    draft.department_id ?? proposto(draft.profile_id ?? ""),
+  );
+  // Una volta che il reparto lo si e' scelto a mano, cambiare persona non lo
+  // deve piu' sovrascrivere: e' una decisione, non un valore di comodo.
+  const [scelto, setScelto] = React.useState(false);
+
+  const persona = profiles.find((p) => p.id === profileId);
+  const suoi = persona?.reparti ?? [];
+  const altri = departments.filter((d) => !suoi.includes(d.id));
+
   const editing = Boolean(draft.id);
   const minutes = durationMinutes(start, end);
   const overnight = crossesMidnight(start, end);
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
-      const profileId = String(formData.get("profile_id") ?? "");
-      const departmentId = String(formData.get("department_id") ?? "");
       const result = await salvaTurno({
         id: draft.id,
         profile_id: profileId === "" ? null : profileId,
@@ -193,7 +220,11 @@ function Contenuto({
           <Select
             id="profile_id"
             name="profile_id"
-            defaultValue={draft.profile_id ?? ""}
+            value={profileId}
+            onChange={(e) => {
+              setProfileId(e.target.value);
+              if (!scelto) setDepartmentId(proposto(e.target.value));
+            }}
           >
             <option value="">— Turno scoperto —</option>
             {profiles.map((p) => (
@@ -208,19 +239,42 @@ function Contenuto({
           <Field
             label="Reparto"
             htmlFor="department_id"
-            hint="Lascia vuoto per usare il reparto della persona."
+            hint={
+              suoi.length > 1
+                ? "Proposto quello in cui lavora pi\u00f9 spesso. Per questo turno puoi cambiarlo."
+                : undefined
+            }
           >
             <Select
               id="department_id"
               name="department_id"
-              defaultValue={draft.department_id ?? ""}
+              value={departmentId}
+              onChange={(e) => {
+                setDepartmentId(e.target.value);
+                setScelto(true);
+              }}
             >
-              <option value="">— Quello della persona —</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
+              <option value="">\u2014 Nessun reparto \u2014</option>
+              {suoi.length > 0 ? (
+                <optgroup label="Dove lavora">
+                  {departments
+                    .filter((d) => suoi.includes(d.id))
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
+              {altri.length > 0 ? (
+                <optgroup label={suoi.length > 0 ? "Altri reparti" : "Reparti"}>
+                  {altri.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </Select>
           </Field>
         ) : null}

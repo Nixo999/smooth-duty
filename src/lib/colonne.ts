@@ -7,6 +7,20 @@
 export const COLONNE_PROFILO =
   "id, company_id, user_id, full_name, email, role, active, must_change_password, department_id, contract_hours, on_call";
 
+/** Il profilo con i reparti in cui può lavorare. Arrivano annidati, e vanno
+ *  appiattiti con `conReparti()` prima di usarli. */
+export const COLONNE_PROFILO_CON_REPARTI = `${COLONNE_PROFILO}, profile_departments(department_id)`;
+
+/** Da come li restituisce Supabase a un semplice elenco di identificativi. */
+export function conReparti<T extends { profile_departments?: { department_id: string }[] }>(
+  righe: T[],
+): (Omit<T, "profile_departments"> & { reparti: string[] })[] {
+  return righe.map(({ profile_departments, ...resto }) => ({
+    ...resto,
+    reparti: (profile_departments ?? []).map((r) => r.department_id),
+  }));
+}
+
 export const COLONNE_TURNO =
   "id, company_id, profile_id, date, start_time, end_time, title, location, notes, department_id";
 

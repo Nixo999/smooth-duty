@@ -1,6 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { COLONNE_PROFILO } from "@/lib/colonne";
+import { COLONNE_PROFILO_CON_REPARTI } from "@/lib/colonne";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser, Viewer } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export async function getViewer(): Promise<Viewer | null> {
   const [profileResult, adminResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select(`${COLONNE_PROFILO}, company:companies(id, name)`)
+      .select(`${COLONNE_PROFILO_CON_REPARTI}, company:companies(id, name)`)
       // Per user_id, non per id: da quando una persona può esistere senza
       // account, i due numeri sono cose diverse.
       .eq("user_id", user.id)
@@ -53,6 +53,9 @@ export async function getViewer(): Promise<Viewer | null> {
             active: row.active,
             must_change_password: row.must_change_password,
             department_id: row.department_id,
+            reparti: (row.profile_departments ?? []).map(
+              (r: { department_id: string }) => r.department_id,
+            ),
             contract_hours: row.contract_hours,
             on_call: row.on_call,
             company,

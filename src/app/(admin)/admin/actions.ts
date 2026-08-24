@@ -92,6 +92,7 @@ export async function creaAzienda(
   if (elenco && elenco.trim()) {
     const esito = await creaPersoneDaElenco(company.id, elenco, {
       department_id: null,
+      reparti: [],
       on_call: false,
       contract_hours: null,
     });
@@ -115,6 +116,7 @@ export async function creaPersoneInAzienda(companyId: string, elenco: string) {
 
   const esito = await creaPersoneDaElenco(companyId, elenco, {
     department_id: null,
+    reparti: [],
     on_call: false,
     contract_hours: null,
   });
