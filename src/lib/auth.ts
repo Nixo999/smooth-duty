@@ -71,6 +71,18 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
+/** Dove finisce chi apre l'app, dato chi e'. Lo usano lo smistamento di
+ *  pagina e il login: il login manda direttamente qui, senza passare da "/"
+ *  — su rete lenta quel passaggio era un intero giro in piu'. */
+export function destinazioneDi(viewer: Viewer | null): string {
+  if (!viewer) return "/login";
+  if (viewer.profile?.must_change_password) return "/cambia-password";
+  if (viewer.profile) return "/turni";
+  if (viewer.isPlatformAdmin) return "/admin";
+  // Autenticato ma senza profilo ne' amministrazione: account orfano.
+  return "/login?orfano=1";
+}
+
 /** Pagine dell'azienda: turni e squadra. */
 export async function requireMember(): Promise<SessionUser> {
   const viewer = await getViewer();

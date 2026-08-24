@@ -7,6 +7,7 @@ import { CopiaDialog } from "@/components/turni/copia-dialog";
 import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/shift-dialog";
 import { WeekNav } from "@/components/turni/week-nav";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/field";
 import { Ricerca } from "@/components/ui/ricerca";
 import { repartoDelTurno } from "@/lib/reparto";
 import { corrisponde } from "@/lib/ricerca";
@@ -37,6 +38,8 @@ type Riga = {
   assenza: Absence | null;
   /** Il reparto della persona: vale per i turni che non ne portano uno loro. */
   repartoPersona: string | null;
+  /** Tutti i reparti in cui puo' lavorare, per il filtro. */
+  reparti: string[];
 };
 
 /** Ore assegnate, e quanto distano da quelle dovute. Il confronto è il motivo
@@ -93,6 +96,7 @@ export function Roster({
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
   const [copiaAperta, setCopiaAperta] = React.useState(false);
   const [cerca, setCerca] = React.useState("");
+  const [filtroReparto, setFiltroReparto] = React.useState("");
   // Si tiene la posizione nella settimana, non la data. Tenendo la data,
   // cambiando settimana il giorno scelto sarebbe uno che non c'e' piu' e
   // servirebbe un effetto per rimetterlo a posto; cosi' invece il martedi'
@@ -160,6 +164,9 @@ export function Roster({
       aChiamata: p.on_call,
       assenza: assenze.find((a) => a.profile_id === p.id) ?? null,
       repartoPersona: p.department_id,
+      reparti: p.department_id
+        ? [...new Set([p.department_id, ...p.reparti])]
+        : p.reparti,
     })),
     ...(hasUnassigned
       ? [
@@ -171,6 +178,7 @@ export function Roster({
             aChiamata: false,
             assenza: null,
             repartoPersona: null,
+            reparti: [],
           },
         ]
       : []),
@@ -178,8 +186,15 @@ export function Roster({
 
   // Si filtrano le righe, non `profiles`: l'elenco del pannello «nuovo turno»
   // deve restare intero, altrimenti cercando un nome non si potrebbe piu'
-  // assegnare il turno a nessun altro.
-  const righe = cerca.trim() ? rows.filter((r) => corrisponde(r.name, cerca)) : rows;
+  // assegnare il turno a nessun altro. Il filtro per reparto guarda tutti i
+  // reparti in cui la persona puo' lavorare, non solo il principale; la riga
+  // "Da assegnare" resta sempre, perche' nascondere turni scoperti e' il modo
+  // piu' silenzioso di dimenticarli.
+  const righe = rows.filter(
+    (r) =>
+      (!cerca.trim() || corrisponde(r.name, cerca)) &&
+      (!filtroReparto || r.unassigned || r.reparti.includes(filtroReparto)),
+  );
 
   const openNew = (day: string, profileId: string | null) =>
     setDraft({ date: day, profile_id: profileId === UNASSIGNED ? null : profileId });
@@ -217,16 +232,35 @@ export function Roster({
         <EmptyTeam />
       ) : (
         <>
-          <Ricerca
-            valore={cerca}
-            onChange={setCerca}
-            id="cerca-turni"
-            className="max-w-sm"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Ricerca
+              valore={cerca}
+              onChange={setCerca}
+              id="cerca-turni"
+              className="w-full max-w-sm sm:w-auto sm:flex-1"
+            />
+            {departments.length > 0 ? (
+              <Select
+                aria-label="Filtra per reparto"
+                value={filtroReparto}
+                onChange={(e) => setFiltroReparto(e.target.value)}
+                className="w-auto min-w-40 sm:max-w-52"
+              >
+                <option value="">Tutti i reparti</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
+          </div>
 
           {righe.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
-              Nessuno con questo nome.
+              {cerca.trim()
+                ? "Nessuno con questo nome."
+                : "Nessuno in questo reparto."}
             </p>
           ) : null}
 

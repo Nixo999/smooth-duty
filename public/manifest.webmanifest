@@ -3,7 +3,7 @@
   "short_name": "Turni",
   "description": "Pianificazione turni per squadre e aziende.",
   "lang": "it",
-  "start_url": "/",
+  "start_url": "/turni",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

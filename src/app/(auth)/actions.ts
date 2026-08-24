@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { destinazioneDi, getViewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 /** `ok` lo usa solo il cambio password volontario: le altre azioni finiscono
@@ -35,9 +36,9 @@ export async function accedi(
     return { error: "Email o password non corretti." };
   }
 
-  // Da qui in poi decide la pagina: chi ha una password provvisoria finisce
-  // su /cambia-password, un amministratore senza azienda su /admin.
-  redirect("/");
+  // La destinazione si decide qui, non rimbalzando su "/": quel rimbalzo
+  // era un giro intero di rete in piu', e sull'ingresso si sente tutto.
+  redirect(destinazioneDi(await getViewer()));
 }
 
 const passwordSchema = z

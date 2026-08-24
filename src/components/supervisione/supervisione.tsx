@@ -1,10 +1,13 @@
 "use client";
 
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ListFilter,
   Settings2,
   Users,
 } from "lucide-react";
@@ -34,6 +37,53 @@ import { cn } from "@/lib/utils";
 
 const SENZA_REPARTO = "__senza__";
 
+/** Chiave del salvataggio del filtro reparti. E' una preferenza di chi
+ *  guarda, non un dato: per questo sta nel browser e non sul database. */
+const REPARTI_SPENTI = "turni:supervisione:reparti-spenti";
+
+/* Un piccolo store sul localStorage, letto con useSyncExternalStore: e' il
+ * modo previsto per uno stato che vive fuori da React. Sul server e nel
+ * primo disegno vale l'insieme vuoto (tutto acceso), e React riallinea da
+ * solo dopo il montaggio — senza errori di idratazione ne' setState negli
+ * effetti. */
+const TUTTO_ACCESO: ReadonlySet<string> = new Set();
+let spentiCache: ReadonlySet<string> | null = null;
+const ascoltatori = new Set<() => void>();
+
+function leggiSpenti(): ReadonlySet<string> {
+  if (spentiCache === null) {
+    try {
+      const grezzo = localStorage.getItem(REPARTI_SPENTI);
+      spentiCache = new Set(grezzo ? (JSON.parse(grezzo) as string[]) : []);
+    } catch {
+      // Salvataggio illeggibile: si riparte con tutto acceso.
+      spentiCache = new Set();
+    }
+  }
+  return spentiCache;
+}
+
+function sottoscriviSpenti(avvisa: () => void) {
+  ascoltatori.add(avvisa);
+  return () => {
+    ascoltatori.delete(avvisa);
+  };
+}
+
+function commutaReparto(id: string) {
+  const dopo = new Set(leggiSpenti());
+  if (dopo.has(id)) dopo.delete(id);
+  else dopo.add(id);
+  spentiCache = dopo;
+  try {
+    localStorage.setItem(REPARTI_SPENTI, JSON.stringify([...dopo]));
+  } catch {
+    // Senza spazio o in navigazione privata: il filtro vale comunque
+    // finche' la pagina resta aperta.
+  }
+  for (const avvisa of ascoltatori) avvisa();
+}
+
 type Riga = { chiave: string; nome: string; tinta: number; segmenti: Segmento[] };
 
 export function Supervisione({
@@ -61,6 +111,11 @@ export function Supervisione({
 }) {
   const router = useRouter();
   const [impostazioni, setImpostazioni] = React.useState(false);
+  const nascosti = React.useSyncExternalStore(
+    sottoscriviSpenti,
+    leggiSpenti,
+    () => TUTTO_ACCESO,
+  );
   const [inCorso, startNavigazione] = React.useTransition();
   const [daModificare, setDaModificare] = React.useState<ShiftDraft | null>(null);
 
@@ -142,6 +197,7 @@ export function Supervisione({
   }, [turni, persone, fasce, reparti, assenze, giorno, giornoPrima]);
 
   const { vista, gruppi } = dati;
+  const visibili = gruppi.filter((g) => !nascosti.has(g.id));
   const ore = (vista.a - vista.da) / 60;
   const larghezzaMinima = Math.max(560, ore * 62);
   const pct = (m: number) => ((m - vista.da) / (vista.a - vista.da)) * 100;
@@ -188,20 +244,34 @@ export function Supervisione({
           ) : null}
         </div>
 
-        {capo ? (
-          <Button variant="secondary" size="sm" onClick={() => setImpostazioni(true)}>
-            <Settings2 className="size-3.5" />
-            <span className="hidden sm:inline">Reparti e coperture</span>
-            <span className="sm:hidden">Reparti</span>
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {gruppi.length > 1 ? (
+            <FiltroReparti
+              gruppi={gruppi}
+              nascosti={nascosti}
+              onCommuta={commutaReparto}
+            />
+          ) : null}
+          {capo ? (
+            <Button variant="secondary" size="sm" onClick={() => setImpostazioni(true)}>
+              <Settings2 className="size-3.5" />
+              <span className="hidden sm:inline">Reparti e coperture</span>
+              <span className="sm:hidden">Reparti</span>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {gruppi.length === 0 ? (
         <Vuoto capo={capo} onApri={() => setImpostazioni(true)} />
       ) : (
         <div className="stagger space-y-4">
-          {gruppi.map((g) => (
+          {visibili.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
+              Tutti i reparti sono spenti nel filtro.
+            </p>
+          ) : null}
+          {visibili.map((g) => (
             <section
               key={g.id}
               className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card"
@@ -489,5 +559,70 @@ function Vuoto({ capo, onApri }: { capo: boolean; onApri: () => void }) {
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/** Il box con cui si scelgono i reparti da vedere. La scelta resta nel
+ *  browser di chi la fa: e' un modo di guardare, non un dato di tutti. */
+function FiltroReparti({
+  gruppi,
+  nascosti,
+  onCommuta,
+}: {
+  gruppi: { id: string; nome: string; tinta: number }[];
+  nascosti: ReadonlySet<string>;
+  onCommuta: (id: string) => void;
+}) {
+  const spenti = gruppi.filter((g) => nascosti.has(g.id)).length;
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Button variant="secondary" size="sm">
+          <ListFilter className="size-3.5" />
+          <span className="hidden sm:inline">Mostra</span>
+          {spenti > 0 ? (
+            <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold tabular-nums text-accent-fg">
+              {gruppi.length - spenti}/{gruppi.length}
+            </span>
+          ) : null}
+        </Button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          className="z-40 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+        >
+          <p className="px-2.5 pb-1 pt-2 text-[11px] uppercase tracking-wide text-faint">
+            Reparti da vedere
+          </p>
+          {gruppi.map((g) => (
+            <DropdownMenu.CheckboxItem
+              key={g.id}
+              checked={!nascosti.has(g.id)}
+              // Senza il preventDefault il box si chiuderebbe a ogni spunta,
+              // e per spegnerne tre andrebbe riaperto tre volte.
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => onCommuta(g.id)}
+              className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] outline-none data-[highlighted]:bg-surface-3"
+            >
+              <span className="grid size-4 shrink-0 place-items-center rounded border border-border-strong bg-surface-2">
+                <DropdownMenu.ItemIndicator>
+                  <Check className="size-3 text-accent" />
+                </DropdownMenu.ItemIndicator>
+              </span>
+              <span
+                className="pastiglia-reparto truncate rounded-full px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-wide"
+                style={{ ["--tinta" as string]: g.tinta }}
+              >
+                {g.nome}
+              </span>
+            </DropdownMenu.CheckboxItem>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
