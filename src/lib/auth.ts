@@ -1,11 +1,18 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { COLONNE_PROFILO_CON_REPARTI } from "@/lib/colonne";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser, Viewer } from "@/lib/types";
 
-/** Chi ha fatto accesso. null se non e' entrato. */
-export async function getViewer(): Promise<Viewer | null> {
+/** Chi ha fatto accesso. null se non e' entrato.
+ *
+ *  `cache()` la fa girare **una volta sola per richiesta**, non una volta per
+ *  chiamata. Senza, ogni pagina la eseguiva tre volte — il guscio la chiede
+ *  due volte, la pagina una terza — e ogni giro e' un `auth.getUser()` che
+ *  va a farsi validare il token da Supabase piu' due letture sul database:
+ *  mezzo secondo buttato prima ancora di leggere i turni. */
+export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createClient();
 
   // getUser() e non getSession(): getSession legge il cookie e si fida,
@@ -62,7 +69,7 @@ export async function getViewer(): Promise<Viewer | null> {
           }
         : null,
   };
-}
+});
 
 /** Pagine dell'azienda: turni e squadra. */
 export async function requireMember(): Promise<SessionUser> {

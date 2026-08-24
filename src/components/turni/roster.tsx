@@ -8,6 +8,7 @@ import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/s
 import { WeekNav } from "@/components/turni/week-nav";
 import { Button } from "@/components/ui/button";
 import { Ricerca } from "@/components/ui/ricerca";
+import { repartoDelTurno } from "@/lib/reparto";
 import { corrisponde } from "@/lib/ricerca";
 import {
   dayLong,
@@ -34,6 +35,8 @@ type Riga = {
   aChiamata: boolean;
   /** Assenza che tocca questa settimana, se c'è. */
   assenza: Absence | null;
+  /** Il reparto della persona: vale per i turni che non ne portano uno loro. */
+  repartoPersona: string | null;
 };
 
 /** Ore assegnate, e quanto distano da quelle dovute. Il confronto è il motivo
@@ -125,6 +128,16 @@ export function Roster({
   const assente = (s: Shift) =>
     Boolean(assenzaDelGiorno(assenze, s.profile_id, s.date));
 
+  /** Il reparto scritto sotto l'orario. Ha preso il posto della mansione:
+   *  guardando il tabellone la domanda è chi copre dove, e la mansione la si
+   *  legge aprendo il turno. */
+  const repartoDi = (s: Shift) =>
+    repartoDelTurno(
+      departments,
+      s.department_id,
+      profiles.find((p) => p.id === s.profile_id)?.department_id ?? null,
+    );
+
   const weeklyMinutes = React.useMemo(() => {
     const totals = new Map<string, number>();
     for (const s of shifts) {
@@ -146,6 +159,7 @@ export function Roster({
       contratto: p.contract_hours === null ? null : Number(p.contract_hours),
       aChiamata: p.on_call,
       assenza: assenze.find((a) => a.profile_id === p.id) ?? null,
+      repartoPersona: p.department_id,
     })),
     ...(hasUnassigned
       ? [
@@ -156,6 +170,7 @@ export function Roster({
             contratto: null,
             aChiamata: false,
             assenza: null,
+            repartoPersona: null,
           },
         ]
       : []),
@@ -299,6 +314,7 @@ export function Roster({
                             <Chip
                               key={s.id}
                               shift={s}
+                              reparto={repartoDi(s)?.name ?? null}
                               assente={assente(s)}
                               onOpen={() => setDraft(shiftToDraft(s))}
                             />
@@ -364,6 +380,7 @@ export function Roster({
                 rows={righe}
                 cell={cell}
                 assente={assente}
+                reparto={(s) => repartoDi(s)?.name ?? null}
                 soloConTurni={!cerca.trim()}
                 onOpen={(s) => setDraft(shiftToDraft(s))}
                 onAdd={(profileId) => openNew(selectedDay, profileId)}
@@ -394,10 +411,13 @@ export function Roster({
 
 function Chip({
   shift,
+  reparto,
   assente,
   onOpen,
 }: {
   shift: Shift;
+  /** Il reparto del turno, già risolto. null se non ne ha nessuno. */
+  reparto: string | null;
   assente?: boolean;
   onOpen: () => void;
 }) {
@@ -428,8 +448,8 @@ function Chip({
       <span className="orario block text-[12px] font-semibold tabular-nums">
         {timeRange(shift.start_time, shift.end_time)}
       </span>
-      {shift.title ? (
-        <span className="block truncate text-[11.5px] opacity-80">{shift.title}</span>
+      {reparto ? (
+        <span className="block truncate text-[11.5px] opacity-80">{reparto}</span>
       ) : null}
     </span>
   );
@@ -440,6 +460,7 @@ function DayList({
   rows,
   cell,
   assente,
+  reparto,
   soloConTurni = true,
   onOpen,
   onAdd,
@@ -448,6 +469,8 @@ function DayList({
   rows: Riga[];
   cell: (profileId: string, day: string) => Shift[];
   assente: (s: Shift) => boolean;
+  /** Il reparto del turno, già risolto: sta al posto della mansione. */
+  reparto: (s: Shift) => string | null;
   /** Normalmente si mostra solo chi ha turni quel giorno. Quando si sta
    *  cercando un nome no: chi cerca una persona vuole vederla anche se quel
    *  giorno e' libera — e' proprio quello il giorno in cui le si aggiunge
@@ -520,7 +543,7 @@ function DayList({
                       <span className="ml-auto truncate text-[13px] text-muted">
                         {assente(s)
                           ? "non conta"
-                          : (s.title ??
+                          : (reparto(s) ??
                             formatDuration(durationMinutes(s.start_time, s.end_time)))}
                       </span>
                     </button>

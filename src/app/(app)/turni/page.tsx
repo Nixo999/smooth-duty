@@ -108,6 +108,8 @@ export default async function TurniPage({
       shifts={shifts}
       assenze={absences}
       profileId={user.id}
+      reparti={departments}
+      repartoPersona={user.department_id}
     />
   );
 }

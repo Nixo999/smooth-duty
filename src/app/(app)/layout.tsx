@@ -1,13 +1,14 @@
 import { esci } from "@/app/(auth)/actions";
 import { AppShell, type Section } from "@/components/app-shell";
-import { requireMember } from "@/lib/auth";
-import { getViewer } from "@/lib/auth";
+import { getViewer, requireMember } from "@/lib/auth";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Due chiamate, una sola andata a Supabase: `getViewer` e' memorizzata per
+  // richiesta, e `requireMember` non fa altro che chiederle la stessa cosa.
   const profile = await requireMember();
   const viewer = await getViewer();
 

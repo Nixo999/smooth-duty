@@ -16,7 +16,8 @@ import {
   isToday,
   timeRange,
 } from "@/lib/date";
-import type { Absence, Shift } from "@/lib/types";
+import { repartoDelTurno } from "@/lib/reparto";
+import type { Absence, Department, Shift } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Vista del dipendente: la settimana per giorni, senza griglia. Deve
@@ -27,15 +28,25 @@ export function MyWeek({
   shifts,
   assenze,
   profileId,
+  reparti,
+  repartoPersona,
 }: {
   monday: string;
   days: string[];
   shifts: Shift[];
   assenze: Absence[];
   profileId: string;
+  reparti: Department[];
+  /** Il reparto di chi guarda: vale per i turni che non ne portano uno loro. */
+  repartoPersona: string | null;
 }) {
   const assente = (s: Shift) =>
     Boolean(assenzaDelGiorno(assenze, s.profile_id, s.date));
+
+  /** Dove si lavora, al posto della mansione: è la prima cosa che serve
+   *  sapere per presentarsi al posto giusto. */
+  const reparto = (s: Shift) =>
+    repartoDelTurno(reparti, s.department_id, repartoPersona);
 
   // Le ore di quando si è assenti non si sommano: il totale deve dire quanto
   // si lavorerà davvero.
@@ -120,50 +131,62 @@ export function MyWeek({
                 <p className="px-4 py-4 text-[13.5px] text-faint">Riposo</p>
               ) : (
                 <ul className="divide-y divide-border">
-                  {list.map((s) => (
-                    <li
-                      key={s.id}
-                      className={cn("px-4 py-3.5", assente(s) && "assente")}
-                    >
-                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <span className="orario text-[17px] font-semibold tabular-nums tracking-tight">
-                          {timeRange(s.start_time, s.end_time)}
-                        </span>
-                        {assente(s) ? (
-                          <span className="text-[12.5px] font-medium text-warning">
-                            non conta
+                  {list.map((s) => {
+                    const suo = reparto(s);
+                    return (
+                      <li
+                        key={s.id}
+                        className={cn("px-4 py-3.5", assente(s) && "assente")}
+                      >
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="orario text-[17px] font-semibold tabular-nums tracking-tight">
+                            {timeRange(s.start_time, s.end_time)}
                           </span>
-                        ) : (
-                          <>
-                            <span className="inline-flex items-center gap-1 text-[12.5px] text-muted">
-                              <Clock className="size-3" />
-                              {formatDuration(durationMinutes(s.start_time, s.end_time))}
+                          {assente(s) ? (
+                            <span className="text-[12.5px] font-medium text-warning">
+                              non conta
                             </span>
-                            {crossesMidnight(s.start_time, s.end_time) ? (
-                              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium text-warning">
-                                finisce il giorno dopo
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center gap-1 text-[12.5px] text-muted">
+                                <Clock className="size-3" />
+                                {formatDuration(durationMinutes(s.start_time, s.end_time))}
                               </span>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
+                              {crossesMidnight(s.start_time, s.end_time) ? (
+                                <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium text-warning">
+                                  finisce il giorno dopo
+                                </span>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
 
-                      {s.title ? <p className="mt-1 text-[14px]">{s.title}</p> : null}
+                        {suo ? (
+                          <p className="mt-1.5">
+                            <span
+                              className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-wide"
+                              style={{ ["--tinta" as string]: suo.hue }}
+                            >
+                              {suo.name}
+                            </span>
+                          </p>
+                        ) : null}
 
-                      {s.location ? (
-                        <p className="mt-0.5 inline-flex items-center gap-1 text-[13px] text-muted">
-                          <MapPin className="size-3" />
-                          {s.location}
-                        </p>
-                      ) : null}
+                        {s.location ? (
+                          <p className="mt-0.5 inline-flex items-center gap-1 text-[13px] text-muted">
+                            <MapPin className="size-3" />
+                            {s.location}
+                          </p>
+                        ) : null}
 
-                      {s.notes ? (
-                        <p className="mt-1.5 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted">
-                          {s.notes}
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
+                        {s.notes ? (
+                          <p className="mt-1.5 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted">
+                            {s.notes}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>
