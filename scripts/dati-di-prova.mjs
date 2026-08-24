@@ -12,9 +12,19 @@ const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const CHIAVE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const AZIENDA = process.argv[2] ?? "Pizzeria Prova";
 
-// Password unica e riconoscibile: sono account finti, e doverne annotare sei
-// diverse per guardare due schermate non aiuta nessuno.
-const PASSWORD = "prova-turni-2026";
+// Password unica per tutti gli account dimostrativi: sono finti, e doverne
+// annotare sei diverse per guardare due schermate non aiuta nessuno. Arriva
+// da fuori e non ha un valore di ripiego: una password scritta nel codice
+// finisce su GitHub, e da li' non si toglie piu'.
+const PASSWORD = process.env.TURNI_DEMO_PASSWORD;
+if (!PASSWORD || PASSWORD.length < 5) {
+  console.error(
+    "Manca TURNI_DEMO_PASSWORD (almeno 5 caratteri).
+" +
+      "  TURNI_DEMO_PASSWORD=... node --env-file=.env.local scripts/dati-di-prova.mjs",
+  );
+  process.exit(1);
+}
 
 const intestazioni = {
   apikey: CHIAVE,

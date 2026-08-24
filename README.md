@@ -198,6 +198,28 @@ android/             guscio Capacitor per l'APK di prova
 scripts/             generazione icone e prova del lettore su un file finto
 ```
 
+## Segreti
+
+Nel repository non c'è nessuna credenziale, ed è una regola da tenere:
+
+- `.env.local` (chiavi Supabase) e `.env.db` (password del database) sono
+  esclusi da git, e non sono mai finiti nella storia dei commit.
+- Gli script che creano account di prova **non hanno password di ripiego**:
+  arrivano da fuori, perché una password scritta nel codice finisce su GitHub
+  e da lì non si toglie più.
+
+```bash
+TURNI_DEMO_PASSWORD=... node --env-file=.env.local scripts/dati-di-prova.mjs
+TURNI_CAPO_PASSWORD=... node --import ./scripts/alias.mjs --env-file=.env.local   scripts/carica-mediaworld.mjs "percorso/Orari.xlsx"
+```
+
+Prima di rendere pubblico questo repository vale la pena rileggere questa
+sezione, e controllare la storia e non solo i file:
+
+```bash
+git grep -I -l "sb_secret_" $(git rev-list --all)
+```
+
 ## Non c'è ancora
 
 Lettura dei turni da una foto, notifiche via email e push, generazione

@@ -17,9 +17,21 @@ const URL_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const CHIAVE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const FILE = process.argv[2];
 const AZIENDA = "Mediaworld";
-const CAPO = { nome: "Responsabile Limbiate", email: "capo@mediaworld.it", password: "mediaworld" };
+// La password del responsabile arriva da fuori: scriverla qui vorrebbe dire
+// pubblicarla insieme al codice.
+const CAPO = {
+  nome: "Responsabile Limbiate",
+  email: process.env.TURNI_CAPO_EMAIL ?? "capo@mediaworld.it",
+  password: process.env.TURNI_CAPO_PASSWORD,
+};
 
 if (!FILE) throw new Error("Manca il percorso del file.");
+if (!CAPO.password || CAPO.password.length < 5) {
+  throw new Error(
+    "Manca TURNI_CAPO_PASSWORD (almeno 5 caratteri): la password del " +
+      "responsabile si passa da fuori, non si scrive nel codice.",
+  );
+}
 
 const h = {
   apikey: CHIAVE,
