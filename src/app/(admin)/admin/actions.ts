@@ -21,6 +21,15 @@ const creaSchema = z.object({
     .nullable(),
   /** Nomi separati da virgola, creati senza accesso. */
   elenco: z.string().max(8000).nullable(),
+  /** Le impostazioni generali, scelte gia' alla nascita. Le causali
+   *  richiedibili partono tutte accese: le rifinisce il responsabile. */
+  impostazioni: z.object({
+    supervisione_dipendenti: z.boolean(),
+    conferma_straordinari: z.boolean(),
+    conferma_modifiche: z.boolean(),
+    conferma_modifiche_straordinari: z.boolean(),
+    orari_preimpostati: z.boolean(),
+  }),
 });
 
 /** Crea l'azienda, e se glielo si chiede anche il suo primo responsabile e
@@ -33,7 +42,7 @@ export async function creaAzienda(
 
   const parsed = creaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { companyName, responsabile, elenco } = parsed.data;
+  const { companyName, responsabile, elenco, impostazioni } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -52,6 +61,13 @@ export async function creaAzienda(
           : "Non è stato possibile creare l'azienda.",
     };
   }
+
+  // Le impostazioni nascono insieme all'azienda. Se l'inserimento fallisse
+  // non si butta via tutto: senza riga valgono i default, che sono gli
+  // stessi valori di partenza di questo pannello.
+  await admin
+    .from("company_settings")
+    .insert({ company_id: company.id, ...impostazioni });
 
   if (responsabile) {
     const { data: created, error: userError } = await admin.auth.admin.createUser({

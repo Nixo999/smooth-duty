@@ -1,5 +1,11 @@
+import { redirect } from "next/navigation";
 import { Supervisione } from "@/components/supervisione/supervisione";
 import { requireMember } from "@/lib/auth";
+import {
+  COLONNE_IMPOSTAZIONI,
+  normalizzaImpostazioni,
+} from "@/lib/impostazioni";
+import { mondayOf } from "@/lib/week";
 import {
   COLONNE_FASCIA,
   COLONNE_PROFILO_CON_REPARTI,
@@ -27,7 +33,8 @@ export default async function SupervisionePage({
 
   // Si leggono due giorni, non uno: un turno 18:00–02:00 di ieri copre le
   // prime ore di oggi, e senza guardare indietro la notte sembrerebbe scoperta.
-  const [persone, turni, reparti, fasce, assenze, frequente] = await Promise.all([
+  const [persone, turni, reparti, fasce, assenze, frequente, impostazioni, bozze] =
+    await Promise.all([
     supabase
       .from("profiles")
       .select(COLONNE_PROFILO_CON_REPARTI)
@@ -60,14 +67,44 @@ export default async function SupervisionePage({
     // Il reparto in cui ciascuno lavora piu' spesso: e' la proposta di
     // partenza quando da qui si apre un turno, come nei Turni.
     supabase.from("reparto_piu_frequente").select("profile_id, department_id"),
+    supabase
+      .from("company_settings")
+      .select(COLONNE_IMPOSTAZIONI)
+      .eq("company_id", user.company_id)
+      .maybeSingle(),
+    // Le settimane in bozza dei due giorni letti: al dipendente i turni
+    // non pubblicati non si mostrano nemmeno qui.
+    supabase
+      .from("draft_weeks")
+      .select("monday")
+      .eq("company_id", user.company_id)
+      .in("monday", [...new Set([mondayOf(giorno), mondayOf(giornoPrima)])]),
   ]);
+
+  const capo = user.role === "capo";
+
+  // Una delle impostazioni generali: la Supervisione ai dipendenti si puo'
+  // spegnere. Il menu la nasconde gia'; questa riga vale per chi arriva
+  // dall'indirizzo diretto.
+  if (!capo && !normalizzaImpostazioni(impostazioni.data as never).supervisione_dipendenti) {
+    redirect("/turni");
+  }
+
+  const settimaneBozza = new Set(
+    ((bozze.data ?? []) as { monday: string }[]).map((b) => b.monday),
+  );
+  const turniVisibili = capo
+    ? ((turni.data ?? []) as Shift[])
+    : ((turni.data ?? []) as Shift[]).filter(
+        (t) => !settimaneBozza.has(mondayOf(t.date)),
+      );
 
   return (
     <Supervisione
       giorno={giorno}
       giornoPrima={giornoPrima}
       persone={conReparti(persone.data ?? []) as unknown as Profile[]}
-      turni={(turni.data ?? []) as Shift[]}
+      turni={turniVisibili}
       reparti={(reparti.data ?? []) as Department[]}
       fasce={(fasce.data ?? []) as CoverageBand[]}
       assenze={(assenze.data ?? []) as AbsenceDay[]}
@@ -78,7 +115,7 @@ export default async function SupervisionePage({
         }[]).map((r) => [r.profile_id, r.department_id]),
       )}
       mioId={user.id}
-      capo={user.role === "capo"}
+      capo={capo}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
+import { ConfermaTurno } from "@/components/turni/conferma-turno";
 import { WeekNav } from "@/components/turni/week-nav";
 import {
   assenzaAperta,
@@ -20,6 +21,15 @@ import { repartoDelTurno } from "@/lib/reparto";
 import type { Absence, Department, Shift } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** Perche' questo turno aspetta un si', scritto come lo si direbbe. */
+const MOTIVO_CONFERMA = {
+  straordinario: "Straordinario: va oltre le tue ore da contratto.",
+  modifica: "Turno modificato dopo la pubblicazione della settimana.",
+  modifica_straordinario:
+    "Turno modificato, e ora va oltre le tue ore da contratto.",
+  orario_diverso: "Orario diverso da quello del tuo contratto.",
+} as const;
+
 /** Vista del dipendente: la settimana per giorni, senza griglia. Deve
  *  rispondere a una domanda sola — quando lavoro — anche da telefono. */
 export function MyWeek({
@@ -30,6 +40,7 @@ export function MyWeek({
   profileId,
   reparti,
   repartoPersona,
+  inBozza,
 }: {
   monday: string;
   days: string[];
@@ -39,6 +50,8 @@ export function MyWeek({
   reparti: Department[];
   /** Il reparto di chi guarda: vale per i turni che non ne portano uno loro. */
   repartoPersona: string | null;
+  /** La settimana e' ancora in bozza: i turni non arrivano proprio. */
+  inBozza: boolean;
 }) {
   const assente = (s: Shift) =>
     Boolean(assenzaDelGiorno(assenze, s.profile_id, s.date));
@@ -65,6 +78,16 @@ export function MyWeek({
           {formatDuration(total)} in settimana
         </div>
       </div>
+
+      {inBozza ? (
+        <div className="flex items-start gap-2.5 rounded-2xl bg-surface-2 px-4 py-3.5 text-muted">
+          <Info className="mt-0.5 size-4 shrink-0" />
+          <p className="text-[13.5px]">
+            Il responsabile non ha ancora pubblicato questa settimana: i turni
+            compariranno quando lo farà.
+          </p>
+        </div>
+      ) : null}
 
       {inCorso ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-warning-soft px-4 py-3.5">
@@ -183,6 +206,15 @@ export function MyWeek({
                           <p className="mt-1.5 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted">
                             {s.notes}
                           </p>
+                        ) : null}
+
+                        {s.richiede_conferma && !s.confermato_at ? (
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
+                            <p className="text-[13px] font-medium text-warning">
+                              {MOTIVO_CONFERMA[s.richiede_conferma]}
+                            </p>
+                            <ConfermaTurno turnoId={s.id} />
+                          </div>
                         ) : null}
                       </li>
                     );

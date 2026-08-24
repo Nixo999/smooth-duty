@@ -1,8 +1,20 @@
 "use client";
 
-import { CalendarPlus, Copy, FileUp, Plus, Users } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  CalendarPlus,
+  ChevronDown,
+  Copy,
+  FileUp,
+  PencilLine,
+  Plus,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { impostaBozza } from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
 import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/shift-dialog";
 import { WeekNav } from "@/components/turni/week-nav";
@@ -53,7 +65,9 @@ function OreDellaRiga({ minuti, riga }: { minuti: number; riga: Riga }) {
     <p
       className={cn(
         "text-[12px] tabular-nums",
-        oltre ? "text-warning" : "text-faint",
+        // Sopra le ore e' un costo (arancio), sotto e' un buco nel
+        // contratto (rosso): sono i due numeri che il responsabile cerca.
+        oltre ? "text-warning" : sotto ? "text-danger" : "text-faint",
       )}
       title={
         riga.contratto !== null
@@ -83,6 +97,7 @@ export function Roster({
   departments,
   assenze,
   repartoFrequente,
+  inBozza,
 }: {
   monday: string;
   days: string[];
@@ -92,11 +107,31 @@ export function Roster({
   assenze: Absence[];
   /** Per ciascuna persona, il reparto in cui lavora piu' spesso. */
   repartoFrequente: Record<string, string>;
+  /** La settimana e' in bozza: i dipendenti non la vedono. */
+  inBozza: boolean;
 }) {
+  const router = useRouter();
+  const [bozzaInCorso, startBozza] = React.useTransition();
+
+  const commutaBozza = () =>
+    startBozza(async () => {
+      const esito = await impostaBozza(monday, !inBozza);
+      if (!esito.ok) {
+        toast.error(esito.error);
+        return;
+      }
+      toast.success(
+        inBozza
+          ? "Settimana pubblicata: ora i dipendenti la vedono."
+          : "Settimana in bozza: i dipendenti non la vedono finché non la pubblichi.",
+      );
+      router.refresh();
+    });
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
   const [copiaAperta, setCopiaAperta] = React.useState(false);
   const [cerca, setCerca] = React.useState("");
   const [filtroReparto, setFiltroReparto] = React.useState("");
+  const [filtroContratto, setFiltroContratto] = React.useState("");
   // Si tiene la posizione nella settimana, non la data. Tenendo la data,
   // cambiando settimana il giorno scelto sarebbe uno che non c'e' piu' e
   // servirebbe un effetto per rimetterlo a posto; cosi' invece il martedi'
@@ -190,10 +225,22 @@ export function Roster({
   // reparti in cui la persona puo' lavorare, non solo il principale; la riga
   // "Da assegnare" resta sempre, perche' nascondere turni scoperti e' il modo
   // piu' silenzioso di dimenticarli.
+  /** Il confronto con il contratto, sulle ore della settimana mostrata. */
+  const passaContratto = (r: Riga) => {
+    if (!filtroContratto || r.unassigned) return true;
+    if (filtroContratto === "chiamata") return r.aChiamata;
+    if (r.contratto === null) return false;
+    const ore = (weeklyMinutes.get(r.id) ?? 0) / 60;
+    if (filtroContratto === "sotto") return ore < r.contratto - 0.01;
+    if (filtroContratto === "oltre") return ore > r.contratto + 0.01;
+    return ore >= r.contratto - 0.01 && ore <= r.contratto + 0.01;
+  };
+
   const righe = rows.filter(
     (r) =>
       (!cerca.trim() || corrisponde(r.name, cerca)) &&
-      (!filtroReparto || r.unassigned || r.reparti.includes(filtroReparto)),
+      (!filtroReparto || r.unassigned || r.reparti.includes(filtroReparto)) &&
+      passaContratto(r),
   );
 
   const openNew = (day: string, profileId: string | null) =>
@@ -201,50 +248,29 @@ export function Roster({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <WeekNav monday={monday} />
-
-        <div className="flex items-center gap-2">
-          <Link href="/turni/importa">
-            <Button variant="secondary" size="sm" title="Importa da un foglio Excel o CSV">
-              <FileUp className="size-3.5" />
-              <span className="hidden sm:inline">Importa</span>
-            </Button>
-          </Link>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setCopiaAperta(true)}
-            title="Copia i turni di una settimana o di un giorno su un altro"
-          >
-            <Copy className="size-3.5" />
-            <span className="hidden sm:inline">Copia turni</span>
-          </Button>
-          <Button size="sm" onClick={() => openNew(selectedDay, null)}>
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">Nuovo turno</span>
-            <span className="sm:hidden">Turno</span>
-          </Button>
-        </div>
-      </div>
-
       {profiles.length === 0 ? (
-        <EmptyTeam />
+        <>
+          <WeekNav monday={monday} />
+          <EmptyTeam />
+        </>
       ) : (
         <>
+          {/* Tutto su una riga sola sopra il tabellone: settimana, ricerca,
+              filtri e la creazione. Da telefono la riga va a capo da sola. */}
           <div className="flex flex-wrap items-center gap-2">
+            <WeekNav monday={monday} />
             <Ricerca
               valore={cerca}
               onChange={setCerca}
               id="cerca-turni"
-              className="w-full max-w-sm sm:w-auto sm:flex-1"
+              className="w-full sm:w-auto sm:min-w-44 sm:flex-1"
             />
             {departments.length > 0 ? (
               <Select
                 aria-label="Filtra per reparto"
                 value={filtroReparto}
                 onChange={(e) => setFiltroReparto(e.target.value)}
-                className="w-auto min-w-40 sm:max-w-52"
+                className="w-auto min-w-36"
               >
                 <option value="">Tutti i reparti</option>
                 {departments.map((d) => (
@@ -254,13 +280,91 @@ export function Roster({
                 ))}
               </Select>
             ) : null}
+            <Select
+              aria-label="Filtra per contratto"
+              value={filtroContratto}
+              onChange={(e) => setFiltroContratto(e.target.value)}
+              className="w-auto min-w-36"
+            >
+              <option value="">Qualsiasi contratto</option>
+              <option value="sotto">Sotto le ore</option>
+              <option value="linea">In linea</option>
+              <option value="oltre">Oltre le ore</option>
+              <option value="chiamata">A chiamata</option>
+            </Select>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={commutaBozza}
+              loading={bozzaInCorso}
+              title={
+                inBozza
+                  ? "Rendi la settimana visibile ai dipendenti"
+                  : "Nascondi la settimana ai dipendenti finché non è pronta"
+              }
+            >
+              {inBozza ? "Pubblica" : "Bozza"}
+            </Button>
+
+            {/* I tre modi di creare turni, raccolti in un'isoletta: tre
+                bottoni sciolti si contendevano la riga coi filtri. */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button size="sm">
+                  <Plus className="size-4" />
+                  Nuovi turni
+                  <ChevronDown className="size-3.5 opacity-70" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  className="z-40 w-52 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => openNew(selectedDay, null)}
+                    className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] outline-none data-[highlighted]:bg-surface-3"
+                  >
+                    <PencilLine className="size-3.5 text-muted" />
+                    Manuale
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => setCopiaAperta(true)}
+                    className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] outline-none data-[highlighted]:bg-surface-3"
+                  >
+                    <Copy className="size-3.5 text-muted" />
+                    Copia turni
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      href="/turni/importa"
+                      className="tap flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] outline-none data-[highlighted]:bg-surface-3"
+                    >
+                      <FileUp className="size-3.5 text-muted" />
+                      Importa da un foglio
+                    </Link>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </div>
+
+          {inBozza ? (
+            <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
+              Questa settimana è in bozza: i dipendenti non la vedono
+              finché non premi «Pubblica».
+            </p>
+          ) : null}
 
           {righe.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
               {cerca.trim()
                 ? "Nessuno con questo nome."
-                : "Nessuno in questo reparto."}
+                : filtroContratto
+                  ? "Nessuno con questo contratto."
+                  : "Nessuno in questo reparto."}
             </p>
           ) : null}
 
@@ -477,7 +581,14 @@ function Chip({
           ? "bg-warning-soft text-warning"
           : "bg-accent-soft text-accent",
         assente && "assente border border-current",
+        // Aspetta il si' dell'interessato: un anello, non un colore nuovo.
+        shift.richiede_conferma && !shift.confermato_at && "ring-1 ring-warning",
       )}
+      title={
+        shift.richiede_conferma && !shift.confermato_at
+          ? "In attesa della conferma della persona"
+          : undefined
+      }
     >
       <span className="orario block text-[12px] font-semibold tabular-nums">
         {timeRange(shift.start_time, shift.end_time)}

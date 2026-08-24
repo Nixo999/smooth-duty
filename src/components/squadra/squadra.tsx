@@ -42,18 +42,30 @@ export function Squadra({
   const [adding, setAdding] = React.useState(false);
   const [editing, setEditing] = React.useState<Profile | null>(null);
   const [cerca, setCerca] = React.useState("");
+  const [filtroReparto, setFiltroReparto] = React.useState("");
+  const [filtroContratto, setFiltroContratto] = React.useState("");
 
   const nomeReparto = (id: string | null) =>
     reparti.find((r) => r.id === id) ?? null;
 
   // Si cerca anche nell'email: due omonimi si distinguono da quella, ed e'
-  // l'unica altra cosa scritta nella riga.
+  // l'unica altra cosa scritta nella riga. Il filtro reparto guarda tutti i
+  // reparti in cui la persona puo' lavorare, come nei Turni.
   const visibili = React.useMemo(
     () =>
-      cerca.trim()
-        ? people.filter((p) => corrisponde(`${p.full_name} ${p.email ?? ""}`, cerca))
-        : people,
-    [people, cerca],
+      people.filter(
+        (p) =>
+          (!cerca.trim() ||
+            corrisponde(`${p.full_name} ${p.email ?? ""}`, cerca)) &&
+          (!filtroReparto ||
+            p.department_id === filtroReparto ||
+            p.reparti.includes(filtroReparto)) &&
+          (!filtroContratto ||
+            (filtroContratto === "chiamata"
+              ? p.on_call
+              : !p.on_call && p.contract_hours !== null)),
+      ),
+    [people, cerca, filtroReparto, filtroContratto],
   );
 
   return (
@@ -75,13 +87,45 @@ export function Squadra({
       </div>
 
       {people.length > 0 ? (
-        <Ricerca valore={cerca} onChange={setCerca} id="cerca-squadra" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Ricerca
+            valore={cerca}
+            onChange={setCerca}
+            id="cerca-squadra"
+            className="w-full sm:w-auto sm:min-w-52 sm:flex-1"
+          />
+          {reparti.length > 0 ? (
+            <Select
+              aria-label="Filtra per reparto"
+              value={filtroReparto}
+              onChange={(e) => setFiltroReparto(e.target.value)}
+              className="w-auto min-w-36"
+            >
+              <option value="">Tutti i reparti</option>
+              {reparti.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+          <Select
+            aria-label="Filtra per contratto"
+            value={filtroContratto}
+            onChange={(e) => setFiltroContratto(e.target.value)}
+            className="w-auto min-w-36"
+          >
+            <option value="">Qualsiasi contratto</option>
+            <option value="ore">Con ore da contratto</option>
+            <option value="chiamata">A chiamata</option>
+          </Select>
+        </div>
       ) : null}
 
       <ul className="stagger overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
         {visibili.length === 0 ? (
           <li className="px-4 py-10 text-center text-[13.5px] text-muted">
-            Nessuno con questo nome.
+            {cerca.trim() ? "Nessuno con questo nome." : "Nessuno con questi filtri."}
           </li>
         ) : null}
         {visibili.map((p, i) => {
@@ -315,6 +359,9 @@ function EditDialog({
     on_call: person.on_call,
     contract_hours:
       person.contract_hours === null ? null : Number(person.contract_hours),
+    // I campi <input type="time"> vogliono HH:MM, il database da' HH:MM:SS.
+    preset_start: person.preset_start ? person.preset_start.slice(0, 5) : null,
+    preset_end: person.preset_end ? person.preset_end.slice(0, 5) : null,
   });
 
   function onReset() {

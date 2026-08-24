@@ -7,6 +7,10 @@ import {
   COLONNE_REPARTO,
 } from "@/lib/colonne";
 import { toISODate } from "@/lib/date";
+import {
+  COLONNE_IMPOSTAZIONI,
+  normalizzaImpostazioni,
+} from "@/lib/impostazioni";
 import { createClient } from "@/lib/supabase/server";
 import type { Absence, Department, Profile, VacationRequest } from "@/lib/types";
 import { addDays, mondayOf } from "@/lib/week";
@@ -38,7 +42,7 @@ export default async function PermessiPage({
   // Chi vede cosa lo decide il database, non questa pagina: al dipendente
   // arrivano le sue righe e le ferie degli altri, al responsabile tutto.
   // Qui non c'è un filtro da dimenticare.
-  const [persone, reparti, richieste, assenze] = await Promise.all([
+  const [persone, reparti, richieste, assenze, impostazioni] = await Promise.all([
     supabase
       .from("profiles")
       .select(COLONNE_PROFILO)
@@ -66,6 +70,11 @@ export default async function PermessiPage({
       .lte("start_date", a)
       .or(`end_date.is.null,end_date.gte.${da}`)
       .order("start_date"),
+    supabase
+      .from("company_settings")
+      .select(COLONNE_IMPOSTAZIONI)
+      .eq("company_id", user.company_id)
+      .maybeSingle(),
   ]);
 
   return (
@@ -79,6 +88,9 @@ export default async function PermessiPage({
       reparti={(reparti.data ?? []) as Department[]}
       richieste={(richieste.data ?? []) as VacationRequest[]}
       assenze={(assenze.data ?? []) as Absence[]}
+      causaliAmmesse={
+        normalizzaImpostazioni(impostazioni.data as never).causali_richiedibili
+      }
       mioId={user.id}
       capo={user.role === "capo"}
     />

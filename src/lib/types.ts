@@ -95,6 +95,10 @@ export type Profile = {
   /** Ore settimanali da contratto. null per chi è a chiamata. */
   contract_hours: number | null;
   on_call: boolean;
+  /** Orario preimpostato dal contratto (HH:MM:SS), se ce l'ha. Diventa
+   *  vincolante solo con l'interruttore nelle impostazioni dell'azienda. */
+  preset_start: string | null;
+  preset_end: string | null;
 };
 
 export type Shift = {
@@ -110,6 +114,14 @@ export type Shift = {
   /** Reparto solo per questo turno: serve a dire "oggi copre in sala".
    *  null = vale quello della persona. */
   department_id: string | null;
+  /** Perché il turno aspetta un sì dell'interessato. null = non serve. */
+  richiede_conferma:
+    | "straordinario"
+    | "modifica"
+    | "modifica_straordinario"
+    | "orario_diverso"
+    | null;
+  confermato_at: string | null;
 };
 
 /** Il profilo di chi sta usando l'app, con l'azienda gia' risolta. */

@@ -61,19 +61,27 @@ function periodo(start: string, end: string | null): string {
   return `${giorno(start)} ${mese(start)} – ${giorno(end)} ${mese(end)}`;
 }
 
-/** Le tendine delle causali, raggruppate come le pensa chi compila. */
-function OpzioniCausale() {
+/** Le tendine delle causali, raggruppate come le pensa chi compila.
+ *  `ammesse` limita l'elenco a quelle che l'azienda lascia chiedere; il
+ *  responsabile, registrando a mano, le ha sempre tutte. */
+function OpzioniCausale({ ammesse }: { ammesse?: string[] }) {
   return (
     <>
-      {CAUSALI.map((g) => (
-        <optgroup key={g.gruppo} label={g.gruppo}>
-          {g.voci.map(([codice, nome]) => (
-            <option key={codice} value={codice}>
-              {nome}
-            </option>
-          ))}
-        </optgroup>
-      ))}
+      {CAUSALI.map((g) => {
+        const voci = g.voci.filter(
+          ([codice]) => !ammesse || ammesse.includes(codice),
+        );
+        if (voci.length === 0) return null;
+        return (
+          <optgroup key={g.gruppo} label={g.gruppo}>
+            {voci.map(([codice, nome]) => (
+              <option key={codice} value={codice}>
+                {nome}
+              </option>
+            ))}
+          </optgroup>
+        );
+      })}
     </>
   );
 }
@@ -105,6 +113,7 @@ export function Permessi({
   reparti,
   richieste,
   assenze,
+  causaliAmmesse,
   mioId,
   capo,
 }: {
@@ -119,6 +128,8 @@ export function Permessi({
   richieste: VacationRequest[];
   /** Già filtrate dal database: le proprie, le ferie altrui, tutto al capo. */
   assenze: Absence[];
+  /** Le causali che l'azienda lascia chiedere (impostazioni generali). */
+  causaliAmmesse: string[];
   mioId: string;
   capo: boolean;
 }) {
@@ -374,6 +385,7 @@ export function Permessi({
       {chiedo ? (
         <ChiediPermesso
           primo={primo}
+          ammesse={causaliAmmesse}
           onClose={() => setChiedo(false)}
           onFatto={() => {
             setChiedo(false);
@@ -601,15 +613,19 @@ function LeMie({
 
 function ChiediPermesso({
   primo,
+  ammesse,
   onClose,
   onFatto,
 }: {
   primo: string;
+  ammesse: string[];
   onClose: () => void;
   onFatto: () => void;
 }) {
   const [pending, start] = React.useTransition();
-  const [causale, setCausale] = React.useState("ferie");
+  const [causale, setCausale] = React.useState(
+    ammesse.includes("ferie") ? "ferie" : (ammesse[0] ?? "ferie"),
+  );
 
   function invia(formData: FormData) {
     start(async () => {
@@ -652,7 +668,7 @@ function ChiediPermesso({
             value={causale}
             onChange={(e) => setCausale(e.target.value)}
           >
-            <OpzioniCausale />
+            <OpzioniCausale ammesse={ammesse} />
           </Select>
         </Field>
         {/* In colonna da telefono: due <input type="date"> affiancati non si

@@ -139,6 +139,13 @@ function CreateDialog({
   const [password, setPassword] = React.useState(generatePassword);
   const [conResponsabile, setConResponsabile] = React.useState(true);
   const [elenco, setElenco] = React.useState("");
+  const [impostazioni, setImpostazioni] = React.useState({
+    supervisione_dipendenti: true,
+    conferma_straordinari: false,
+    conferma_modifiche: false,
+    conferma_modifiche_straordinari: false,
+    orari_preimpostati: false,
+  });
 
   const nomi = React.useMemo(() => nomiDaElenco(elenco), [elenco]);
 
@@ -154,6 +161,7 @@ function CreateDialog({
             }
           : null,
         elenco: elenco.trim() || null,
+        impostazioni,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -253,6 +261,39 @@ function CreateDialog({
             {nomi.length > 8 ? ` e altri ${nomi.length - 8}` : ""}
           </p>
         ) : null}
+
+        <div className="rounded-xl border border-border bg-surface-2 p-3.5">
+          <p className="text-[13.5px] font-medium">Impostazioni generali</p>
+          <p className="mb-2 text-[12.5px] text-muted">
+            Il responsabile potrà cambiarle dalla sua pagina Impostazioni.
+          </p>
+          <div className="space-y-2">
+            {(
+              [
+                ["supervisione_dipendenti", "Supervisione visibile ai dipendenti"],
+                ["conferma_straordinari", "Straordinari da accettare dall'interessato"],
+                [
+                  "conferma_modifiche_straordinari",
+                  "Modifiche con straordinario da accettare",
+                ],
+                ["conferma_modifiche", "Altre modifiche da accettare"],
+                ["orari_preimpostati", "Orari preimpostati da contratto"],
+              ] as const
+            ).map(([chiave, testo]) => (
+              <label key={chiave} className="flex cursor-pointer items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={impostazioni[chiave]}
+                  onChange={(e) =>
+                    setImpostazioni({ ...impostazioni, [chiave]: e.target.checked })
+                  }
+                  className="size-4 accent-[var(--accent)]"
+                />
+                <span className="text-[13px]">{testo}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </form>
     </Modal>
   );

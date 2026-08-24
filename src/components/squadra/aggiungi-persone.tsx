@@ -42,6 +42,8 @@ export function AggiungiPersone({
   const [password, setPassword] = React.useState(generatePassword);
   const [elenco, setElenco] = React.useState("");
   const [rapporto, setRapporto] = React.useState<Rapporto>({
+    preset_start: null,
+    preset_end: null,
     department_id: null,
     reparti: [],
     on_call: false,

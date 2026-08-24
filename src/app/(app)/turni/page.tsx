@@ -48,6 +48,7 @@ export default async function TurniPage({
     departmentsResult,
     absencesResult,
     frequenteResult,
+    bozzaResult,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -73,7 +74,17 @@ export default async function TurniPage({
     // quando si aggiunge un turno a chi puo' fare piu' cose. Lo calcola una
     // vista, sui turni gia' fatti.
     supabase.from("reparto_piu_frequente").select("profile_id, department_id"),
+    // La settimana e' in bozza? Al responsabile serve per il bottone, al
+    // dipendente per non vedere turni non ancora pubblicati.
+    supabase
+      .from("draft_weeks")
+      .select("monday")
+      .eq("company_id", user.company_id)
+      .eq("monday", monday)
+      .maybeSingle(),
   ]);
+
+  const inBozza = Boolean(bozzaResult.data);
 
   const profiles = conReparti(profilesResult.data ?? []) as unknown as Profile[];
   const shifts = (shiftsResult.data ?? []) as Shift[];
@@ -97,6 +108,7 @@ export default async function TurniPage({
         departments={departments}
         assenze={absences}
         repartoFrequente={frequente}
+        inBozza={inBozza}
       />
     );
   }
@@ -105,11 +117,14 @@ export default async function TurniPage({
     <MyWeek
       monday={monday}
       days={days}
-      shifts={shifts}
+      // In bozza i turni non arrivano proprio: una settimana a meta' fa
+      // piu' danni di una dichiaratamente non pronta.
+      shifts={inBozza ? [] : shifts}
       assenze={absences}
       profileId={user.id}
       reparti={departments}
       repartoPersona={user.department_id}
+      inBozza={inBozza}
     />
   );
 }

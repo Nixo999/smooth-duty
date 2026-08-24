@@ -28,7 +28,7 @@ import {
   intervalloVisibile,
   oraDa,
   segmentiDelGiorno,
-  tintaDa,
+  type Buco,
   type Segmento,
 } from "@/lib/supervisione/copertura";
 import type { AbsenceDay, CoverageBand, Department, Profile, Shift } from "@/lib/types";
@@ -36,6 +36,13 @@ import { addDays } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
 const SENZA_REPARTO = "__senza__";
+
+/** I colori delle persone, in quest'ordine in ogni reparto: azzurro,
+ *  giallo, rosso, verde, rosa, e poi altri — tutti pastello, li smorza il
+ *  foglio di stile. La prima riga di ogni reparto e' sempre azzurra, la
+ *  seconda sempre gialla: cosi' due tabelle si leggono con lo stesso
+ *  occhio, invece di assegnare a ciascuno un colore a caso. */
+const TINTE_RIGHE = [200, 48, 5, 140, 330, 270, 25, 178, 225, 105, 300, 80];
 
 /** Chiave del salvataggio del filtro reparti. E' una preferenza di chi
  *  guarda, non un dato: per questo sta nel browser e non sul database. */
@@ -197,7 +204,7 @@ export function Supervisione({
           perRiga.set(chiave, {
             chiave,
             nome: s.nome,
-            tinta: s.profileId ? tintaDa(s.profileId) : 40,
+            tinta: 0,
             segmenti: [s],
           });
       }
@@ -205,6 +212,11 @@ export function Supervisione({
       const righe = [...perRiga.values()].sort(
         (a, b) => a.segmenti[0].da - b.segmenti[0].da || a.nome.localeCompare(b.nome),
       );
+      // Il colore segue la posizione, non la persona: prima riga azzurra,
+      // seconda gialla, uguale in ogni reparto.
+      righe.forEach((riga, i) => {
+        riga.tinta = TINTE_RIGHE[i % TINTE_RIGHE.length];
+      });
 
       const fette = copertura(suoi, sueFasce, vista.da, vista.a);
       return {
@@ -315,7 +327,7 @@ export function Supervisione({
                   </span>
                 </div>
                 {capo ? (
-                  <Stato buchi={g.buchi.length} conRegole={g.fasce.length > 0} />
+                  <Stato buchi={g.buchi} conRegole={g.fasce.length > 0} />
                 ) : null}
               </header>
 
@@ -429,29 +441,6 @@ export function Supervisione({
                 </div>
               </div>
 
-              {capo && g.buchi.length > 0 ? (
-                <ul className="space-y-1 border-t border-border bg-danger-soft px-4 py-3">
-                  {g.buchi.map((b) => (
-                    <li
-                      key={b.da}
-                      className="flex items-center gap-2 text-[13px] text-danger"
-                    >
-                      <AlertTriangle className="size-3.5 shrink-0" />
-                      <span>
-                        <strong className="tabular-nums">
-                          {oraDa(b.da)}–{oraDa(b.a)}
-                        </strong>{" "}
-                        scoperto: servono {b.richiesti},{" "}
-                        {b.presenti === 0
-                          ? "non c'è nessuno"
-                          : b.presenti === 1
-                            ? "c'è una persona"
-                            : `ce ne sono ${b.presenti}`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </section>
           ))}
         </div>
@@ -507,7 +496,7 @@ function Corsia({
   );
 }
 
-function Stato({ buchi, conRegole }: { buchi: number; conRegole: boolean }) {
+function Stato({ buchi, conRegole }: { buchi: Buco[]; conRegole: boolean }) {
   if (!conRegole) {
     return (
       <span className="rounded-full bg-surface-3 px-2.5 py-1 text-[12px] text-muted">
@@ -515,7 +504,7 @@ function Stato({ buchi, conRegole }: { buchi: number; conRegole: boolean }) {
       </span>
     );
   }
-  if (buchi === 0) {
+  if (buchi.length === 0) {
     return (
       <span className="flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[12px] font-medium text-success">
         <CheckCircle2 className="size-3.5" />
@@ -523,11 +512,49 @@ function Stato({ buchi, conRegole }: { buchi: number; conRegole: boolean }) {
       </span>
     );
   }
+  // Il dettaglio non sta piu' spalmato in fondo alla scheda: lo apre questo
+  // bottone, e chi vuole solo il conto legge il numero e passa oltre.
   return (
-    <span className="flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-[12px] font-medium text-danger">
-      <AlertTriangle className="size-3.5" />
-      {buchi} {buchi === 1 ? "buco" : "buchi"}
-    </span>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="tap flex cursor-pointer items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-[12px] font-medium text-danger"
+        >
+          <AlertTriangle className="size-3.5" />
+          {buchi.length} {buchi.length === 1 ? "buco" : "buchi"}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          className="z-40 w-72 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+        >
+          <ul className="space-y-0.5">
+            {buchi.map((b) => (
+              <li
+                key={b.da}
+                className="flex items-start gap-2 rounded-lg px-2.5 py-2 text-[13px] text-danger"
+              >
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span>
+                  <strong className="tabular-nums">
+                    {oraDa(b.da)}–{oraDa(b.a)}
+                  </strong>{" "}
+                  scoperto: servono {b.richiesti},{" "}
+                  {b.presenti === 0
+                    ? "non c'è nessuno"
+                    : b.presenti === 1
+                      ? "c'è una persona"
+                      : `ce ne sono ${b.presenti}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

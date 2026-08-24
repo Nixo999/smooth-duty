@@ -16,7 +16,13 @@ import { Modal } from "@/components/ui/modal";
 import type { CoverageBand, Department } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const TINTE = [0, 25, 45, 95, 150, 190, 210, 265, 320];
+// Tutte pastello: il colore vero lo compone il foglio di stile, qui si
+// sceglie solo la tinta. I gialli fra 50 e 72 si saltano perche' col testo
+// scuro sopra diventano illeggibili.
+const TINTE = [
+  0, 10, 25, 35, 45, 80, 95, 110, 125, 140, 150, 165,
+  178, 190, 200, 210, 225, 240, 255, 265, 280, 295, 310, 320, 335, 348,
+];
 const GIORNI = ["L", "M", "M", "G", "V", "S", "D"];
 const GIORNI_LUNGHI = [
   "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica",

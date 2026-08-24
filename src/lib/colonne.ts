@@ -5,7 +5,7 @@
  *  che non somiglia a un errore e si scopre settimane dopo. */
 
 export const COLONNE_PROFILO =
-  "id, company_id, user_id, full_name, email, role, active, must_change_password, department_id, contract_hours, on_call";
+  "id, company_id, user_id, full_name, email, role, active, must_change_password, department_id, contract_hours, on_call, preset_start, preset_end";
 
 /** Il profilo con i reparti in cui può lavorare. Arrivano annidati, e vanno
  *  appiattiti con `conReparti()` prima di usarli. */
@@ -22,7 +22,7 @@ export function conReparti<T extends { profile_departments?: { department_id: st
 }
 
 export const COLONNE_TURNO =
-  "id, company_id, profile_id, date, start_time, end_time, title, location, notes, department_id";
+  "id, company_id, profile_id, date, start_time, end_time, title, location, notes, department_id, richiede_conferma, confermato_at";
 
 export const COLONNE_REPARTO = "id, company_id, name, hue, position";
 

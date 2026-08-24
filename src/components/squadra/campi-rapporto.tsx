@@ -13,6 +13,10 @@ export type Rapporto = {
   reparti: string[];
   on_call: boolean;
   contract_hours: number | null;
+  /** Orario preimpostato dal contratto (HH:MM), facoltativo. Vincola solo
+   *  se l'azienda accende gli orari preimpostati nelle impostazioni. */
+  preset_start: string | null;
+  preset_end: string | null;
 };
 
 /** Reparti e tipo di rapporto.
@@ -166,26 +170,54 @@ export function CampiRapporto({
             Nessun monte ore da rispettare: lavora quando viene chiamata.
           </p>
         ) : (
-          <div className="flex items-center gap-2">
-            <Input
-              id={id("ore")}
-              type="number"
-              min={0}
-              max={80}
-              step={0.5}
-              value={valore.contract_hours ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...valore,
-                  contract_hours: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="40"
-              className="w-28"
-              aria-label="Ore settimanali da contratto"
-            />
-            <span className="text-[13px] text-muted">ore a settimana</span>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <Input
+                id={id("ore")}
+                type="number"
+                min={0}
+                max={80}
+                step={0.5}
+                value={valore.contract_hours ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...valore,
+                    contract_hours: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="40"
+                className="w-28"
+                aria-label="Ore settimanali da contratto"
+              />
+              <span className="text-[13px] text-muted">ore a settimana</span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[13px] text-muted">Orario preimpostato</span>
+              <Input
+                type="time"
+                value={valore.preset_start ?? ""}
+                onChange={(e) =>
+                  onChange({ ...valore, preset_start: e.target.value || null })
+                }
+                className="w-28"
+                aria-label="Inizio dell'orario preimpostato"
+              />
+              <span className="text-faint">–</span>
+              <Input
+                type="time"
+                value={valore.preset_end ?? ""}
+                onChange={(e) =>
+                  onChange({ ...valore, preset_end: e.target.value || null })
+                }
+                className="w-28"
+                aria-label="Fine dell'orario preimpostato"
+              />
+            </div>
+            <p className="mt-1 text-[12.5px] text-faint">
+              Facoltativo: l&apos;orario scritto sul contratto. Conta solo se
+              l&apos;azienda accende gli orari preimpostati nelle impostazioni.
+            </p>
+          </>
         )}
       </Field>
     </>

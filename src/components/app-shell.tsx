@@ -8,6 +8,7 @@ import {
   Eye,
   KeyRound,
   LogOut,
+  Settings2,
   Sun,
   Users,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const ICONS = {
   eye: Eye,
   prospetto: ClipboardList,
   sun: Sun,
+  settings: Settings2,
 } as const;
 
 export type Section = {
