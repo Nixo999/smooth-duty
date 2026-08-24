@@ -35,7 +35,9 @@ export function Ricerca({
         placeholder={placeholder}
         aria-label={placeholder}
         autoComplete="off"
-        className={cn("pl-9", valore && "pr-9")}
+        // Da grande la barra si allinea a bottoni e tendine (36px); da
+        // telefono resta alta 44 per il tocco e i 16px anti-zoom di iOS.
+        className={cn("pl-9 sm:h-9", valore && "pr-9")}
       />
       {valore ? (
         <button

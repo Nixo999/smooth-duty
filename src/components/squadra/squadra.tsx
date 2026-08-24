@@ -60,10 +60,7 @@ export function Squadra({
           (!filtroReparto ||
             p.department_id === filtroReparto ||
             p.reparti.includes(filtroReparto)) &&
-          (!filtroContratto ||
-            (filtroContratto === "chiamata"
-              ? p.on_call
-              : !p.on_call && p.contract_hours !== null)),
+          (!filtroContratto || p.contract_type === filtroContratto),
       ),
     [people, cerca, filtroReparto, filtroContratto],
   );
@@ -92,14 +89,14 @@ export function Squadra({
             valore={cerca}
             onChange={setCerca}
             id="cerca-squadra"
-            className="w-full sm:w-auto sm:min-w-52 sm:flex-1"
+            className="w-full sm:w-56"
           />
           {reparti.length > 0 ? (
             <Select
               aria-label="Filtra per reparto"
               value={filtroReparto}
               onChange={(e) => setFiltroReparto(e.target.value)}
-              className="w-auto min-w-36"
+              className="w-auto min-w-36 sm:h-9"
             >
               <option value="">Tutti i reparti</option>
               {reparti.map((d) => (
@@ -113,11 +110,12 @@ export function Squadra({
             aria-label="Filtra per contratto"
             value={filtroContratto}
             onChange={(e) => setFiltroContratto(e.target.value)}
-            className="w-auto min-w-36"
+            className="w-auto min-w-36 sm:h-9"
           >
             <option value="">Qualsiasi contratto</option>
-            <option value="ore">Con ore da contratto</option>
             <option value="chiamata">A chiamata</option>
+            <option value="part_time">Part time</option>
+            <option value="full_time">Full time</option>
           </Select>
         </div>
       ) : null}
@@ -357,6 +355,7 @@ function EditDialog({
     department_id: person.department_id,
     reparti: person.reparti,
     on_call: person.on_call,
+    contract_type: person.contract_type,
     contract_hours:
       person.contract_hours === null ? null : Number(person.contract_hours),
     // I campi <input type="time"> vogliono HH:MM, il database da' HH:MM:SS.

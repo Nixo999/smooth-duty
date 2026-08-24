@@ -19,6 +19,9 @@ export const rapportoSchema = z
     /** Tutti quelli in cui puo' lavorare. Il principale ci sta dentro. */
     reparti: z.array(z.string().uuid()).max(20),
     on_call: z.boolean(),
+    contract_type: z
+      .enum(["chiamata", "part_time", "full_time"])
+      .optional(),
     contract_hours: z.number().min(0).max(80).nullable(),
     /** Orario preimpostato dal contratto: o tutti e due o nessuno. */
     preset_start: z
@@ -34,19 +37,27 @@ export const rapportoSchema = z
       .optional()
       .default(null),
   })
-  .transform((v) => ({
+  .transform((v) => {
+    // Il tipo comanda; per chi arriva da un chiamante vecchio senza tipo,
+    // si deduce da on_call. E i due campi restano sempre d'accordo.
+    const tipo = v.contract_type ?? (v.on_call ? "chiamata" : "part_time");
+    const chiamata = tipo === "chiamata";
+    return {
     ...v,
-    contract_hours: v.on_call ? null : v.contract_hours,
+    contract_type: tipo,
+    on_call: chiamata,
+    contract_hours: chiamata ? null : v.contract_hours,
     // A chiamata non c'e' un orario da contratto; e un orario a meta' (solo
     // inizio o solo fine) non vuol dire niente.
-    preset_start: v.on_call || !v.preset_start || !v.preset_end ? null : v.preset_start,
-    preset_end: v.on_call || !v.preset_start || !v.preset_end ? null : v.preset_end,
+    preset_start: chiamata || !v.preset_start || !v.preset_end ? null : v.preset_start,
+    preset_end: chiamata || !v.preset_start || !v.preset_end ? null : v.preset_end,
     // Il principale e' per forza fra quelli in cui lavora: non avrebbe senso
     // scrivere accanto al nome un reparto dove non mette piede.
     reparti: [
       ...new Set(v.department_id ? [v.department_id, ...v.reparti] : v.reparti),
     ],
-  }));
+    };
+  });
 
 /** Riscrive i reparti di una persona. Si cancella e si riscrive invece di
  *  calcolare le differenze: sono al massimo una manciata di righe, e il

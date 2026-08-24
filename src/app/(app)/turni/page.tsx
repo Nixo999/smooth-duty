@@ -74,17 +74,17 @@ export default async function TurniPage({
     // quando si aggiunge un turno a chi puo' fare piu' cose. Lo calcola una
     // vista, sui turni gia' fatti.
     supabase.from("reparto_piu_frequente").select("profile_id, department_id"),
-    // La settimana e' in bozza? Al responsabile serve per il bottone, al
-    // dipendente per non vedere turni non ancora pubblicati.
+    // La settimana e' pubblicata? Ogni settimana nasce bozza e i
+    // dipendenti non la vedono finche' il responsabile non la pubblica.
     supabase
-      .from("draft_weeks")
+      .from("published_weeks")
       .select("monday")
       .eq("company_id", user.company_id)
       .eq("monday", monday)
       .maybeSingle(),
   ]);
 
-  const inBozza = Boolean(bozzaResult.data);
+  const inBozza = !bozzaResult.data;
 
   const profiles = conReparti(profilesResult.data ?? []) as unknown as Profile[];
   const shifts = (shiftsResult.data ?? []) as Shift[];

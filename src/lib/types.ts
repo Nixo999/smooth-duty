@@ -95,6 +95,9 @@ export type Profile = {
   /** Ore settimanali da contratto. null per chi è a chiamata. */
   contract_hours: number | null;
   on_call: boolean;
+  /** A chiamata, part time o full time: lo dice la scheda, non una soglia
+   *  automatica. `on_call` resta il gemello operativo di "chiamata". */
+  contract_type: "chiamata" | "part_time" | "full_time";
   /** Orario preimpostato dal contratto (HH:MM:SS), se ce l'ha. Diventa
    *  vincolante solo con l'interruttore nelle impostazioni dell'azienda. */
   preset_start: string | null;

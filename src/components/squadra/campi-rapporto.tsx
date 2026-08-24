@@ -12,6 +12,8 @@ export type Rapporto = {
   /** Tutti quelli in cui può lavorare, principale compreso. */
   reparti: string[];
   on_call: boolean;
+  /** A chiamata, part time o full time: lo decide la scheda, non le ore. */
+  contract_type: "chiamata" | "part_time" | "full_time";
   contract_hours: number | null;
   /** Orario preimpostato dal contratto (HH:MM), facoltativo. Vincola solo
    *  se l'azienda accende gli orari preimpostati nelle impostazioni. */
@@ -129,33 +131,43 @@ export function CampiRapporto({
         </Field>
       ) : null}
 
-      <Field label="Tipo di rapporto" htmlFor={id("ore")}>
+      <Field
+        label="Tipo di contratto"
+        htmlFor={id("ore")}
+        hint="Part time e full time li decide il contratto, non una soglia: da MediaWorld un part time fa 20, 24 o 31 ore, un full time 38 o più."
+      >
         <div
           role="radiogroup"
-          aria-label="Tipo di rapporto"
+          aria-label="Tipo di contratto"
           className="mb-2 flex items-center gap-0.5 rounded-full bg-surface-3 p-0.5"
         >
           {(
             [
-              [false, "Ore da contratto"],
-              [true, "A chiamata"],
+              ["chiamata", "A chiamata"],
+              ["part_time", "Part time"],
+              ["full_time", "Full time"],
             ] as const
-          ).map(([chiamata, testo]) => (
+          ).map(([tipo, testo]) => (
             <button
-              key={String(chiamata)}
+              key={tipo}
               type="button"
               role="radio"
-              aria-checked={valore.on_call === chiamata}
+              aria-checked={valore.contract_type === tipo}
               onClick={() =>
                 onChange({
                   ...valore,
-                  on_call: chiamata,
-                  contract_hours: chiamata ? null : (valore.contract_hours ?? 40),
+                  contract_type: tipo,
+                  on_call: tipo === "chiamata",
+                  contract_hours:
+                    tipo === "chiamata"
+                      ? null
+                      : (valore.contract_hours ??
+                        (tipo === "full_time" ? 40 : 24)),
                 })
               }
               className={cn(
                 "tap h-8 flex-1 rounded-full text-[13px] font-medium",
-                valore.on_call === chiamata
+                valore.contract_type === tipo
                   ? "bg-surface text-text shadow-soft"
                   : "text-muted hover:text-text",
               )}
@@ -227,10 +239,18 @@ export function CampiRapporto({
 /** Come si scrive il rapporto in un elenco. */
 export function etichettaRapporto(p: {
   on_call: boolean;
+  contract_type?: "chiamata" | "part_time" | "full_time";
   contract_hours: number | null;
 }): string | null {
-  if (p.on_call) return "a chiamata";
-  if (p.contract_hours === null) return null;
+  if (p.on_call || p.contract_type === "chiamata") return "a chiamata";
+  const tipo =
+    p.contract_type === "full_time"
+      ? "full time"
+      : p.contract_type === "part_time"
+        ? "part time"
+        : null;
+  if (p.contract_hours === null) return tipo;
   const n = Number(p.contract_hours);
-  return `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")}h a settimana`;
+  const ore = `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", ",")}h a settimana`;
+  return tipo ? `${tipo} · ${ore}` : ore;
 }

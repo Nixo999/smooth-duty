@@ -247,12 +247,12 @@ export function Supervisione({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-border bg-surface shadow-soft">
+          <div className="flex h-9 items-center rounded-lg border border-border bg-surface shadow-soft">
             <button
               type="button"
               aria-label="Giorno precedente"
               onClick={() => vai(addDays(giorno, -1))}
-              className="tap grid h-9 w-9 place-items-center rounded-l-lg text-muted hover:bg-surface-2 hover:text-text"
+              className="tap grid h-full w-9 place-items-center rounded-l-lg text-muted hover:bg-surface-2 hover:text-text"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -261,7 +261,7 @@ export function Supervisione({
               type="button"
               aria-label="Giorno successivo"
               onClick={() => vai(addDays(giorno, 1))}
-              className="tap grid h-9 w-9 place-items-center rounded-r-lg text-muted hover:bg-surface-2 hover:text-text"
+              className="tap grid h-full w-9 place-items-center rounded-r-lg text-muted hover:bg-surface-2 hover:text-text"
             >
               <ChevronRight className="size-4" />
             </button>

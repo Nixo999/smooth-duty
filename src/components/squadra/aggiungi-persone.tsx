@@ -44,6 +44,7 @@ export function AggiungiPersone({
   const [rapporto, setRapporto] = React.useState<Rapporto>({
     preset_start: null,
     preset_end: null,
+    contract_type: "part_time",
     department_id: null,
     reparti: [],
     on_call: false,

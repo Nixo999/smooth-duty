@@ -72,10 +72,10 @@ export default async function SupervisionePage({
       .select(COLONNE_IMPOSTAZIONI)
       .eq("company_id", user.company_id)
       .maybeSingle(),
-    // Le settimane in bozza dei due giorni letti: al dipendente i turni
-    // non pubblicati non si mostrano nemmeno qui.
+    // Le settimane pubblicate fra le due dei giorni letti: al dipendente
+    // i turni delle settimane ancora in bozza non si mostrano nemmeno qui.
     supabase
-      .from("draft_weeks")
+      .from("published_weeks")
       .select("monday")
       .eq("company_id", user.company_id)
       .in("monday", [...new Set([mondayOf(giorno), mondayOf(giornoPrima)])]),
@@ -90,13 +90,13 @@ export default async function SupervisionePage({
     redirect("/turni");
   }
 
-  const settimaneBozza = new Set(
+  const settimanePubblicate = new Set(
     ((bozze.data ?? []) as { monday: string }[]).map((b) => b.monday),
   );
   const turniVisibili = capo
     ? ((turni.data ?? []) as Shift[])
-    : ((turni.data ?? []) as Shift[]).filter(
-        (t) => !settimaneBozza.has(mondayOf(t.date)),
+    : ((turni.data ?? []) as Shift[]).filter((t) =>
+        settimanePubblicate.has(mondayOf(t.date)),
       );
 
   return (

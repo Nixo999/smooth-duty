@@ -20,10 +20,12 @@ const button = cva(
         danger: "bg-danger-soft text-danger hover:brightness-95 dark:hover:brightness-125",
       },
       size: {
-        sm: "h-8 px-3 text-[13px] rounded-md",
+        // 36px come le tendine e i campi delle barre strumenti: prima i
+        // bottoni "sm" erano 32 e ogni riga mista sembrava sbilenca.
+        sm: "h-9 px-3.5 text-[13px] rounded-lg",
         md: "h-10 px-4 text-sm rounded-lg",
         lg: "h-12 px-5 text-[15px] rounded-lg",
-        icon: "h-9 w-9 rounded-md",
+        icon: "h-9 w-9 rounded-lg",
         "icon-sm": "h-8 w-8 rounded-md",
       },
       block: { true: "w-full" },

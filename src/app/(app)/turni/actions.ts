@@ -113,7 +113,7 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
           .gte("date", giorniSettimana[0])
           .lte("date", giorniSettimana[6]),
         supabase
-          .from("draft_weeks")
+          .from("published_weeks")
           .select("monday")
           .eq("company_id", user.company_id)
           .eq("monday", lunedi)
@@ -122,7 +122,7 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
 
     const imp = normalizzaImpostazioni(impostazioniRes.data as never);
     const persona = personaRes.data;
-    const inBozza = Boolean(bozzaRes.data);
+    const pubblicata = Boolean(bozzaRes.data);
 
     // Le ore della settimana com'era prima, senza il turno che si sta
     // salvando, piu' il turno nuovo: e' il totale che varra' dopo.
@@ -137,7 +137,10 @@ export async function salvaTurno(input: ShiftInput): Promise<ActionResult> {
       persona!.contract_hours !== null &&
       minutiDopo > Number(persona!.contract_hours) * 60;
 
-    const modifica = Boolean(v.id) && !inBozza;
+    // "Settimana gia' turnata" = gia' pubblicata: prima della
+    // pubblicazione il tabellone e' un foglio di lavoro, e correggerlo
+    // non deve chiedere niente a nessuno.
+    const modifica = Boolean(v.id) && pubblicata;
 
     const orarioDiverso =
       imp.orari_preimpostati &&
@@ -317,14 +320,12 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
   };
 }
 
-/* -------------------------------------------------------------- bozze --- */
+/* ------------------------------------------------------ pubblicazione --- */
 
-/** Mette o toglie la bozza su una settimana. In bozza i dipendenti non la
- *  vedono: il responsabile la costruisce con calma e la pubblica intera. */
-export async function impostaBozza(
-  monday: string,
-  bozza: boolean,
-): Promise<ActionResult> {
+/** Pubblica una settimana. Ogni settimana nasce bozza — i dipendenti non
+ *  la vedono — e lo resta finche' il responsabile non preme Pubblica: da
+ *  li' in poi e' visibile, e le modifiche seguono le regole di conferma. */
+export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   const user = await requireCapo();
 
   const parsed = day.safeParse(monday);
@@ -332,15 +333,9 @@ export async function impostaBozza(
   const lunedi = mondayOf(parsed.data);
 
   const supabase = await createClient();
-  const { error } = bozza
-    ? await supabase
-        .from("draft_weeks")
-        .upsert({ company_id: user.company_id, monday: lunedi })
-    : await supabase
-        .from("draft_weeks")
-        .delete()
-        .eq("company_id", user.company_id)
-        .eq("monday", lunedi);
+  const { error } = await supabase
+    .from("published_weeks")
+    .upsert({ company_id: user.company_id, monday: lunedi });
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");

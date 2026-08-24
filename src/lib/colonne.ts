@@ -5,7 +5,7 @@
  *  che non somiglia a un errore e si scopre settimane dopo. */
 
 export const COLONNE_PROFILO =
-  "id, company_id, user_id, full_name, email, role, active, must_change_password, department_id, contract_hours, on_call, preset_start, preset_end";
+  "id, company_id, user_id, full_name, email, role, active, must_change_password, department_id, contract_hours, on_call, contract_type, preset_start, preset_end";
 
 /** Il profilo con i reparti in cui può lavorare. Arrivano annidati, e vanno
  *  appiattiti con `conReparti()` prima di usarli. */

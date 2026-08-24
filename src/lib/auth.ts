@@ -91,6 +91,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
             ),
             contract_hours: row.contract_hours,
             on_call: row.on_call,
+            contract_type: row.contract_type,
             preset_start: row.preset_start,
             preset_end: row.preset_end,
             company,

@@ -14,7 +14,7 @@ import Link from "next/link";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { impostaBozza } from "@/app/(app)/turni/actions";
+import { pubblicaSettimana } from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
 import { ShiftDialog, shiftToDraft, type ShiftDraft } from "@/components/turni/shift-dialog";
 import { WeekNav } from "@/components/turni/week-nav";
@@ -48,6 +48,8 @@ type Riga = {
   aChiamata: boolean;
   /** Assenza che tocca questa settimana, se c'è. */
   assenza: Absence | null;
+  /** A chiamata, part time o full time: dalla scheda della persona. */
+  tipoContratto: string | null;
   /** Il reparto della persona: vale per i turni che non ne portano uno loro. */
   repartoPersona: string | null;
   /** Tutti i reparti in cui puo' lavorare, per il filtro. */
@@ -113,18 +115,14 @@ export function Roster({
   const router = useRouter();
   const [bozzaInCorso, startBozza] = React.useTransition();
 
-  const commutaBozza = () =>
+  const pubblica = () =>
     startBozza(async () => {
-      const esito = await impostaBozza(monday, !inBozza);
+      const esito = await pubblicaSettimana(monday);
       if (!esito.ok) {
         toast.error(esito.error);
         return;
       }
-      toast.success(
-        inBozza
-          ? "Settimana pubblicata: ora i dipendenti la vedono."
-          : "Settimana in bozza: i dipendenti non la vedono finché non la pubblichi.",
-      );
+      toast.success("Settimana pubblicata: ora i dipendenti la vedono.");
       router.refresh();
     });
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
@@ -132,6 +130,7 @@ export function Roster({
   const [cerca, setCerca] = React.useState("");
   const [filtroReparto, setFiltroReparto] = React.useState("");
   const [filtroContratto, setFiltroContratto] = React.useState("");
+  const [filtroOre, setFiltroOre] = React.useState("");
   // Si tiene la posizione nella settimana, non la data. Tenendo la data,
   // cambiando settimana il giorno scelto sarebbe uno che non c'e' piu' e
   // servirebbe un effetto per rimetterlo a posto; cosi' invece il martedi'
@@ -198,6 +197,7 @@ export function Roster({
       contratto: p.contract_hours === null ? null : Number(p.contract_hours),
       aChiamata: p.on_call,
       assenza: assenze.find((a) => a.profile_id === p.id) ?? null,
+      tipoContratto: p.contract_type,
       repartoPersona: p.department_id,
       reparti: p.department_id
         ? [...new Set([p.department_id, ...p.reparti])]
@@ -212,6 +212,7 @@ export function Roster({
             contratto: null,
             aChiamata: false,
             assenza: null,
+            tipoContratto: null,
             repartoPersona: null,
             reparti: [],
           },
@@ -225,14 +226,18 @@ export function Roster({
   // reparti in cui la persona puo' lavorare, non solo il principale; la riga
   // "Da assegnare" resta sempre, perche' nascondere turni scoperti e' il modo
   // piu' silenzioso di dimenticarli.
-  /** Il confronto con il contratto, sulle ore della settimana mostrata. */
-  const passaContratto = (r: Riga) => {
-    if (!filtroContratto || r.unassigned) return true;
-    if (filtroContratto === "chiamata") return r.aChiamata;
+  /** Tipo di contratto: come scritto sulla scheda della persona. */
+  const passaTipo = (r: Riga) =>
+    !filtroContratto || r.unassigned || r.tipoContratto === filtroContratto;
+
+  /** Stato delle ore rispetto al contratto, sulla settimana mostrata:
+   *  chi ha gia' straordinari, chi e' sotto, chi e' in pari. */
+  const passaOre = (r: Riga) => {
+    if (!filtroOre || r.unassigned) return true;
     if (r.contratto === null) return false;
     const ore = (weeklyMinutes.get(r.id) ?? 0) / 60;
-    if (filtroContratto === "sotto") return ore < r.contratto - 0.01;
-    if (filtroContratto === "oltre") return ore > r.contratto + 0.01;
+    if (filtroOre === "sotto") return ore < r.contratto - 0.01;
+    if (filtroOre === "oltre") return ore > r.contratto + 0.01;
     return ore >= r.contratto - 0.01 && ore <= r.contratto + 0.01;
   };
 
@@ -240,7 +245,8 @@ export function Roster({
     (r) =>
       (!cerca.trim() || corrisponde(r.name, cerca)) &&
       (!filtroReparto || r.unassigned || r.reparti.includes(filtroReparto)) &&
-      passaContratto(r),
+      passaTipo(r) &&
+      passaOre(r),
   );
 
   const openNew = (day: string, profileId: string | null) =>
@@ -263,14 +269,14 @@ export function Roster({
               valore={cerca}
               onChange={setCerca}
               id="cerca-turni"
-              className="w-full sm:w-auto sm:min-w-44 sm:flex-1"
+              className="w-full sm:w-48"
             />
             {departments.length > 0 ? (
               <Select
                 aria-label="Filtra per reparto"
                 value={filtroReparto}
                 onChange={(e) => setFiltroReparto(e.target.value)}
-                className="w-auto min-w-36"
+                className="w-auto min-w-32 sm:h-9"
               >
                 <option value="">Tutti i reparti</option>
                 {departments.map((d) => (
@@ -284,28 +290,36 @@ export function Roster({
               aria-label="Filtra per contratto"
               value={filtroContratto}
               onChange={(e) => setFiltroContratto(e.target.value)}
-              className="w-auto min-w-36"
+              className="w-auto min-w-32 sm:h-9"
             >
               <option value="">Qualsiasi contratto</option>
-              <option value="sotto">Sotto le ore</option>
-              <option value="linea">In linea</option>
-              <option value="oltre">Oltre le ore</option>
               <option value="chiamata">A chiamata</option>
+              <option value="part_time">Part time</option>
+              <option value="full_time">Full time</option>
+            </Select>
+            <Select
+              aria-label="Filtra per ore"
+              value={filtroOre}
+              onChange={(e) => setFiltroOre(e.target.value)}
+              className="w-auto min-w-32 sm:h-9"
+            >
+              <option value="">Qualsiasi monte ore</option>
+              <option value="oltre">Con straordinari</option>
+              <option value="sotto">Sotto le ore</option>
+              <option value="pari">In pari</option>
             </Select>
 
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={commutaBozza}
-              loading={bozzaInCorso}
-              title={
-                inBozza
-                  ? "Rendi la settimana visibile ai dipendenti"
-                  : "Nascondi la settimana ai dipendenti finché non è pronta"
-              }
-            >
-              {inBozza ? "Pubblica" : "Bozza"}
-            </Button>
+            {inBozza ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={pubblica}
+                loading={bozzaInCorso}
+                title="Rendi la settimana visibile ai dipendenti"
+              >
+                Pubblica
+              </Button>
+            ) : null}
 
             {/* I tre modi di creare turni, raccolti in un'isoletta: tre
                 bottoni sciolti si contendevano la riga coi filtri. */}
@@ -353,8 +367,8 @@ export function Roster({
 
           {inBozza ? (
             <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
-              Questa settimana è in bozza: i dipendenti non la vedono
-              finché non premi «Pubblica».
+              Settimana in bozza, come ogni settimana nuova: i dipendenti la
+              vedranno solo quando premi «Pubblica».
             </p>
           ) : null}
 
@@ -362,8 +376,8 @@ export function Roster({
             <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
               {cerca.trim()
                 ? "Nessuno con questo nome."
-                : filtroContratto
-                  ? "Nessuno con questo contratto."
+                : filtroContratto || filtroOre
+                  ? "Nessuno con questi filtri."
                   : "Nessuno in questo reparto."}
             </p>
           ) : null}
