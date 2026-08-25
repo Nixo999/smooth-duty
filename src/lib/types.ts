@@ -179,6 +179,47 @@ export type MessaggioTurno = {
   risolto_at: string | null;
 };
 
+/** Un avviso: il verso opposto di `MessaggioTurno`.
+ *
+ *  Il responsabile ha cambiato qualcosa che *toglie* ore, e l'interessato ha
+ *  diritto di saperlo — non di concederlo. Non c'è niente da decidere: si
+ *  chiude con «ho letto», e finché non lo si preme resta in vista. */
+export type Avviso = {
+  id: string;
+  profile_id: string;
+  shift_id: string | null;
+  motivo: MotivoAvviso;
+  giorno: string;
+  turno_prima: StatoTurno;
+  /** null quando il turno è stato tolto: non c'è un «dopo». */
+  turno_dopo: StatoTurno | null;
+  creato_at: string;
+  letto_at: string | null;
+};
+
+export type MotivoAvviso = "ore_tolte" | "turno_rimosso" | "turno_spostato";
+
+/** La domanda che nasce alla pubblicazione per chi va in straordinario: non
+ *  otto domande su otto turni, una sola sulla settimana.
+ *
+ *  I due totali di minuti sono congelati alla nascita: il tabellone cambia, e
+ *  una richiesta deve poter raccontare la settimana su cui è nata. */
+export type RichiestaSettimana = {
+  id: string;
+  profile_id: string;
+  monday: string;
+  motivo: "straordinario";
+  minuti_previsti: number;
+  minuti_contratto: number;
+  stato: "in_attesa" | "accettata" | "rifiutata";
+  /** Il perché del no, o il ritocco chiesto insieme al sì. È lo stesso
+   *  spazio: due colonne di cui una sempre vuota non direbbero di più. */
+  nota: string | null;
+  creato_at: string;
+  deciso_at: string | null;
+  visto_at: string | null;
+};
+
 /** Il profilo di chi sta usando l'app, con l'azienda gia' risolta. */
 export type SessionUser = Profile & { company: Company };
 

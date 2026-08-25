@@ -24,6 +24,7 @@ migrazioni sono file da incollare, e i tipi TypeScript sono scritti a mano in
 | `13-pagine-e-cambio-reparto.sql` | le pagine che l'azienda usa (`pagina_*`), il motivo `cambio_reparto` |
 | `14-preapprovazione-e-rifiuti.sql` | **rovescia le conferme**: il turno vale subito e si può rifiutare. `shift_messages`, `rifiuta_turno()` |
 | `15-accettazione-esplicita.sql` | torna il sì accanto al no: `accetta_turno()`, e non si rifiuta ciò che si è accettato |
+| `16-avvisi-e-settimana.sql` | il verso della modifica conta: `shift_notices` (avvisi), `week_requests` (la settimana intera), `conferma_settimana` |
 
 > ⚠️ La `14` definisce `rifiuta_turno()` e la `15` **la ridefinisce**. Chi
 > deve cambiarla guardi la `15`: è quella l'ultima parola. Vale in generale —
@@ -91,6 +92,36 @@ Lettura: il responsabile, e l'interessato i propri. Scrittura: solo il
 responsabile — l'inserimento non passa dalle policy ma da `rifiuta_turno()`,
 così nessuno può scrivere un messaggio a nome d'altri.
 
+### `shift_notices`
+Il verso opposto di `shift_messages`: lì il dipendente parla al responsabile,
+qui il responsabile avvisa il dipendente. `profile_id` (chi lo deve leggere) ·
+`shift_id` (nullabile) · `motivo` (`ore_tolte` | `turno_rimosso` |
+`turno_spostato`) · `giorno` · `turno_prima` / `turno_dopo` (jsonb, il secondo
+null se il turno è stato tolto) · `creato_at` · `letto_at`.
+
+Due tabelle e non una con una colonna «direzione» perché **le due cose muoiono
+in modo diverso**: un rifiuto si chiude quando il responsabile ha rimediato, un
+avviso quando l'interessato preme «ho letto». Mescolarle vorrebbe dire due
+metà di ogni interrogazione.
+
+Scrittura: solo il responsabile. Il «ho letto» dell'interessato passa da
+`segna_avviso_letto()` e non da una policy di update, che gli lascerebbe
+riscrivere anche il motivo.
+
+### `week_requests`
+La domanda che nasce **alla pubblicazione** per chi va in straordinario: non
+otto domande su otto turni, una sola sulla settimana. `profile_id` · `monday` ·
+`motivo` (per ora solo `straordinario`) · `minuti_previsti` /
+`minuti_contratto` (**congelati alla nascita**: il tabellone cambia, e una
+richiesta deve poter raccontare la settimana su cui è nata) · `stato`
+(`in_attesa` | `accettata` | `rifiutata`) · `nota` · `creato_at` ·
+`deciso_at` · `visto_at`. Unico per `(company_id, profile_id, monday)`:
+ripubblicare non fa una seconda domanda, e una già decisa resta decisa.
+
+`nota` è **una sola colonna per due usi**: il perché del no, o il ritocco
+chiesto insieme al sì («va bene, ma il giovedì se possibile smetto prima»).
+Due colonne di cui una sempre vuota non direbbero di più.
+
 ### `departments`
 `company_id · name · hue` (tinta 0–360, **non** un colore finito: chiaro e
 scuro hanno bisogno di due luminosità diverse) · `position`. Unico per
@@ -121,12 +152,12 @@ dall'approvazione, per poterla revocare) · `decided_by`.
 Una riga per azienda, **facoltativa**: se manca valgono i default, che stanno
 scritti due volte — nel `default` della colonna e in `IMPOSTAZIONI_DEFAULT`
 (`src/lib/impostazioni.ts`). Chi legge passa sempre da
-`normalizzaImpostazioni()`. Dieci campi, raggruppati **per pagina** come nella
+`normalizzaImpostazioni()`. Undici campi, raggruppati **per pagina** come nella
 schermata che li mostra:
 
 - turni: `conferma_straordinari · conferma_modifiche ·
   conferma_modifiche_straordinari · orari_preimpostati ·
-  conferma_cambio_reparto`
+  conferma_cambio_reparto · conferma_settimana`
 - supervisione: `pagina_supervisione · supervisione_dipendenti`
 - permessi: `pagina_permessi · causali_richiedibili[]`
 - prospetto: `pagina_prospetto`
@@ -172,6 +203,9 @@ tabella a sua volta protetta da RLS**, o Postgres entra in ricorsione infinita
 | `conferma_rientro(primo_giorno)` | chiude la propria assenza aperta al giorno prima |
 | `accetta_turno(turno)` | il sì: scrive `confermato_at` **solo** sul proprio turno |
 | `rifiuta_turno(turno, motivazione)` | il no: segna il rifiuto **e** lascia il messaggio al responsabile |
+| `segna_avviso_letto(avviso)` | «ho letto», **solo sul proprio** avviso |
+| `accetta_settimana(lunedi, nota)` | il sì alla settimana intera, col ritocco eventualmente chiesto |
+| `rifiuta_settimana(lunedi, motivazione)` | il no alla settimana intera. **La motivazione è obbligatoria**: un no secco su sette giorni non dice al responsabile niente di cui possa fare qualcosa |
 
 `conferma_turno()` **non esiste più** (rimossa dalla `14`): tenerla in giro
 avrebbe voluto dire avere due verità su cosa vale un turno.

@@ -28,6 +28,11 @@ export type Impostazioni = {
   /** Cambiare solo il reparto di un turno, senza toccarne gli orari, è
    *  rifiutabile? Di suo no: le ore restano quelle. */
   conferma_cambio_reparto: boolean;
+  /** Alla **pubblicazione**, chi va in straordinario riceve una domanda sola
+   *  sulla settimana intera invece di una per turno. È l'unico interruttore
+   *  che riguarda un gesto e non un turno: si accende quando l'azienda
+   *  vuole il sì della persona *prima* che la settimana cominci. */
+  conferma_settimana: boolean;
 
   /* ----------------------------------------------------- supervisione */
   /** L'azienda usa la Supervisione? Spenta, sparisce a tutti. */
@@ -50,6 +55,7 @@ export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
   conferma_modifiche_straordinari: false,
   orari_preimpostati: false,
   conferma_cambio_reparto: false,
+  conferma_settimana: false,
   pagina_supervisione: true,
   supervisione_dipendenti: true,
   pagina_permessi: true,
@@ -66,7 +72,8 @@ export function normalizzaImpostazioni(
 
 export const COLONNE_IMPOSTAZIONI =
   "conferma_straordinari, conferma_modifiche, conferma_modifiche_straordinari, " +
-  "orari_preimpostati, conferma_cambio_reparto, pagina_supervisione, " +
+  "orari_preimpostati, conferma_cambio_reparto, conferma_settimana, " +
+  "pagina_supervisione, " +
   "supervisione_dipendenti, pagina_permessi, causali_richiedibili, pagina_prospetto";
 
 /* Le tre `pagina_*` valgono in due posti, e vanno tenuti d'accordo: il menu

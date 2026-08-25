@@ -292,6 +292,23 @@ const MIGRAZIONI = [
       ["rifiuta_turno() rispetta il si' gia' dato", () => funzioneContiene("rifiuta_turno", "confermato_at")],
     ],
   },
+  {
+    file: "16-avvisi-e-settimana.sql",
+    cosa: "chi perde ore lo sa, chi ne guadagna decide",
+    prove: [
+      ["company_settings.conferma_settimana", () => colonna("company_settings", "conferma_settimana")],
+      ["tabella shift_notices", () => tabella("shift_notices")],
+      ["shift_notices.letto_at", () => colonna("shift_notices", "letto_at")],
+      ["funzione segna_avviso_letto()", () => funzione("segna_avviso_letto")],
+      ["tabella week_requests", () => tabella("week_requests")],
+      ["week_requests.minuti_previsti", () => colonna("week_requests", "minuti_previsti")],
+      ["funzione accetta_settimana()", () => funzione("accetta_settimana")],
+      ["funzione rifiuta_settimana()", () => funzione("rifiuta_settimana")],
+      // Il no senza motivazione non deve passare: e' la riga che rende utile
+      // la richiesta, non un vezzo di forma.
+      ["rifiuta_settimana() pretende la motivazione", () => funzioneContiene("rifiuta_settimana", "pulita is null")],
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------- il giro */
