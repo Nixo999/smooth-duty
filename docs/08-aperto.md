@@ -51,10 +51,11 @@ Da provare nel browser, in quest'ordine:
 5. **Le Impostazioni dei Turni**: i tre gruppi, il riquadro «sempre attiva», e
    che salvando non si perda nessuna delle cinque levette. Anche la stessa
    schermata ridotta in `/admin`, alla creazione di un'azienda.
-6. **Il blocco alla pubblicazione**: una settimana con qualcuno sotto
-   contratto non si deve pubblicare, e il messaggio deve dire chi e di quanto.
-   Poi la stessa settimana con quella persona segnata assente: deve
-   pubblicarsi.
+6. **La domanda alla pubblicazione**: una settimana con qualcuno sotto
+   contratto deve fermarsi e mostrare i nomi con le ore mancanti. Provare tutte
+   e due le strade — «Torno indietro» e «Pubblica lo stesso» — e poi la stessa
+   settimana con quella persona segnata assente, che deve pubblicarsi senza
+   chiedere niente.
 7. **Un turno spostato dal mattino al pomeriggio**: adesso è una cosa da
    accettare, non un avviso.
 8. **Sospendi/riattiva in Squadra**, compreso il rifiuto sull'unico
@@ -116,12 +117,10 @@ dice cosa non va e poi si ferma.
 giorno di cui parla, quindi il responsabile lo legge e va a cercarselo. Legarlo
 a un turno vorrebbe dire farglielo scegliere in un elenco, e forse è peggio.
 
-**Il blocco alla pubblicazione non ha una scappatoia.** Se un'azienda ha
-davvero bisogno di pubblicare una settimana corta — un part-time
-sotto-programmato di comune accordo, un rientro a metà settimana — l'unica
-strada è correggere le ore in scheda o segnare un'assenza. Un «pubblica
-lo stesso» ci starebbe, ma un divieto che si aggira con un click smette di
-essere un divieto dopo la seconda volta.
+**Del «pubblica lo stesso» non resta traccia.** Chi ha proseguito su una
+settimana corta lo sa lui e basta: non c'è una riga da nessuna parte che dica
+quale settimana è stata pubblicata sotto contratto e di quanto. Per una
+contestazione a fine mese servirebbe.
 
 **`contract_type` e `on_call` dicono la stessa cosa in due modi.** `on_call` è
 il gemello operativo di `contract_type = 'chiamata'`, tenuti d'accordo da

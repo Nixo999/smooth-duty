@@ -199,7 +199,7 @@ Gli avvisi stanno in `shift_notices`, che è il verso opposto di
 due cose **muoiono in modo diverso**: un rifiuto si chiude quando il
 responsabile ha rimediato, un avviso quando l'interessato preme «ho letto».
 
-## Non si pubblica una settimana sotto contratto
+## Una settimana sotto contratto si pubblica solo dopo averlo detto
 
 Motore: `chiStaSottoContratto()` (`src/lib/pubblicazione.ts`), puro e provato
 da `npm run prove`.
@@ -211,9 +211,17 @@ dà **meno** ore di quelle che ha per contratto non è pronta: è un errore che
 si scopre a fine mese, sulla busta paga, quando rimediare costa molto di più
 che accorgersene adesso.
 
-Non è un'impostazione e non si spegne. Il messaggio dice **chi** e **di
-quanto**: un divieto che non indica dove mettere le mani costringe a ricontare
-a mano trenta persone, e a quel punto tanto valeva non averlo.
+**Si ferma e chiede, non vieta.** La schermata mostra i nomi con le ore che
+mancano e due strade: «Torno indietro» e «Pubblica lo stesso». I motivi buoni
+per una settimana corta esistono — un rientro a metà settimana, un accordo con
+la persona — e un divieto secco costringerebbe a inventarsi un'assenza che non
+c'è pur di andare avanti. Il controllo ha già fatto il suo lavoro nel momento
+in cui l'ha fatto vedere: quello che si scopriva a fine mese sulla busta paga
+si vede adesso.
+
+Non è un'impostazione e non si spegne. E dice **chi** e **di quanto**: un
+avviso che non indica dove mettere le mani costringe a ricontare a mano trenta
+persone, e a quel punto tanto valeva non averlo.
 
 Chi non riguarda, e per lo stesso motivo — non ha un monte ore da rispettare:
 
@@ -229,9 +237,9 @@ non li fa nessuno, e contarli farebbe passare per completa una settimana che
 non lo è.
 
 Il conto è arrotondato **per difetto**: su una settimana spezzata cade sui
-minuti, e bloccare una pubblicazione per un minuto di arrotondamento sarebbe
-una regola che nessuno capirebbe. Se la lettura dei dati fallisce **non si
-blocca**: un divieto basato su dati che non sono arrivati fermerebbe una
+minuti, e fermare una pubblicazione per un minuto di arrotondamento sarebbe una
+regola che nessuno capirebbe. Se la lettura dei dati fallisce **non si chiede
+niente**: una domanda basata su dati che non sono arrivati fermerebbe una
 settimana magari a posto.
 
 ## La settimana si accetta intera

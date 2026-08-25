@@ -11,6 +11,22 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Le impostazioni parlano la lingua di chi le legge**
+Erano scritte con le parole del dominio interno — «preapprovato», «motivo di
+rifiuto», «monte ore», «l'interessato viene coinvolto» — cioè le parole di chi
+ha scritto il codice, non di chi gestisce un negozio. Riscritte tutte: frasi
+corte, il soggetto è sempre il dipendente o tu. La struttura è rimasta, era
+quella giusta.
+
+**Il divieto alla pubblicazione diventa una domanda**
+Una settimana in cui qualcuno sta sotto le sue ore adesso si ferma, mostra i
+nomi con le ore che mancano e chiede: «Torno indietro» o «Pubblica lo stesso».
+I motivi buoni per una settimana corta esistono — un rientro a metà settimana,
+un accordo con la persona — e un divieto secco costringeva a inventarsi
+un'assenza che non c'è pur di andare avanti. Il controllo ha già fatto il suo
+lavoro nel momento in cui l'ha fatto vedere: quello che si scopriva a fine mese
+sulla busta paga si vede adesso.
+
 **Non si pubblica una settimana in cui qualcuno sta sotto il suo contratto**
 In bozza va benissimo — è tutto il senso della bozza — ma premere Pubblica
 vuol dire dire alla squadra «questa è la settimana», e un buco di ore così si

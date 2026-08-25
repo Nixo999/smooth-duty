@@ -66,6 +66,8 @@ import {
   timeRange,
 } from "@/lib/date";
 import { assenzaDelGiorno, ETICHETTA } from "@/lib/assenze";
+import { Modal } from "@/components/ui/modal";
+import type { SottoContratto } from "@/lib/pubblicazione";
 import type {
   Absence,
   Department,
@@ -160,13 +162,26 @@ export function Roster({
   const router = useRouter();
   const [inLavoro, startLavoro] = React.useTransition();
 
-  const pubblica = () =>
+  /** Chi sta sotto le sue ore da contratto, quando la pubblicazione si ferma
+   *  a chiedere. null = non c'è niente in sospeso. */
+  const [sottoContratto, setSottoContratto] = React.useState<SottoContratto[] | null>(
+    null,
+  );
+
+  const pubblica = (forza = false) =>
     startLavoro(async () => {
-      const esito = await pubblicaSettimana(monday);
+      const esito = await pubblicaSettimana(monday, forza);
       if (!esito.ok) {
+        // Non è un errore: è la settimana che ha qualcosa da farti vedere
+        // prima. Si mostra chi e quanto, e si chiede se procedere.
+        if (esito.sotto?.length) {
+          setSottoContratto(esito.sotto);
+          return;
+        }
         toast.error(esito.error);
         return;
       }
+      setSottoContratto(null);
       toast.success("Settimana pubblicata: ora i dipendenti la vedono.");
       router.refresh();
     });
@@ -822,7 +837,7 @@ export function Roster({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={pubblica}
+                  onClick={() => pubblica()}
                   loading={inLavoro}
                   title="Rendi la settimana visibile ai dipendenti"
                 >
@@ -1144,6 +1159,53 @@ export function Roster({
           onCopiato={() => setStoria({ monday, passato: [], futuro: [] })}
           onClose={() => setCopiaAperta(false)}
         />
+      ) : null}
+
+      {sottoContratto ? (
+        <Modal
+          open
+          onOpenChange={(v) => !v && setSottoContratto(null)}
+          title="A qualcuno mancano delle ore"
+          description="Puoi pubblicare lo stesso, ma prima guarda chi."
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setSottoContratto(null)}
+                disabled={inLavoro}
+              >
+                Torno indietro
+              </Button>
+              <Button
+                type="button"
+                onClick={() => pubblica(true)}
+                loading={inLavoro}
+                disabled={inLavoro}
+              >
+                Pubblica lo stesso
+              </Button>
+            </>
+          }
+        >
+          <ul className="divide-y divide-border">
+            {sottoContratto.map((p) => (
+              <li key={p.id} className="flex items-baseline gap-3 py-2.5">
+                <span className="min-w-0 flex-1 truncate text-[14px]">{p.nome}</span>
+                <span className="shrink-0 text-[13px] font-medium tabular-nums text-warning">
+                  −{formatDuration(p.mancano)}
+                </span>
+                <span className="shrink-0 text-[12.5px] tabular-nums text-muted">
+                  su {formatDuration(p.dovuti)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[12.5px] text-muted">
+            Se in quei giorni non c&apos;erano, segna l&apos;assenza dai Permessi:
+            le ore di chi è assente non si contano.
+          </p>
+        </Modal>
       ) : null}
     </div>
   );

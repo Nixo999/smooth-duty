@@ -6,6 +6,7 @@ import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
 import { durationMinutes, formatDuration, hhmm } from "@/lib/date";
 import { chiStaSottoContratto } from "@/lib/pubblicazione";
+import type { SottoContratto } from "@/lib/pubblicazione";
 import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
@@ -17,6 +18,13 @@ import { MOTIVI_RIFIUTO } from "@/lib/types";
 import type { MotivoAvviso, MotivoRifiuto, StatoTurno } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+/** Pubblicare può non riuscire per un motivo che non è un errore: qualcuno
+ *  sta sotto le sue ore da contratto. Allora arriva anche l'elenco, perché
+ *  la schermata possa mostrarlo e chiedere se procedere lo stesso. */
+export type PubblicaResult =
+  | { ok: true }
+  | { ok: false; error: string; sotto?: SottoContratto[] };
 
 /** Esito di un salvataggio: l'id serve a chi tiene la storia delle
  *  modifiche (annulla/ripeti), `richiede` a contare quanti turni sono
@@ -833,7 +841,14 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
 /** Pubblica una settimana. Ogni settimana nasce bozza — i dipendenti non
  *  la vedono — e lo resta finche' il responsabile non preme Pubblica: da
  *  li' in poi e' visibile, e le modifiche seguono le regole di conferma. */
-export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
+export async function pubblicaSettimana(
+  monday: string,
+  /** Il responsabile ha già visto chi sta sotto contratto e ha detto di
+   *  procedere lo stesso. Non è un modo di aggirare il controllo: è il
+   *  controllo che ha fatto il suo lavoro, cioè far vedere una cosa che
+   *  altrimenti si sarebbe scoperta a fine mese. */
+  forza = false,
+): Promise<PubblicaResult> {
   const user = await requireCapo();
 
   const parsed = day.safeParse(monday);
@@ -843,17 +858,22 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   const supabase = await createClient();
 
   // Una settimana che a qualcuno dà **meno** ore di quelle che ha per
-  // contratto non si pubblica. In bozza va benissimo — è tutto il senso
-  // della bozza, si comincia da un foglio vuoto e ci si arriva — ma
-  // pubblicare vuol dire dire alla squadra «questa è la settimana», e un
-  // buco di ore così si scopre a fine mese sulla busta paga, quando
-  // rimediare costa molto di più che accorgersene adesso.
-  const manchevole = await chiStaSottoIlSuoContratto(
-    supabase,
-    user.company_id,
-    lunedi,
-  );
-  if (manchevole) return { ok: false, error: manchevole };
+  // contratto si pubblica solo dopo averlo detto. In bozza non si dice
+  // niente — è tutto il senso della bozza, si comincia da un foglio vuoto e
+  // ci si arriva — ma pubblicare vuol dire dire alla squadra «questa è la
+  // settimana», e un buco di ore così altrimenti si scopre a fine mese sulla
+  // busta paga, quando rimediare costa molto di più.
+  //
+  // Si ferma e chiede, non vieta: i motivi buoni per una settimana corta
+  // esistono — un rientro a metà settimana, un accordo con la persona — e un
+  // divieto secco costringerebbe a inventarsi un'assenza che non c'è pur di
+  // andare avanti.
+  if (!forza) {
+    const sotto = await chiStaSottoIlSuoContratto(supabase, user.company_id, lunedi);
+    if (sotto.length > 0) {
+      return { ok: false, error: riassuntoSottoContratto(sotto), sotto };
+    }
+  }
 
   const { error } = await supabase
     .from("published_weeks")
@@ -867,19 +887,19 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Il messaggio che spiega perché non si può pubblicare, o null se si può.
- *
- *  Dice **chi** e **di quanto**, non «la settimana non è completa»: un
- *  divieto che non indica dove mettere le mani costringe a ricontare a mano
- *  trenta persone, e a quel punto tanto valeva non averlo.
+/** Chi sta sotto le sue ore da contratto, in questa settimana.
  *
  *  Il conto vero sta in `chiStaSottoContratto()` (`src/lib/pubblicazione.ts`),
- *  che è puro e si prova senza database. */
+ *  che è puro e si prova senza database: qui si leggono solo i dati.
+ *
+ *  Restituisce l'elenco e non una frase perché chi lo chiama ne fa due cose
+ *  diverse — un riassunto da leggere e una schermata coi nomi uno sotto
+ *  l'altro — e una frase già impacchettata si potrebbe solo mostrare. */
 async function chiStaSottoIlSuoContratto(
   supabase: Awaited<ReturnType<typeof createClient>>,
   companyId: string,
   lunedi: string,
-): Promise<string | null> {
+): Promise<SottoContratto[]> {
   const giorni = weekDaysISO(lunedi);
 
   const [personeRes, turniRes, assenzeRes] = await Promise.all([
@@ -902,19 +922,22 @@ async function chiStaSottoIlSuoContratto(
       .or(`end_date.is.null,end_date.gte.${giorni[0]}`),
   ]);
 
-  // Se non si riesce a leggere non si blocca: un divieto basato su dati che
-  // non sono arrivati fermerebbe una settimana che magari è a posto, e
+  // Se non si riesce a leggere non si ferma niente: una domanda basata su
+  // dati che non sono arrivati fermerebbe una settimana magari a posto, e
   // l'errore vero lo dirà comunque la pagina.
-  if (personeRes.error || turniRes.error) return null;
+  if (personeRes.error || turniRes.error) return [];
 
-  const sotto = chiStaSottoContratto({
+  return chiStaSottoContratto({
     persone: personeRes.data ?? [],
     turni: turniRes.data ?? [],
     assenze: assenzeRes.data ?? [],
     giorni,
   });
-  if (sotto.length === 0) return null;
+}
 
+/** La stessa cosa in una frase, per chi può solo leggere un errore: le altre
+ *  Server Action, e chiunque chiami `pubblicaSettimana` da fuori. */
+function riassuntoSottoContratto(sotto: SottoContratto[]): string {
   // Tre nomi bastano a far capire dove guardare; trenta sarebbero un muro.
   const primi = sotto
     .slice(0, 3)
@@ -923,9 +946,8 @@ async function chiStaSottoIlSuoContratto(
   const altri = sotto.length - 3;
 
   return (
-    `Non posso pubblicare: ${primi}${altri > 0 ? ` e altre ${altri} persone` : ""} ` +
-    `${sotto.length === 1 ? "sta" : "stanno"} sotto le ore da contratto. ` +
-    "Aggiungi i turni che mancano, oppure segna l'assenza se in quei giorni non ci sono."
+    `${primi}${altri > 0 ? ` e altre ${altri} persone` : ""} ` +
+    `${sotto.length === 1 ? "ha" : "hanno"} meno ore di quelle del contratto.`
   );
 }
 

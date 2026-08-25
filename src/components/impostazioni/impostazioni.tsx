@@ -68,9 +68,9 @@ export function Impostazioni({
       <div>
         <h1 className="text-[19px] font-semibold tracking-tight">Impostazioni</h1>
         <p className="text-[13.5px] text-muted">
-          Valgono per tutta l&apos;azienda «{azienda}». Sono divise per pagina:
-          quelle che si possono spegnere hanno l&apos;interruttore accanto al
-          nome.
+          Valgono per tutta l&apos;azienda «{azienda}». Sono divise per pagina.
+          Le pagine che non ti servono puoi spegnerle: spariscono dal menu di
+          tutti.
         </p>
       </div>
 
@@ -78,78 +78,79 @@ export function Impostazioni({
       <Sezione
         icona={CalendarDays}
         pagina="Turni"
-        nota="Quando la squadra viene coinvolta, e come."
+        nota="Quando i tuoi dipendenti ricevono un messaggio, e cosa possono fare."
       >
         <Nota>
-          Il turno vale sempre da subito, anche quando è rifiutabile: qui non
-          si chiede un permesso, si segnala una cosa fuori dall&apos;ordinario e
-          si lascia la facoltà di dire di no. Chi tace ha accettato — ed è il
-          caso di gran lunga più frequente.
+          Il turno vale <strong className="font-medium text-text">subito</strong>,
+          anche quando il dipendente lo può rifiutare: non devi aspettare la sua
+          risposta per andare avanti. Se non risponde, vuol dire che gli va bene.
+          Quasi sempre è così.
         </Nota>
 
         <Gruppo
           titolo="Quando pubblichi la settimana"
-          spiega="È il momento in cui la squadra la vede per la prima volta."
+          spiega="Il momento in cui i dipendenti vedono la settimana."
         >
           <Regola>
-            Non si pubblica una settimana in cui qualcuno sta{" "}
-            <strong className="font-medium text-text">sotto</strong> le sue ore
-            da contratto: l&apos;app lo impedisce e ti dice chi e di quanto. In
-            bozza invece si può, che è tutto il senso della bozza. Chi è assente
-            conta per i giorni in cui c&apos;è, e chi è a chiamata non ha un
-            monte ore da rispettare.
+            Se qualcuno ha{" "}
+            <strong className="font-medium text-text">meno ore</strong> di quelle
+            del suo contratto, l&apos;app te lo dice prima di pubblicare, con il
+            nome e quante ore mancano. Puoi pubblicare lo stesso, ma te lo chiede
+            prima. Mentre la settimana è in bozza non ti dice niente. Chi è a
+            chiamata non ha ore da rispettare, e chi è assente conta solo per i
+            giorni in cui c&apos;è.
           </Regola>
           <Interruttore
             acceso={v.conferma_settimana}
             onCambia={(x) => cambia({ conferma_settimana: x })}
-            titolo="Settimana in straordinario da accettare"
-            descrizione="Una domanda sola sulla settimana intera, non una per turno: la risposta dipende dall'insieme."
-            quando="pubblichi, e a qualcuno la settimana porta oltre le ore da contratto"
-            esito="deve scrivere perché, e la settimana la rifai tu: i turni non cambiano da soli"
+            titolo="Chiedi conferma per le settimane con straordinario"
+            descrizione="Il dipendente riceve una domanda sola su tutta la settimana, non una per ogni turno. Può accettarla o rifiutarla; accettando può anche chiederti un piccolo cambio."
+            quando="pubblichi una settimana che porta qualcuno oltre le ore del suo contratto"
+            esito="deve scriverti il motivo. I turni restano dove sono: la settimana la rifai tu"
           />
         </Gruppo>
 
         <Gruppo
           titolo="Quando cambi un turno già pubblicato"
-          spiega="Prima della pubblicazione il tabellone è un foglio di lavoro: correggerlo non chiede niente a nessuno."
+          spiega="Finché la settimana è in bozza puoi cambiare tutto senza avvisare nessuno."
         >
           <Interruttore
             acceso={v.conferma_modifiche}
             onCambia={(x) => cambia({ conferma_modifiche: x })}
-            titolo="L'interessato viene coinvolto"
-            descrizione="Un interruttore solo; è poi la modifica a decidere come. Più ore o turno spostato si chiedono — il mattino e il pomeriggio non sono la stessa giornata, a ore identiche. Ore tolte, turno cancellato o passato a un altro: arriva un avviso che si chiude con «ho letto», perché lì non c'è niente da concedere."
-            quando="allunghi, sposti, accorci o cancelli un turno di una settimana pubblicata"
-            esito="il turno torna com'era, e tu ricevi il messaggio col motivo"
+            titolo="Avvisa il dipendente quando cambi un suo turno"
+            descrizione="Se il turno diventa più lungo, o cambia giorno o orario, il dipendente lo può rifiutare. Se invece diventa più corto, o glielo togli, riceve solo un avviso da leggere: non c'è niente da accettare."
+            quando="allunghi, sposti, accorci o cancelli un turno di una settimana già pubblicata"
+            esito="il turno torna come prima e tu ricevi un messaggio con il motivo"
           />
           <Interruttore
             acceso={v.conferma_cambio_reparto}
             onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
-            titolo="Anche il solo cambio di reparto"
-            descrizione="Spostare qualcuno dalla cassa alla sala senza togliergli un minuto. Spento — ed è il caso normale — non si segnala nemmeno."
-            quando="cambi il reparto e nient'altro: stessa persona, stesso giorno, stessi orari"
+            titolo="Avvisa anche solo per il cambio di reparto"
+            descrizione="Serve se sposti qualcuno da un reparto all'altro senza cambiargli gli orari. Di solito si lascia spento: le ore restano le stesse."
+            quando="cambi solo il reparto, e nient'altro: stessa persona, stesso giorno, stessi orari"
             esito="il turno torna al reparto di prima"
           />
         </Gruppo>
 
         <Gruppo
           titolo="Quando aggiungi un turno"
-          spiega="Un turno che non c'era non ha un «prima» a cui tornare."
+          spiega="Un turno appena creato non ha una versione precedente a cui tornare."
         >
           <Interruttore
             acceso={v.conferma_straordinari}
             onCambia={(x) => cambia({ conferma_straordinari: x })}
-            titolo="Straordinari rifiutabili"
-            descrizione="Chi è a chiamata non ha un monte ore, quindi non lo riguarda."
-            quando="il turno nuovo porta la persona oltre le sue ore settimanali da contratto"
-            esito="il turno salta, e ti resta un buco da coprire che l'app ti tiene in evidenza"
+            titolo="Straordinari da accettare"
+            descrizione="Vale per chi ha un contratto a ore. Chi è a chiamata non ha ore da rispettare, quindi non lo riguarda."
+            quando="il turno nuovo porta la persona oltre le ore settimanali del suo contratto"
+            esito="il turno viene tolto e resta un buco da coprire. L'app te lo ricorda finché non lo riempi"
           />
           <Interruttore
             acceso={v.orari_preimpostati}
             onCambia={(x) => cambia({ orari_preimpostati: x })}
-            titolo="Orari diversi da quelli del contratto"
-            descrizione="L'orario si scrive sulla persona, in Squadra. Chi non ce l'ha scritto non è toccato da questa regola."
-            quando="il turno ha un orario diverso da quello preimpostato sul suo contratto"
-            esito="il turno salta, come sopra"
+            titolo="Orari diversi dal solito"
+            descrizione="Vale solo per chi ha un orario fisso scritto nella sua scheda, in Squadra. Chi non ce l'ha non è interessato."
+            quando="gli dai un turno con orari diversi da quelli scritti nella sua scheda"
+            esito="il turno viene tolto e resta un buco da coprire, come sopra"
           />
         </Gruppo>
       </Sezione>
@@ -158,7 +159,7 @@ export function Impostazioni({
       <Sezione
         icona={Eye}
         pagina="Supervisione"
-        nota="La giornata reparto per reparto, con i buchi di copertura."
+        nota="La giornata ora per ora: chi c'è, in quale reparto, e dove manca gente."
         accesa={v.pagina_supervisione}
         onCambiaPagina={(x) => cambia({ pagina_supervisione: x })}
       >
@@ -166,7 +167,7 @@ export function Impostazioni({
           acceso={v.supervisione_dipendenti}
           onCambia={(x) => cambia({ supervisione_dipendenti: x })}
           titolo="Visibile anche ai dipendenti"
-          descrizione="Spenta, la pagina resta solo al responsabile: ai dipendenti sparisce dal menu."
+          descrizione="Accesa, anche i dipendenti vedono com'è coperta la giornata. Spenta, la pagina resta solo a te."
           spento={!v.pagina_supervisione}
         />
       </Sezione>
@@ -175,7 +176,7 @@ export function Impostazioni({
       <Sezione
         icona={Sun}
         pagina="Permessi"
-        nota="Le richieste di assenza dei dipendenti e il calendario di chi manca."
+        nota="Ferie, malattie e permessi: i dipendenti li chiedono, tu decidi."
         accesa={v.pagina_permessi}
         onCambiaPagina={(x) => cambia({ pagina_permessi: x })}
       >
@@ -183,8 +184,9 @@ export function Impostazioni({
           <div>
             <p className="text-[14px] font-medium">Causali richiedibili</p>
             <p className="text-[12.5px] text-muted">
-              Quello che un dipendente può chiedere da solo. Il responsabile,
-              registrando a mano, le ha sempre tutte.
+              Cosa un dipendente può chiedere da solo. Tocca una voce per
+              toglierla o rimetterla. Tu puoi registrare qualsiasi assenza a
+              mano, anche quelle spente qui.
             </p>
           </div>
           {CAUSALI.map((gruppo) => (
@@ -223,15 +225,15 @@ export function Impostazioni({
       <Sezione
         icona={ClipboardList}
         pagina="Prospetto"
-        nota="Il riepilogo delle ore per persona, settimana, mese o anno. La vede solo il responsabile."
+        nota="Il riepilogo delle ore di ogni persona: lavorate, perse e per quale motivo. La vedi solo tu."
         accesa={v.pagina_prospetto}
         onCambiaPagina={(x) => cambia({ pagina_prospetto: x })}
       />
 
       <p className="px-1 text-[12.5px] text-muted">
-        Turni, Squadra e Impostazioni non si spengono: senza il tabellone
-        l&apos;app non ha più un motivo, senza Squadra non si aggiunge nessuno,
-        e da qui si riaccende tutto il resto.
+        Turni, Squadra e Impostazioni non si possono spegnere: senza i turni
+        l&apos;app non serve a niente, senza Squadra non puoi aggiungere
+        nessuno, e da qui riaccendi tutto il resto.
       </p>
 
       <div className="flex items-center justify-end gap-3">

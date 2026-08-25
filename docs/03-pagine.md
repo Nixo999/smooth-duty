@@ -86,9 +86,10 @@ Se la lettura dei turni o delle persone **fallisce**, la pagina mostra
 `ErroreDati` invece di un tabellone vuoto: vedi
 [05-convenzioni.md](05-convenzioni.md).
 
-`pubblicaSettimana` **può dire di no**: se qualcuno sta sotto le sue ore da
-contratto la settimana non si pubblica, e il messaggio dice chi e di quanto.
-Vedi [04-regole.md](04-regole.md).
+`pubblicaSettimana` **può fermarsi a chiedere**: se qualcuno sta sotto le sue
+ore da contratto restituisce l'elenco invece di pubblicare, il tabellone lo
+mostra coi nomi e le ore mancanti, e si riparte con `pubblicaSettimana(monday,
+true)`. Vedi [04-regole.md](04-regole.md).
 
 Azioni: `salvaTurno` · `eliminaTurno` · `eliminaTuttiITurni` ·
 `ripristinaTurni` · `copiaTurni` · `anteprimaCopia` · `pubblicaSettimana` ·
@@ -231,9 +232,16 @@ bottone. Ognuna dice, su due righe separate dal testo, **quando** scatta e
 **cosa succede se la persona dice di no**: sono le due domande che uno si fa
 davanti a una levetta, e dentro un paragrafo bisogna trovarle leggendo.
 
-Fra le levette c'è anche un riquadro «sempre attiva», che levetta non è: non si
-pubblica una settimana in cui qualcuno sta sotto le sue ore da contratto. Sta
-lì perché è lì che uno la cerca.
+Fra le levette c'è anche un riquadro «sempre attiva», che levetta non è: la
+settimana in cui qualcuno sta sotto le sue ore da contratto si pubblica solo
+dopo che l'app te l'ha fatto vedere. Sta lì perché è lì che uno la cerca.
+
+Le descrizioni sono scritte per **chi gestisce un negozio**, non per chi ha
+scritto il codice: frasi corte, niente parole del dominio interno («preapprovato»,
+«motivo di rifiuto», «monte ore»). Ogni levetta dice, su due righe separate,
+*quando* scatta e *cosa succede se la persona dice di no* — sono le due domande
+che uno si fa davanti a un interruttore, e dentro un paragrafo bisogna trovarle
+leggendo.
 
 Salvando si rivalidano anche `/supervisione`, `/permessi` e `/turni`: queste
 impostazioni cambiano cosa vedono gli altri.
