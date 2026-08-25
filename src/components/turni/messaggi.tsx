@@ -29,25 +29,38 @@ const COSA: Record<MotivoRifiuto, string> = {
 export function Messaggi({
   messaggi,
   nomeDi,
+  inSquadra,
   onCreaTurno,
 }: {
   /** Solo quelli aperti: un messaggio risolto ha finito il suo lavoro. */
   messaggi: MessaggioTurno[];
   nomeDi: (profileId: string) => string;
-  /** Il pannello del turno nuovo, gia' puntato su persona e giorno da
-   *  coprire. Il giorno puo' stare in un'altra settimana: il pannello ha il
-   *  suo campo data, quindi non c'e' niente da navigare. */
-  onCreaTurno: (profileId: string, giorno: string) => void;
+  /** La persona è ancora in squadra: a chi non c'è più non si rifà il turno. */
+  inSquadra: (profileId: string) => boolean;
+  /** Il pannello del turno nuovo, già puntato su persona, giorno e orari da
+   *  coprire. Il giorno può stare in un'altra settimana: il pannello ha il
+   *  suo campo data, quindi non c'è niente da navigare. */
+  onCreaTurno: (
+    profileId: string,
+    giorno: string,
+    orari: { start_time: string; end_time: string },
+  ) => void;
 }) {
   const router = useRouter();
   const [inCorso, start] = React.useTransition();
+  /** Quale riga sta lavorando: senza, lo spinner di un bottone spegnerebbe
+   *  tutti gli altri della lista. */
+  const [inLavorazione, setInLavorazione] = React.useState<string | null>(null);
 
   const daVedere = messaggi.filter((m) => !m.visto_at);
   const visti = messaggi.filter((m) => m.visto_at);
+  const daRifare = visti.filter((m) => m.esito === "da_rifare").length;
 
   const apri = () =>
     start(async () => {
+      setInLavorazione("apri");
       const esito = await apriMessaggi();
+      setInLavorazione(null);
       if (!esito.ok) {
         toast.error(esito.error);
         return;
@@ -57,7 +70,9 @@ export function Messaggi({
 
   const chiudi = (id: string) =>
     start(async () => {
+      setInLavorazione(id);
       const esito = await chiudiMessaggio(id);
+      setInLavorazione(null);
       if (!esito.ok) {
         toast.error(esito.error);
         return;
@@ -67,15 +82,39 @@ export function Messaggi({
 
   if (messaggi.length === 0) return null;
 
+  // Una coda che aspetta il responsabile si annuncia in arancio, come le
+  // richieste di permesso: il blu in questa app vuol dire "informazione".
+  const daFare = daVedere.length > 0 || daRifare > 0;
+
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-2 px-4 py-2.5">
-        <p className="flex items-center gap-2 text-[13px] font-medium">
-          <Mail className="size-3.5 text-muted" />
+    <section
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-surface shadow-card",
+        daFare ? "border-warning/40" : "border-border",
+      )}
+    >
+      <header
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5",
+          daFare ? "bg-warning-soft" : "bg-surface-2",
+        )}
+      >
+        <p
+          className={cn(
+            "flex items-center gap-2 text-[13px] font-medium",
+            daFare && "text-warning",
+          )}
+        >
+          <Mail className="size-3.5" />
           Messaggi dai dipendenti
         </p>
         {daVedere.length > 0 ? (
-          <Button size="sm" onClick={apri} loading={inCorso}>
+          <Button
+            size="sm"
+            onClick={apri}
+            loading={inCorso && inLavorazione === "apri"}
+            disabled={inCorso}
+          >
             <Inbox className="size-3.5" />
             Apri {daVedere.length}{" "}
             {daVedere.length === 1 ? "messaggio" : "messaggi"}
@@ -84,10 +123,12 @@ export function Messaggi({
       </header>
 
       {daVedere.length > 0 ? (
-        <p className="border-b border-border bg-accent-soft px-4 py-2.5 text-[13px] font-medium text-accent">
-          {daVedere.length === 1
-            ? "Un turno è stato rifiutato."
-            : `${daVedere.length} turni sono stati rifiutati.`}{" "}
+        <p className="border-b border-border px-4 py-2.5 text-[13px] text-muted">
+          <strong className="font-medium text-text">
+            {daVedere.length === 1
+              ? "Un turno è stato rifiutato."
+              : `${daVedere.length} turni sono stati rifiutati.`}
+          </strong>{" "}
           Aprendo i messaggi vedi cos&apos;è successo, e i turni si sistemano
           di conseguenza.
         </p>
@@ -99,8 +140,15 @@ export function Messaggi({
             key={m.id}
             m={m}
             nome={nomeDi(m.profile_id)}
+            rifacibile={inSquadra(m.profile_id)}
             inCorso={inCorso}
-            onCrea={() => onCreaTurno(m.profile_id, m.giorno)}
+            attiva={inLavorazione === m.id}
+            onCrea={() =>
+              onCreaTurno(m.profile_id, m.giorno, {
+                start_time: m.turno_dopo.start_time,
+                end_time: m.turno_dopo.end_time,
+              })
+            }
             onChiudi={() => chiudi(m.id)}
           />
         ))}
@@ -112,13 +160,19 @@ export function Messaggi({
 function Riga({
   m,
   nome,
+  rifacibile,
   inCorso,
+  attiva,
   onCrea,
   onChiudi,
 }: {
   m: MessaggioTurno;
   nome: string;
+  /** La persona è ancora in squadra: solo allora ha senso rifarle il turno. */
+  rifacibile: boolean;
   inCorso: boolean;
+  /** È questa riga a star lavorando. */
+  attiva: boolean;
   onCrea: () => void;
   onChiudi: () => void;
 }) {
@@ -168,13 +222,23 @@ function Riga({
               <span>
                 Il turno {m.turno_dopo.start_time}–{m.turno_dopo.end_time} è
                 stato tolto: non c&apos;era un turno di prima a cui tornare.
-                Vanno rifatte le ore di {nome} per quel giorno.
+                {rifacibile
+                  ? ` Vanno rifatte le ore di ${nome} per quel giorno.`
+                  : ` ${nome} non è più in squadra: quel giorno resta scoperto, coprilo con qualcun altro.`}
               </span>
             </p>
-          ) : (
+          ) : m.esito === "superato" ? (
             <p className="mt-1 text-[13px] text-muted">
               Nel frattempo quel turno l&apos;avevi già cambiato o tolto tu:
               vale l&apos;ultima parola tua, il rifiuto non ha toccato niente.
+            </p>
+          ) : (
+            // Nessun esito scritto: e' successo qualcosa fra l'apertura del
+            // messaggio e la registrazione. Meglio dirlo che raccontare una
+            // delle tre storie a caso.
+            <p className="mt-1 text-[13px] text-warning">
+              Non risulta cosa sia successo a questo turno: controllalo sul
+              tabellone del {dayLong(fromISODate(m.giorno))}.
             </p>
           )}
 
@@ -186,7 +250,7 @@ function Riga({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {daRifare ? (
+          {daRifare && rifacibile ? (
             <Button size="sm" onClick={onCrea} disabled={inCorso}>
               Crea il turno
             </Button>
@@ -195,7 +259,8 @@ function Riga({
             variant="ghost"
             size="sm"
             onClick={onChiudi}
-            loading={inCorso}
+            loading={inCorso && attiva}
+            disabled={inCorso}
             title={
               daRifare
                 ? "Ho rimediato in un altro modo"

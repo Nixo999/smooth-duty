@@ -103,8 +103,18 @@ create policy shift_messages_update on public.shift_messages
 -- Come il si' di ieri: passa da qui e non da un permesso di update, perche'
 -- con quello l'interessato potrebbe riscriversi gli orari. Qui puo' fare una
 -- cosa sola, e solo sul proprio turno.
-create or replace function public.rifiuta_turno(turno uuid, motivazione text default null)
-returns void
+--
+-- Restituisce se il no e' stato preso o no. Un `void` che esce in silenzio
+-- farebbe dire all'app «il responsabile e' stato avvisato» anche quando non
+-- e' partito niente — ed e' l'unica cosa che questa funzione promette.
+--
+-- Il drop prima del create non e' pignoleria: `create or replace` non sa
+-- cambiare il tipo restituito, e su un database dove questo file era gia'
+-- passato in una versione che tornava void fallirebbe.
+drop function if exists public.rifiuta_turno(uuid, text);
+
+create function public.rifiuta_turno(turno uuid, motivazione text default null)
+returns boolean
 language plpgsql
 security definer
 set search_path = public
@@ -117,15 +127,26 @@ begin
    where id = turno
      and profile_id = public.current_profile_id()
      and richiede_conferma is not null
-     and rifiutato_at is null;
+     and rifiutato_at is null
+     -- Non i turni gia' passati. Rifiutare un sabato che si e' lavorato
+     -- vorrebbe dire cancellarlo dal tabellone da cui il Prospetto tira le
+     -- ore, e nessuno restituisce il lavoro fatto. Il confine e' la fine
+     -- del giorno del turno, in ora italiana come tutto il resto dell'app:
+     -- un turno di notte lo si puo' ancora rifiutare la mattina prima.
+     and date >= (now() at time zone 'Europe/Rome')::date;
 
   if not found then
-    return;
+    return false;
   end if;
+
+  -- La lunghezza la controlla anche la server action, ma questa funzione si
+  -- puo' chiamare anche da fuori con la propria sessione: il taglio qui e'
+  -- l'unico che vale sempre.
+  motivazione := left(nullif(btrim(coalesce(motivazione, '')), ''), 300);
 
   update public.shifts
      set rifiutato_at = now(),
-         nota_rifiuto = nullif(btrim(coalesce(motivazione, '')), '')
+         nota_rifiuto = motivazione
    where id = turno;
 
   insert into public.shift_messages
@@ -135,10 +156,13 @@ begin
     t.profile_id,
     t.id,
     t.richiede_conferma,
-    nullif(btrim(coalesce(motivazione, '')), ''),
+    motivazione,
     t.date,
     t.stato_prima,
     jsonb_build_object(
+      -- La persona c'e' perche' una modifica puo' averla cambiata: e' il
+      -- turno di chi, non solo di quando.
+      'profile_id', t.profile_id,
       'date', t.date,
       -- I primi cinque caratteri di '09:00:00': l'app gli orari li scrive
       -- e li legge sempre come HH:MM. Niente to_char, che su una colonna
@@ -151,6 +175,8 @@ begin
       'notes', t.notes
     )
   );
+
+  return true;
 end $$;
 
 grant execute on function public.rifiuta_turno(uuid, text) to authenticated;

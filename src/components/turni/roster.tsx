@@ -485,6 +485,11 @@ export function Roster({
   const weeklyMinutes = (() => {
     const totals = new Map<string, number>();
     for (const s of turniVivi) {
+      // Solo i giorni di questa settimana. Una modifica in sospeso puo'
+      // riguardare un altro periodo — si crea un turno da un messaggio, si
+      // sposta una data nel pannello — e sommarla qui gonfierebbe un monte
+      // ore per un turno che in questo tabellone non si vede nemmeno.
+      if (!days.includes(s.date)) continue;
       // Le ore di chi e' assente non si sommano: il monte ore deve dire
       // quanto lavorera' davvero, non quanto era stato messo in programma.
       if (assenzaDelGiorno(assenze, s.profile_id, s.date)) continue;
@@ -567,12 +572,23 @@ export function Roster({
     setDraft(shiftToDraft(s));
   };
 
-  const openNew = (day: string, profileId: string | null) => {
+  const openNew = (
+    day: string,
+    profileId: string | null,
+    /** Gli orari con cui aprire il pannello, quando si sa gia' quali
+     *  devono essere: rifacendo un turno rifiutato sono quelli che erano
+     *  stati tolti. */
+    orari?: { start_time: string; end_time: string },
+  ) => {
     if (!modificabile) {
       toast.info("Settimana pubblicata: premi \u00abModifica\u00bb per cambiarla.");
       return;
     }
-    setDraft({ date: day, profile_id: profileId === UNASSIGNED ? null : profileId });
+    setDraft({
+      date: day,
+      profile_id: profileId === UNASSIGNED ? null : profileId,
+      ...orari,
+    });
   };
 
   return (
@@ -585,8 +601,14 @@ export function Roster({
         nomeDi={(id) =>
           profiles.find((p) => p.id === id)?.full_name ?? "Una persona"
         }
-        onCreaTurno={(profileId, giorno) =>
-          setDraft({ date: giorno, profile_id: profileId })
+        // Di chi non e' piu' in squadra non si rifa' il turno: il pannello
+        // non saprebbe nemmeno chi mettere nella tendina delle persone.
+        inSquadra={(id) => profiles.some((p) => p.id === id)}
+        // Dalla stessa porta degli altri: su una settimana pubblicata anche
+        // questo bottone deve passare da «Modifica», altrimenti lo stesso
+        // gesto seguirebbe due regole diverse a seconda di dove lo premi.
+        onCreaTurno={(profileId, giorno, orari) =>
+          openNew(giorno, profileId, orari)
         }
       />
 
@@ -1145,12 +1167,28 @@ function DayList({
                       <span className="orario text-[15px] font-semibold tabular-nums">
                         {hhmm(s.end_time)}
                       </span>
-                      <span className="ml-auto truncate text-[13px] text-muted">
-                        {assente(s)
-                          ? "non conta"
-                          : (reparto(s) ??
-                            formatDuration(durationMinutes(s.start_time, s.end_time)))}
-                      </span>
+                      {/* Da telefono questa e' l'unica vista del tabellone:
+                          senza queste due pastiglie un turno rifiutato
+                          sarebbe indistinguibile da uno qualunque, e il
+                          telefono e' dove l'app si usa di piu'. */}
+                      {s.rifiutato_at ? (
+                        <span className="ml-auto shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-[11.5px] font-medium text-danger">
+                          rifiutato
+                        </span>
+                      ) : s.richiede_conferma ? (
+                        <span className="ml-auto shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium text-warning">
+                          rifiutabile
+                        </span>
+                      ) : (
+                        <span className="ml-auto truncate text-[13px] text-muted">
+                          {assente(s)
+                            ? "non conta"
+                            : (reparto(s) ??
+                              formatDuration(
+                                durationMinutes(s.start_time, s.end_time),
+                              ))}
+                        </span>
+                      )}
                     </button>
                   </li>
                 ))}

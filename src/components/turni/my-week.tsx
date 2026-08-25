@@ -16,6 +16,7 @@ import {
   fromISODate,
   isToday,
   timeRange,
+  toISODate,
 } from "@/lib/date";
 import { repartoDelTurno } from "@/lib/reparto";
 import type { Absence, Department, Shift } from "@/lib/types";
@@ -114,6 +115,10 @@ export function MyWeek({
         {days.map((day) => {
           const d = fromISODate(day);
           const today = isToday(d);
+          // Un giorno gia' passato: quello che c'era scritto e' stato fatto,
+          // e non lo si rifiuta piu'. La stessa regola vale nel database,
+          // dove sta la parola definitiva (`rifiuta_turno`).
+          const passato = day < toISODate(new Date());
           const assenzaOggi = assenzaDelGiorno(assenze, profileId, day);
           const list = shifts
             .filter((s) => s.date === day)
@@ -213,14 +218,16 @@ export function MyWeek({
 
                         {/* Il turno vale gia': non c'e' niente da accettare.
                             Si dice cos'ha di particolare, e si lascia la via
-                            d'uscita a chi quel giorno non ce la fa. */}
+                            d'uscita a chi quel giorno non ce la fa — ma solo
+                            finche' quel giorno deve ancora arrivare: un turno
+                            gia' lavorato non si rifiuta, si e' fatto. */}
                         {s.richiede_conferma ? (
                           s.rifiutato_at ? (
                             <p className="mt-2 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] font-medium text-danger">
                               Hai rifiutato questo turno: il responsabile è
                               stato avvisato e ci penserà lui.
                             </p>
-                          ) : (
+                          ) : passato ? null : (
                             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
                               <p className="min-w-0 flex-1 text-[13px] font-medium text-warning">
                                 {MOTIVO_RIFIUTO[s.richiede_conferma]}{" "}

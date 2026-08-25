@@ -11,6 +11,7 @@ import {
 } from "@/lib/impostazioni";
 import { giorniCoinvolti, mondayOf, weekDaysISO } from "@/lib/week";
 import { createClient } from "@/lib/supabase/server";
+import type { MotivoRifiuto, StatoTurno } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -46,6 +47,21 @@ async function riportaInBozzaSeVuota(
 
 const time = z.string().regex(/^\d{2}:\d{2}$/, "Orario non valido.");
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida.");
+
+/** Un turno com'era: la fotografia che permette di rimetterlo dov'era.
+ *  `profile_id` è facoltativo perché le fotografie scattate prima che ci
+ *  fosse non lo portano; quelle tornano alla persona che il turno ce l'ha
+ *  adesso, che è il meglio che se ne può fare. */
+const statoSchema = z.object({
+  profile_id: z.string().nullable().optional(),
+  date: z.string(),
+  start_time: z.string(),
+  end_time: z.string(),
+  department_id: z.string().nullable(),
+  title: z.string().nullable(),
+  location: z.string().nullable(),
+  notes: z.string().nullable(),
+});
 
 const shiftSchema = z
   .object({
@@ -95,12 +111,13 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     title: string | null;
     location: string | null;
     notes: string | null;
+    stato_prima: unknown;
   } | null = null;
   if (v.id) {
     const { data: vecchio } = await supabase
       .from("shifts")
       .select(
-        "date, start_time, end_time, profile_id, department_id, title, location, notes",
+        "date, start_time, end_time, profile_id, department_id, title, location, notes, stato_prima",
       )
       .eq("id", v.id)
       .maybeSingle();
@@ -143,21 +160,26 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     }
   }
 
-  /* ------------------------------------------ serve un si' della persona?
+  /* ------------------------- la persona lo puo' rifiutare? e per quale
+   *  ragione?
    *
-   *  Dipende dalle impostazioni dell'azienda. Le regole, in ordine:
+   *  Il turno vale comunque: qui si decide solo se ha qualcosa di
+   *  particolare da segnalare all'interessato, che allora ha la facolta' di
+   *  dire di no. Dipende dalle impostazioni dell'azienda; le regole, in
+   *  ordine:
    *  - se e' cambiato solo il reparto decide quello e basta: gli orari non
    *    si sono mossi, quindi le regole sulle ore non hanno niente da dire,
-   *    e di suo un cambio di reparto non chiede niente;
+   *    e di suo un cambio di reparto non si segnala nemmeno;
    *  - modificare un turno di una settimana gia' pubblicata (non in bozza)
-   *    va accettato — con due interruttori diversi a seconda che la
+   *    si puo' rifiutare — con due interruttori diversi a seconda che la
    *    modifica generi straordinario o no;
    *  - un turno nuovo che porta oltre le ore da contratto e' uno
-   *    straordinario, e va accettato;
+   *    straordinario, e si puo' rifiutare;
    *  - con gli orari preimpostati accesi, un turno con orario diverso da
-   *    quello scritto sul contratto della persona va accettato.
-   *  Ogni salvataggio ricalcola e azzera il si' precedente: accettare una
-   *  cosa e ritrovarsene un'altra sarebbe peggio che riconfermare. */
+   *    quello scritto sul contratto della persona si puo' rifiutare.
+   *  Ogni salvataggio ricalcola da capo e cancella il no precedente: un no
+   *  dato a una versione non vale per quella dopo, che l'interessato non ha
+   *  ancora visto. */
   let richiede: string | null = null;
   if (v.profile_id) {
     const lunedi = mondayOf(v.date);
@@ -249,18 +271,26 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     // Com'era, per poterci tornare se l'interessato rifiuta. Solo se c'e' una
     // facolta' di rifiuto e c'era gia' un turno: un turno nato adesso non ha
     // un "prima", e infatti rifiutarlo lo toglie invece di riportarlo.
-    stato_prima:
-      richiede && prima
-        ? {
-            date: prima.date,
-            start_time: hhmm(prima.start_time),
-            end_time: hhmm(prima.end_time),
-            department_id: prima.department_id,
-            title: prima.title,
-            location: prima.location,
-            notes: prima.notes,
-          }
-        : null,
+    //
+    // Se una fotografia c'era gia' si tiene quella. Due ritocchi di fila a un
+    // turno pubblicato — 09-17 diventa 10-18, poi 11-19 — non fanno del
+    // 10-18 uno stato buono: e' una versione intermedia che nessuno ha mai
+    // visto ne' accettato, e tornare li' sarebbe tornare in nessun posto.
+    stato_prima: !richiede
+      ? null
+      : (prima?.stato_prima ??
+        (prima
+          ? {
+              profile_id: prima.profile_id,
+              date: prima.date,
+              start_time: hhmm(prima.start_time),
+              end_time: hhmm(prima.end_time),
+              department_id: prima.department_id,
+              title: prima.title,
+              location: prima.location,
+              notes: prima.notes,
+            }
+          : null)),
   };
 
   let id = v.id ?? "";
@@ -282,17 +312,28 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   }
 
   // Il buco lasciato da un rifiuto e' coperto: il compito si chiude da solo.
-  // Lo cerca per persona e giorno perche' e' quello che il responsabile
-  // doveva rimediare, non un turno in particolare.
-  if (v.profile_id) {
-    await supabase
+  // Solo su un turno nuovo, e uno per volta: correggere l'orario di un altro
+  // turno della stessa persona nello stesso giorno non copre niente — chi fa
+  // mattina e sera ha due turni e puo' averne rifiutato uno solo — e due
+  // buchi nella stessa giornata vanno riempiti tutti e due.
+  if (!v.id && v.profile_id) {
+    const { data: compito } = await supabase
       .from("shift_messages")
-      .update({ risolto_at: new Date().toISOString() })
+      .select("id")
       .eq("company_id", user.company_id)
       .eq("profile_id", v.profile_id)
       .eq("giorno", v.date)
       .eq("esito", "da_rifare")
-      .is("risolto_at", null);
+      .is("risolto_at", null)
+      .order("creato_at")
+      .limit(1)
+      .maybeSingle();
+    if (compito) {
+      await supabase
+        .from("shift_messages")
+        .update({ risolto_at: new Date().toISOString() })
+        .eq("id", compito.id);
+    }
   }
 
   revalidatePath("/turni");
@@ -339,6 +380,11 @@ export type TurnoRipristinabile = {
   title: string | null;
   location: string | null;
   notes: string | null;
+  /** Se quel turno era rifiutabile lo resta anche tornando indietro: la
+   *  facoltà è del dipendente, e non deve dipendere da uno svuotamento
+   *  fatto per sbaglio dal responsabile. */
+  richiede_conferma: MotivoRifiuto | null;
+  stato_prima: StatoTurno | null;
 };
 
 /** Oltre questa soglia lo svuotamento non promette il ritorno indietro: una
@@ -379,7 +425,9 @@ export async function eliminaTuttiITurni(monday: string): Promise<SvuotaResult> 
     .eq("company_id", user.company_id)
     .gte("date", giorni[0])
     .lte("date", giorni[6])
-    .select("profile_id, department_id, date, start_time, end_time, title, location, notes");
+    .select(
+      "profile_id, department_id, date, start_time, end_time, title, location, notes, richiede_conferma, stato_prima",
+    );
   if (error) return { ok: false, error: error.message };
 
   await supabase
@@ -397,12 +445,12 @@ export async function eliminaTuttiITurni(monday: string): Promise<SvuotaResult> 
     ritratto:
       righe.length === 0 || righe.length > MAX_RIPRISTINO
         ? null
-        : righe.map((t) => ({
+        : (righe.map((t) => ({
             ...t,
             // In colonna gli orari hanno i secondi, lo schema li vuole senza.
             start_time: hhmm(t.start_time),
             end_time: hhmm(t.end_time),
-          })),
+          })) as TurnoRipristinabile[]),
   };
 }
 
@@ -423,6 +471,16 @@ const ripristinoSchema = z.object({
         title: z.string().max(2000, "Mansione troppo lunga.").nullable(),
         location: z.string().max(2000, "Luogo troppo lungo.").nullable(),
         notes: z.string().max(5000, "Note troppo lunghe.").nullable(),
+        richiede_conferma: z
+          .enum([
+            "straordinario",
+            "modifica",
+            "modifica_straordinario",
+            "orario_diverso",
+            "cambio_reparto",
+          ])
+          .nullable(),
+        stato_prima: statoSchema.nullable(),
       }),
     )
     .min(1, "Non c'è niente da rimettere.")
@@ -434,13 +492,15 @@ export type RipristinoInput = z.input<typeof ripristinoSchema>;
 /** Rimette in piedi i turni di una settimana svuotata: e' quello che fa la
  *  freccia indietro dopo «Svuota».
  *
- *  Tre cose che non fa, tutte volute. Non rimette i turni come rifiutabili
- *  ne' riporta i no gia' dati: la settimana torna bozza, e in bozza non c'e'
- *  niente da rifiutare perche' i dipendenti non la vedono ancora; se poi la
- *  si ripubblica sara' un salvataggio nuovo a decidere. Non ripubblica la
- *  settimana, per la stessa ragione per cui svuotarla la riporta in bozza.
- *  E non controlla le assenze come fa `salvaTurno`: quei turni esistevano
- *  gia', e il turno di chi e' assente e' proprio il buco da tenere in vista. */
+ *  Riporta anche la facolta' di rifiuto e la fotografia di partenza: quella
+ *  facolta' e' del dipendente, e non deve dipendere da uno svuotamento fatto
+ *  per sbaglio dal responsabile. Non riporta invece i no gia' dati, che
+ *  parlavano di turni che nel frattempo sono stati cancellati per davvero.
+ *
+ *  Non ripubblica la settimana, per la stessa ragione per cui svuotarla la
+ *  riporta in bozza. E non controlla le assenze come fa `salvaTurno`: quei
+ *  turni esistevano gia', e il turno di chi e' assente e' proprio il buco
+ *  che va tenuto in vista. */
 export async function ripristinaTurni(input: RipristinoInput): Promise<ActionResult> {
   const user = await requireCapo();
 
@@ -657,27 +717,29 @@ export async function rifiutaTurno(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("rifiuta_turno", {
+  const { data: preso, error } = await supabase.rpc("rifiuta_turno", {
     turno: parsed.data.id,
     motivazione: parsed.data.nota ?? null,
   });
   if (error) return { ok: false, error: error.message };
 
+  // La funzione dice di no quando non c'e' piu' niente da rifiutare: il
+  // responsabile ha gia' rimesso mano a quel turno, il no era gia' partito,
+  // oppure il giorno e' passato. Dire lo stesso «fatto» sarebbe la bugia
+  // peggiore: chi ha premuto conta su quel messaggio.
+  if (!preso) {
+    revalidatePath("/turni");
+    return {
+      ok: false,
+      error:
+        "Questo turno non si può più rifiutare: controlla che sia ancora quello che avevi visto, e che il giorno non sia già passato.",
+    };
+  }
+
   revalidatePath("/turni");
   revalidatePath("/supervisione");
   return { ok: true };
 }
-
-/** Uno stato di turno come sta scritto nel messaggio. */
-const statoSchema = z.object({
-  date: z.string(),
-  start_time: z.string(),
-  end_time: z.string(),
-  department_id: z.string().nullable(),
-  title: z.string().nullable(),
-  location: z.string().nullable(),
-  notes: z.string().nullable(),
-});
 
 /** Apre i messaggi mai visti e ne applica l'effetto.
  *
@@ -698,11 +760,18 @@ export async function apriMessaggi(): Promise<ActionResult> {
     .from("shift_messages")
     .select("id, shift_id, turno_prima, turno_dopo")
     .eq("company_id", user.company_id)
-    .is("visto_at", null);
+    .is("visto_at", null)
+    // Dal piu' recente. Sullo stesso turno possono essercene due — un
+    // rifiuto, una modifica, un altro rifiuto — e comanda l'ultimo: i
+    // precedenti raccontano una storia gia' scavalcata.
+    .order("creato_at", { ascending: false });
   if (error) return { ok: false, error: error.message };
   if (!nuovi || nuovi.length === 0) return { ok: true };
 
   const adesso = new Date().toISOString();
+  /** I turni gia' sistemati in questo giro: il secondo messaggio sullo
+   *  stesso turno non ci rimette le mani. */
+  const trattati = new Set<string>();
 
   for (const m of nuovi) {
     // Il messaggio si prenota prima di toccarlo: due responsabili che aprono
@@ -720,39 +789,41 @@ export async function apriMessaggi(): Promise<ActionResult> {
     const prima = statoSchema.nullable().safeParse(m.turno_prima);
     const dopo = statoSchema.safeParse(m.turno_dopo);
 
-    // Il turno c'e' ancora, ed e' ancora quello che e' stato rifiutato?
-    let attuale: typeof dopo.data | null = null;
-    if (m.shift_id) {
+    // Il rifiuto e' ancora quello di questo messaggio? Lo dice `rifiutato_at`
+    // sul turno, e lo dice meglio di qualunque confronto campo per campo:
+    // ogni salvataggio del responsabile lo azzera, quindi trovarlo ancora li'
+    // significa che dopo il no nessuno ci ha piu' messo mano. Confrontando
+    // invece orari e reparto, un turno riassegnato a un'altra persona — o a
+    // cui e' cambiata solo una nota — sarebbe sembrato intatto, e aprendo i
+    // messaggi il responsabile si sarebbe visto cancellare il rimedio che
+    // aveva appena messo in piedi.
+    let rifiutoVivo = false;
+    if (m.shift_id && !trattati.has(m.shift_id)) {
       const { data: t } = await supabase
         .from("shifts")
-        .select("date, start_time, end_time, department_id, title, location, notes")
+        .select("rifiutato_at")
         .eq("id", m.shift_id)
         .maybeSingle();
-      if (t) {
-        attuale = {
-          ...t,
-          start_time: hhmm(t.start_time),
-          end_time: hhmm(t.end_time),
-        };
-      }
+      rifiutoVivo = Boolean(t?.rifiutato_at);
     }
 
     let esito: "ripristinato" | "da_rifare" | "superato" = "superato";
 
-    const invariato =
-      attuale !== null &&
-      dopo.success &&
-      attuale.date === dopo.data.date &&
-      attuale.start_time === dopo.data.start_time &&
-      attuale.end_time === dopo.data.end_time &&
-      attuale.department_id === dopo.data.department_id;
-
-    if (invariato && m.shift_id) {
-      if (prima.success && prima.data) {
+    // Uno snapshot illeggibile non e' un turno nato adesso: nel dubbio non si
+    // cancella niente. Se un domani la forma di `stato_prima` cambiasse, i
+    // ripristini diventerebbero cancellazioni in silenzio.
+    if (rifiutoVivo && m.shift_id && prima.success) {
+      trattati.add(m.shift_id);
+      if (prima.data) {
+        const { profile_id, ...campi } = prima.data;
         await supabase
           .from("shifts")
           .update({
-            ...prima.data,
+            ...campi,
+            // La persona torna quella di prima solo se lo snapshot la
+            // conosce: quelli vecchi non la portano, e in quel caso il
+            // turno resta di chi ce l'ha adesso.
+            ...(profile_id !== undefined ? { profile_id } : {}),
             richiede_conferma: null,
             confermato_at: null,
             rifiutato_at: null,

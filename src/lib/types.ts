@@ -139,8 +139,13 @@ export type MotivoRifiuto =
   | "orario_diverso"
   | "cambio_reparto";
 
-/** Un turno com'era, quel tanto che basta a rimetterlo dov'era. */
+/** Un turno com'era, quel tanto che basta a rimetterlo dov'era.
+ *
+ *  `profile_id` c'è perché una modifica può aver cambiato la persona: senza,
+ *  il ripristino rimetterebbe gli orari giusti addosso a chi il turno l'ha
+ *  appena rifiutato. */
 export type StatoTurno = {
+  profile_id: string | null;
   date: string;
   start_time: string; // HH:MM
   end_time: string;

@@ -21,14 +21,25 @@ export function RifiutaTurno({ turnoId }: { turnoId: string }) {
   const [nota, setNota] = React.useState("");
   const [pending, start] = React.useTransition();
 
+  /** Chiudere senza rifiutare azzera anche quello che si stava scrivendo:
+   *  chi ci ripensa e riapre non deve ritrovarsi il motivo di prima gia'
+   *  scritto, e magari mandarlo senza rileggerlo. */
+  const chiudi = () => {
+    setAperto(false);
+    setNota("");
+  };
+
   const rifiuta = () =>
     start(async () => {
       const esito = await rifiutaTurno(turnoId, nota);
       if (!esito.ok) {
         toast.error(esito.error);
+        // Il turno non e' piu' quello che aveva davanti: si ricarica, cosi'
+        // vede subito com'e' adesso invece di riprovare sul vecchio.
+        router.refresh();
         return;
       }
-      setAperto(false);
+      chiudi();
       toast.success("Rifiuto inviato: il responsabile è stato avvisato.");
       router.refresh();
     });
@@ -43,16 +54,12 @@ export function RifiutaTurno({ turnoId }: { turnoId: string }) {
       {aperto ? (
         <Modal
           open
-          onOpenChange={(v) => !v && setAperto(false)}
+          onOpenChange={(v) => !v && chiudi()}
           title="Rifiutare questo turno"
           description="Il responsabile riceve un messaggio. Se il turno era una modifica di uno che avevi già, torna com'era."
           footer={
             <>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setAperto(false)}
-              >
+              <Button type="button" variant="secondary" onClick={chiudi}>
                 Lascia stare
               </Button>
               <Button type="button" variant="danger" onClick={rifiuta} loading={pending}>
