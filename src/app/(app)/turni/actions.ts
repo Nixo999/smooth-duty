@@ -83,17 +83,36 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
 
   const supabase = await createClient();
 
-  // La data di prima, se il turno esiste: spostarlo di settimana puo'
-  // lasciare vuota quella vecchia, che allora torna bozza.
-  let dataPrima: string | null = null;
+  // Il turno com'era, se esiste. Serve a due cose: la data di prima —
+  // spostarlo di settimana puo' lasciare vuota quella vecchia, che allora
+  // torna bozza — e a capire che cosa e' cambiato davvero.
+  let prima: {
+    date: string;
+    start_time: string;
+    end_time: string;
+    profile_id: string | null;
+    department_id: string | null;
+  } | null = null;
   if (v.id) {
     const { data: vecchio } = await supabase
       .from("shifts")
-      .select("date")
+      .select("date, start_time, end_time, profile_id, department_id")
       .eq("id", v.id)
       .maybeSingle();
-    dataPrima = vecchio?.date ?? null;
+    prima = vecchio ?? null;
   }
+  const dataPrima = prima?.date ?? null;
+
+  /** Di questo turno e' cambiato solo il reparto: stessa persona, stesso
+   *  giorno, stessi orari. E' il caso di chi oggi copre in sala invece che
+   *  in cassa, e di suo non chiede niente a nessuno — le ore sono quelle. */
+  const soloReparto =
+    prima !== null &&
+    prima.date === v.date &&
+    hhmm(prima.start_time) === v.start_time &&
+    hhmm(prima.end_time) === v.end_time &&
+    prima.profile_id === v.profile_id &&
+    prima.department_id !== v.department_id;
 
   // A chi e' assente quel giorno un turno nuovo non si assegna: verrebbe al
   // mondo gia' "in trasparenza", non contato da nessuna parte, e chi lo ha
@@ -122,6 +141,9 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   /* ------------------------------------------ serve un si' della persona?
    *
    *  Dipende dalle impostazioni dell'azienda. Le regole, in ordine:
+   *  - se e' cambiato solo il reparto decide quello e basta: gli orari non
+   *    si sono mossi, quindi le regole sulle ore non hanno niente da dire,
+   *    e di suo un cambio di reparto non chiede niente;
    *  - modificare un turno di una settimana gia' pubblicata (non in bozza)
    *    va accettato — con due interruttori diversi a seconda che la
    *    modifica generi straordinario o no;
@@ -190,7 +212,9 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
       (v.start_time !== String(persona!.preset_start).slice(0, 5) ||
         v.end_time !== String(persona!.preset_end).slice(0, 5));
 
-    if (modifica && straordinario && imp.conferma_modifiche_straordinari) {
+    if (soloReparto) {
+      richiede = imp.conferma_cambio_reparto ? "cambio_reparto" : null;
+    } else if (modifica && straordinario && imp.conferma_modifiche_straordinari) {
       richiede = "modifica_straordinario";
     } else if (modifica && !straordinario && imp.conferma_modifiche) {
       richiede = "modifica";

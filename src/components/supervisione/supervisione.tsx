@@ -27,6 +27,7 @@ import {
   type ShiftDraft,
 } from "@/components/turni/shift-dialog";
 import { Button } from "@/components/ui/button";
+import { GruppoModifica } from "@/components/ui/gruppo-modifica";
 import { dayLong, durationMinutes, fromISODate, isToday, toISODate } from "@/lib/date";
 import {
   buchi as calcolaBuchi,
@@ -418,80 +419,86 @@ export function Supervisione({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Come nei Turni: i comandi che cambiano i turni stanno nel loro
+              recinto, distinti da filtri e impostazioni della pagina. */}
           {capo ? (
-            sospese.attivo ? (
-              <>
+            <GruppoModifica>
+              {sospese.attivo ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() =>
+                      setSospese((s0) => {
+                        const fatte = [...s0.fatte];
+                        const ultima = fatte.pop();
+                        return ultima
+                          ? { ...s0, fatte, annullate: [...s0.annullate, ultima] }
+                          : s0;
+                      })
+                    }
+                    disabled={sospese.fatte.length === 0 || inApplica}
+                    aria-label="Togli l'ultima modifica"
+                    title="Togli l'ultima modifica"
+                  >
+                    <Undo2 className="size-4" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() =>
+                      setSospese((s0) => {
+                        const annullate = [...s0.annullate];
+                        const ultima = annullate.pop();
+                        return ultima
+                          ? { ...s0, annullate, fatte: [...s0.fatte, ultima] }
+                          : s0;
+                      })
+                    }
+                    disabled={sospese.annullate.length === 0 || inApplica}
+                    aria-label="Rimetti la modifica tolta"
+                    title="Rimetti la modifica tolta"
+                  >
+                    <Redo2 className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setSospese({ attivo: false, fatte: [], annullate: [] })
+                    }
+                    disabled={inApplica}
+                    title="Scarta tutte le modifiche non pubblicate"
+                  >
+                    <X className="size-3.5" />
+                    Elimina le modifiche
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={pubblicaModifiche}
+                    loading={inApplica}
+                    disabled={sospese.fatte.length === 0}
+                  >
+                    Pubblica modifiche
+                    {sospese.fatte.length > 0 ? (
+                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                        {sospese.fatte.length}
+                      </span>
+                    ) : null}
+                  </Button>
+                </>
+              ) : (
                 <Button
                   variant="secondary"
-                  size="icon"
-                  onClick={() =>
-                    setSospese((s0) => {
-                      const fatte = [...s0.fatte];
-                      const ultima = fatte.pop();
-                      return ultima
-                        ? { ...s0, fatte, annullate: [...s0.annullate, ultima] }
-                        : s0;
-                    })
-                  }
-                  disabled={sospese.fatte.length === 0 || inApplica}
-                  aria-label="Togli l'ultima modifica"
-                  title="Togli l'ultima modifica"
-                >
-                  <Undo2 className="size-4" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  onClick={() =>
-                    setSospese((s0) => {
-                      const annullate = [...s0.annullate];
-                      const ultima = annullate.pop();
-                      return ultima
-                        ? { ...s0, annullate, fatte: [...s0.fatte, ultima] }
-                        : s0;
-                    })
-                  }
-                  disabled={sospese.annullate.length === 0 || inApplica}
-                  aria-label="Rimetti la modifica tolta"
-                  title="Rimetti la modifica tolta"
-                >
-                  <Redo2 className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => setSospese({ attivo: false, fatte: [], annullate: [] })}
-                  disabled={inApplica}
-                  title="Scarta tutte le modifiche non pubblicate"
+                  onClick={() => setSospese({ attivo: true, fatte: [], annullate: [] })}
+                  title="Modifica i turni da qui: valgono solo quando li pubblichi"
                 >
-                  <X className="size-3.5" />
-                  Elimina le modifiche
+                  <PencilLine className="size-3.5" />
+                  Modifica
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={pubblicaModifiche}
-                  loading={inApplica}
-                  disabled={sospese.fatte.length === 0}
-                >
-                  Pubblica modifiche
-                  {sospese.fatte.length > 0 ? (
-                    <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
-                      {sospese.fatte.length}
-                    </span>
-                  ) : null}
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setSospese({ attivo: true, fatte: [], annullate: [] })}
-                title="Modifica i turni da qui: valgono solo quando li pubblichi"
-              >
-                <PencilLine className="size-3.5" />
-                Modifica
-              </Button>
-            )
+              )}
+            </GruppoModifica>
           ) : null}
           {gruppi.length > 1 ? (
             <FiltroReparti
@@ -586,9 +593,17 @@ export function Supervisione({
                                 // Si trascina solo il turno che comincia nel
                                 // giorno mostrato: della coda di un turno di
                                 // ieri qui si vede mezzo pezzo, e gli orari
-                                // veri si cambiano dal pannello.
+                                // veri si cambiano dal pannello. E non quello
+                                // di chi e' assente: il salvataggio lo
+                                // rifiuterebbe, e se ne accorgerebbe solo
+                                // alla pubblicazione, quando ormai la barra
+                                // sembra spostata.
                                 trascinabile={
-                                  capo && sospese.attivo && !!turno && turno.date === giorno
+                                  capo &&
+                                  sospese.attivo &&
+                                  !!turno &&
+                                  turno.date === giorno &&
+                                  !s.assenza
                                 }
                                 inizio={turno ? minutiDa(turno.start_time) : 0}
                                 durata={

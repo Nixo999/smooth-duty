@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  CalendarDays,
+  ClipboardList,
+  Eye,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
@@ -9,8 +16,13 @@ import { CAUSALI } from "@/lib/assenze";
 import type { Impostazioni as Valori } from "@/lib/impostazioni";
 import { cn } from "@/lib/utils";
 
-/** Le regole generali dell'azienda. Sono le stesse che l'amministratore
- *  sceglie creando l'azienda: qui il responsabile le cambia dopo. */
+/** Le regole generali dell'azienda, raccolte sotto la pagina a cui si
+ *  applicano: chi cerca una regola parte da dove la vede applicata, non da
+ *  un elenco di interruttori tutti uguali.
+ *
+ *  Ogni sezione e' una pagina dell'app. Tre si possono spegnere del tutto —
+ *  l'interruttore sta nell'intestazione — e allora quello che contengono
+ *  resta li' ma smette di contare, spento anche lui. */
 export function Impostazioni({
   valori,
   azienda,
@@ -31,6 +43,14 @@ export function Impostazioni({
         : [...v.causali_richiedibili, codice],
     });
 
+  // Nessuna modifica, niente da salvare: il bottone lo dice invece di
+  // rispondere «salvate» a chi non ha toccato niente. Le causali si
+  // confrontano ordinate: togliere una spunta e rimetterla cambia l'ordine
+  // dell'elenco, non le impostazioni.
+  const impronta = (x: Valori) =>
+    JSON.stringify({ ...x, causali_richiedibili: [...x.causali_richiedibili].sort() });
+  const cambiato = impronta(v) !== impronta(valori);
+
   function salva() {
     start(async () => {
       const esito = await salvaImpostazioni(v);
@@ -48,22 +68,17 @@ export function Impostazioni({
       <div>
         <h1 className="text-[19px] font-semibold tracking-tight">Impostazioni</h1>
         <p className="text-[13.5px] text-muted">
-          Valgono per tutta l&apos;azienda «{azienda}».
+          Valgono per tutta l&apos;azienda «{azienda}». Sono divise per pagina:
+          quelle che si possono spegnere hanno l&apos;interruttore accanto al
+          nome.
         </p>
       </div>
 
-      <Sezione titolo="Cosa vedono i dipendenti">
-        <Interruttore
-          acceso={v.supervisione_dipendenti}
-          onCambia={(x) => cambia({ supervisione_dipendenti: x })}
-          titolo="Supervisione visibile ai dipendenti"
-          descrizione="Spenta, la pagina resta solo al responsabile: ai dipendenti sparisce dal menu."
-        />
-      </Sezione>
-
+      {/* ------------------------------------------------------- turni --- */}
       <Sezione
-        titolo="Conferme dei dipendenti"
-        nota="Il turno resta valido e visibile, ma segnato «da confermare» finché l'interessato non accetta."
+        icona={CalendarDays}
+        pagina="Turni"
+        nota="Quando un turno aspetta un sì dell'interessato. Il turno resta valido e visibile, ma segnato «da confermare» finché non accetta."
       >
         <Interruttore
           acceso={v.conferma_straordinari}
@@ -84,6 +99,12 @@ export function Impostazioni({
           descrizione="Modificare un turno di una settimana già pubblicata, anche senza straordinario."
         />
         <Interruttore
+          acceso={v.conferma_cambio_reparto}
+          onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
+          titolo="Cambio di reparto da accettare"
+          descrizione="Spostare un turno da un reparto a un altro senza toccarne gli orari. Spento, il cambio di solo reparto non chiede niente a nessuno: le ore restano quelle."
+        />
+        <Interruttore
           acceso={v.orari_preimpostati}
           onCambia={(x) => cambia({ orari_preimpostati: x })}
           titolo="Orari preimpostati da contratto"
@@ -91,11 +112,39 @@ export function Impostazioni({
         />
       </Sezione>
 
+      {/* ------------------------------------------------ supervisione --- */}
       <Sezione
-        titolo="Permessi richiedibili"
-        nota="Le causali che un dipendente può chiedere dalla pagina Permessi. Il responsabile, registrando a mano, le ha sempre tutte."
+        icona={Eye}
+        pagina="Supervisione"
+        nota="La giornata reparto per reparto, con i buchi di copertura."
+        accesa={v.pagina_supervisione}
+        onCambiaPagina={(x) => cambia({ pagina_supervisione: x })}
       >
-        <div className="space-y-3">
+        <Interruttore
+          acceso={v.supervisione_dipendenti}
+          onCambia={(x) => cambia({ supervisione_dipendenti: x })}
+          titolo="Visibile anche ai dipendenti"
+          descrizione="Spenta, la pagina resta solo al responsabile: ai dipendenti sparisce dal menu."
+          spento={!v.pagina_supervisione}
+        />
+      </Sezione>
+
+      {/* ---------------------------------------------------- permessi --- */}
+      <Sezione
+        icona={Sun}
+        pagina="Permessi"
+        nota="Le richieste di assenza dei dipendenti e il calendario di chi manca."
+        accesa={v.pagina_permessi}
+        onCambiaPagina={(x) => cambia({ pagina_permessi: x })}
+      >
+        <div className={cn("space-y-3 py-3.5", !v.pagina_permessi && "opacity-45")}>
+          <div>
+            <p className="text-[14px] font-medium">Causali richiedibili</p>
+            <p className="text-[12.5px] text-muted">
+              Quello che un dipendente può chiedere da solo. Il responsabile,
+              registrando a mano, le ha sempre tutte.
+            </p>
+          </div>
           {CAUSALI.map((gruppo) => (
             <div key={gruppo.gruppo}>
               <p className="mb-1.5 text-[11px] uppercase tracking-wide text-faint">
@@ -109,6 +158,7 @@ export function Impostazioni({
                       key={codice}
                       type="button"
                       aria-pressed={dentro}
+                      disabled={!v.pagina_permessi}
                       onClick={() => commutaCausale(codice)}
                       className={cn(
                         "tap rounded-full px-3 py-1.5 text-[12.5px] font-medium",
@@ -127,8 +177,26 @@ export function Impostazioni({
         </div>
       </Sezione>
 
-      <div className="flex justify-end">
-        <Button onClick={salva} loading={pending}>
+      {/* --------------------------------------------------- prospetto --- */}
+      <Sezione
+        icona={ClipboardList}
+        pagina="Prospetto"
+        nota="Il riepilogo delle ore per persona, settimana, mese o anno. La vede solo il responsabile."
+        accesa={v.pagina_prospetto}
+        onCambiaPagina={(x) => cambia({ pagina_prospetto: x })}
+      />
+
+      <p className="px-1 text-[12.5px] text-muted">
+        Turni, Squadra e Impostazioni non si spengono: senza il tabellone
+        l&apos;app non ha più un motivo, senza Squadra non si aggiunge nessuno,
+        e da qui si riaccende tutto il resto.
+      </p>
+
+      <div className="flex items-center justify-end gap-3">
+        {cambiato ? (
+          <span className="text-[12.5px] text-warning">Modifiche non salvate</span>
+        ) : null}
+        <Button onClick={salva} loading={pending} disabled={!cambiato}>
           Salva impostazioni
         </Button>
       </div>
@@ -136,22 +204,63 @@ export function Impostazioni({
   );
 }
 
+/** Una pagina dell'app, con le sue regole. Se `onCambiaPagina` c'è, la
+ *  pagina si può spegnere: l'interruttore sta nell'intestazione, dove si
+ *  legge come parte del nome, e quello che c'è dentro si spegne con lei. */
 function Sezione({
-  titolo,
+  icona: Icona,
+  pagina,
   nota,
+  accesa = true,
+  onCambiaPagina,
   children,
 }: {
-  titolo: string;
+  icona: LucideIcon;
+  pagina: string;
   nota?: string;
-  children: React.ReactNode;
+  accesa?: boolean;
+  onCambiaPagina?: (v: boolean) => void;
+  children?: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-      <header className="border-b border-border bg-surface-2 px-4 py-2.5">
-        <p className="text-[13px] font-medium">{titolo}</p>
-        {nota ? <p className="text-[12px] text-faint">{nota}</p> : null}
+    <section
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-surface shadow-card transition-colors",
+        accesa ? "border-border" : "border-dashed border-border-strong",
+      )}
+    >
+      <header className="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-3">
+        <span
+          className={cn(
+            "grid size-8 shrink-0 place-items-center rounded-lg",
+            accesa ? "bg-accent-soft text-accent" : "bg-surface-3 text-faint",
+          )}
+        >
+          <Icona className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-[14px] font-semibold">
+            {pagina}
+            {!accesa ? (
+              <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-faint">
+                non in uso
+              </span>
+            ) : null}
+          </p>
+          {nota ? <p className="text-[12.5px] text-muted">{nota}</p> : null}
+        </div>
+        {onCambiaPagina ? (
+          <Levetta
+            acceso={accesa}
+            onCambia={onCambiaPagina}
+            etichetta={`Usa la pagina ${pagina}`}
+          />
+        ) : null}
       </header>
-      <div className="divide-y divide-border px-4">{children}</div>
+
+      {children ? (
+        <div className="divide-y divide-border px-4">{children}</div>
+      ) : null}
     </section>
   );
 }
@@ -161,36 +270,64 @@ function Interruttore({
   onCambia,
   titolo,
   descrizione,
+  spento,
 }: {
   acceso: boolean;
   onCambia: (v: boolean) => void;
   titolo: string;
   descrizione: string;
+  /** La pagina che lo contiene è spenta: la regola resta scritta ma non
+   *  vale, e si vede che non vale. */
+  spento?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 py-3.5">
+    <div className={cn("flex items-center gap-3 py-3.5", spento && "opacity-45")}>
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-medium">{titolo}</p>
         <p className="text-[12.5px] text-muted">{descrizione}</p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={acceso}
-        aria-label={titolo}
-        onClick={() => onCambia(!acceso)}
-        className={cn(
-          "tap relative h-6 w-11 shrink-0 rounded-full transition-colors",
-          acceso ? "bg-accent" : "bg-surface-3",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-surface shadow-soft transition-[left]",
-            acceso ? "left-[1.375rem]" : "left-0.5",
-          )}
-        />
-      </button>
+      <Levetta
+        acceso={acceso}
+        onCambia={onCambia}
+        etichetta={titolo}
+        disabilitato={spento}
+      />
     </div>
+  );
+}
+
+function Levetta({
+  acceso,
+  onCambia,
+  etichetta,
+  disabilitato,
+}: {
+  acceso: boolean;
+  onCambia: (v: boolean) => void;
+  etichetta: string;
+  disabilitato?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={acceso}
+      aria-label={etichetta}
+      disabled={disabilitato}
+      onClick={() => onCambia(!acceso)}
+      className={cn(
+        // L'anello interno invece di un bordo: un bordo vero sposterebbe di
+        // un pixel la pallina, che e' posizionata dentro la scatola.
+        "tap relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed",
+        acceso ? "bg-accent" : "bg-surface-3 ring-1 ring-inset ring-border-strong",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-0.5 size-5 rounded-full bg-surface shadow-soft transition-[left]",
+          acceso ? "left-[1.375rem]" : "left-0.5",
+        )}
+      />
+    </button>
   );
 }

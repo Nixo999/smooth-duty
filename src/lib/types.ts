@@ -117,12 +117,16 @@ export type Shift = {
   /** Reparto solo per questo turno: serve a dire "oggi copre in sala".
    *  null = vale quello della persona. */
   department_id: string | null;
-  /** Perché il turno aspetta un sì dell'interessato. null = non serve. */
+  /** Perché il turno aspetta un sì dell'interessato. null = non serve.
+   *  I valori ammessi stanno anche nel vincolo
+   *  `shifts_richiede_conferma_valido`: aggiungerne uno vuol dire toccare
+   *  tutti e due. */
   richiede_conferma:
     | "straordinario"
     | "modifica"
     | "modifica_straordinario"
     | "orario_diverso"
+    | "cambio_reparto"
     | null;
   confermato_at: string | null;
 };

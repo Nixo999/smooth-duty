@@ -83,10 +83,12 @@ export default async function SupervisionePage({
 
   const capo = user.role === "capo";
 
-  // Una delle impostazioni generali: la Supervisione ai dipendenti si puo'
-  // spegnere. Il menu la nasconde gia'; questa riga vale per chi arriva
-  // dall'indirizzo diretto.
-  if (!capo && !normalizzaImpostazioni(impostazioni.data as never).supervisione_dipendenti) {
+  // Due impostazioni, non una: l'azienda puo' non usare la Supervisione
+  // affatto, e chi la usa puo' tenerla al solo responsabile. Il menu la
+  // nasconde gia'; queste righe valgono per chi arriva dall'indirizzo
+  // diretto, o l'aveva aperta prima che la spegnessero.
+  const imp = normalizzaImpostazioni(impostazioni.data as never);
+  if (!imp.pagina_supervisione || (!capo && !imp.supervisione_dipendenti)) {
     redirect("/turni");
   }
 

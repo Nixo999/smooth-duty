@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Permessi } from "@/components/permessi/permessi";
 import { requireMember } from "@/lib/auth";
 import {
@@ -77,6 +78,11 @@ export default async function PermessiPage({
       .maybeSingle(),
   ]);
 
+  // L'azienda puo' non usare i Permessi: dal menu spariscono, e dal loro
+  // indirizzo si torna ai Turni.
+  const imp = normalizzaImpostazioni(impostazioni.data as never);
+  if (!imp.pagina_permessi) redirect("/turni");
+
   return (
     <Permessi
       mese={mese}
@@ -88,9 +94,7 @@ export default async function PermessiPage({
       reparti={(reparti.data ?? []) as Department[]}
       richieste={(richieste.data ?? []) as VacationRequest[]}
       assenze={(assenze.data ?? []) as Absence[]}
-      causaliAmmesse={
-        normalizzaImpostazioni(impostazioni.data as never).causali_richiedibili
-      }
+      causaliAmmesse={imp.causali_richiedibili}
       mioId={user.id}
       capo={user.role === "capo"}
     />

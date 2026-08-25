@@ -1,7 +1,12 @@
+import { redirect } from "next/navigation";
 import { Prospetto } from "@/components/prospetto/prospetto";
 import { requireCapo } from "@/lib/auth";
 import { COLONNE_ASSENZA, COLONNE_PROFILO, COLONNE_REPARTO } from "@/lib/colonne";
 import { toISODate, weekStart } from "@/lib/date";
+import {
+  COLONNE_IMPOSTAZIONI,
+  normalizzaImpostazioni,
+} from "@/lib/impostazioni";
 import { calcolaProspetto, type Livello } from "@/lib/prospetto";
 import { createClient } from "@/lib/supabase/server";
 import type { Absence, Department, Profile } from "@/lib/types";
@@ -41,7 +46,7 @@ export default async function ProspettoPage({
 
   // Dalla tabella e non dalla vista: questa pagina la vede solo il
   // responsabile, ed è insieme a Squadra l'unico posto dove la causale serve.
-  const [persone, reparti, turni, assenze] = await Promise.all([
+  const [persone, reparti, turni, assenze, impostazioni] = await Promise.all([
     supabase
       .from("profiles")
       .select(COLONNE_PROFILO)
@@ -65,7 +70,18 @@ export default async function ProspettoPage({
       .eq("company_id", capo.company_id)
       .lte("start_date", a)
       .or(`end_date.is.null,end_date.gte.${da}`),
+    supabase
+      .from("company_settings")
+      .select(COLONNE_IMPOSTAZIONI)
+      .eq("company_id", capo.company_id)
+      .maybeSingle(),
   ]);
+
+  // L'azienda puo' non usare il Prospetto: dal menu sparisce, e dal suo
+  // indirizzo si torna ai Turni.
+  if (!normalizzaImpostazioni(impostazioni.data as never).pagina_prospetto) {
+    redirect("/turni");
+  }
 
   const dati = calcolaProspetto({
     da,

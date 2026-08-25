@@ -9,32 +9,41 @@
    Definiti una volta sola qui. Nei componenti si usano solo i token
    (bg-surface, text-muted, ...), mai un colore scritto a mano: e' l'unico
    modo perche' chiaro e scuro restino coerenti mentre l'app cresce. */
-:root {
-  --canvas: #f2f2f5;
-  --surface: #ffffff;
-  --surface-2: #f8f8fa;
-  --surface-3: #eeeef2;
-  --border: #e3e3e9;
-  --border-strong: #d2d2da;
-  --text: #16161a;
-  --text-muted: #6a6a76;
-  --text-faint: #9b9ba6;
-  --accent: #0071e3;
-  --accent-hover: #0063c7;
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(0, 113, 227, 0.1);
-  --danger: #d63232;
-  --danger-soft: rgba(214, 50, 50, 0.1);
-  --success: #16803c;
-  --success-soft: rgba(22, 128, 60, 0.12);
-  --warning: #b45309;
-  --warning-soft: rgba(180, 83, 9, 0.12);
-  --ring: rgba(0, 113, 227, 0.4);
-  --overlay: rgba(20, 20, 26, 0.28);
+/* Il tema chiaro non e' "bianco": e' un fondo grigio-azzurro su cui le
+   schede bianche si posano e si vedono. Con un fondo quasi bianco erano le
+   ombre a doversi far carico di tutta la separazione, e su uno schermo poco
+   contrastato — o guardato di sbieco in magazzino — non ce la facevano.
 
-  --shadow-sm: 0 1px 2px rgba(16, 16, 24, 0.05), 0 1px 1px rgba(16, 16, 24, 0.04);
-  --shadow-md: 0 4px 14px rgba(16, 16, 24, 0.07), 0 1px 3px rgba(16, 16, 24, 0.05);
-  --shadow-lg: 0 24px 60px rgba(16, 16, 24, 0.18), 0 2px 10px rgba(16, 16, 24, 0.08);
+   I grigi del testo scendono fino a passare il rapporto di contrasto 4.5
+   dello standard di accessibilita' anche nella misura piu' piccola che
+   usiamo (11px): il grigio chiarissimo di prima era la meta' di quel
+   valore, e le etichette si leggevano solo da vicino. */
+:root {
+  --canvas: #e9ebf0;
+  --surface: #ffffff;
+  --surface-2: #f3f4f8;
+  --surface-3: #e4e6ee;
+  --border: #d7d9e2;
+  --border-strong: #bfc2cf;
+  --text: #14141a;
+  --text-muted: #55555f;
+  --text-faint: #6f6f7b;
+  --accent: #0066cc;
+  --accent-hover: #0058b0;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 102, 204, 0.11);
+  --danger: #c62828;
+  --danger-soft: rgba(198, 40, 40, 0.11);
+  --success: #146c33;
+  --success-soft: rgba(20, 108, 51, 0.13);
+  --warning: #9a4a08;
+  --warning-soft: rgba(154, 74, 8, 0.13);
+  --ring: rgba(0, 102, 204, 0.4);
+  --overlay: rgba(20, 20, 26, 0.32);
+
+  --shadow-sm: 0 1px 2px rgba(16, 16, 24, 0.07), 0 1px 1px rgba(16, 16, 24, 0.05);
+  --shadow-md: 0 4px 14px rgba(16, 16, 24, 0.09), 0 1px 3px rgba(16, 16, 24, 0.06);
+  --shadow-lg: 0 24px 60px rgba(16, 16, 24, 0.2), 0 2px 10px rgba(16, 16, 24, 0.09);
 }
 
 .dark {
@@ -222,9 +231,9 @@
      colore finito si compone qui: chiaro e scuro hanno bisogno di due
      luminosita' diverse, e un colore gia' fatto ne servirebbe due copie. */
   .barra {
-    background: hsl(var(--tinta) 62% 86%);
-    color: hsl(var(--tinta) 60% 22%);
-    border: 1px solid hsl(var(--tinta) 45% 74%);
+    background: hsl(var(--tinta) 60% 82%);
+    color: hsl(var(--tinta) 62% 20%);
+    border: 1px solid hsl(var(--tinta) 42% 66%);
   }
 
   .dark .barra {
@@ -247,8 +256,8 @@
   }
 
   .pastiglia-reparto {
-    background: hsl(var(--tinta) 62% 90%);
-    color: hsl(var(--tinta) 60% 26%);
+    background: hsl(var(--tinta) 60% 86%);
+    color: hsl(var(--tinta) 62% 24%);
   }
 
   .dark .pastiglia-reparto {

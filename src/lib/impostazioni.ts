@@ -5,12 +5,12 @@ import { CODICI_CAUSALE } from "@/lib/assenze";
  *  «Niente» è il caso normale per le aziende nate prima della tabella, e
  *  deve valere quanto una riga coi default: per questo il tipo e i default
  *  stanno qui, condivisi fra server e browser, e chi legge passa sempre da
- *  `normalizzaImpostazioni`. */
+ *  `normalizzaImpostazioni`.
+ *
+ *  Sono raggruppate per pagina, come nella schermata che le mostra: chi
+ *  cerca una regola parte sempre da dove la vede applicata. */
 export type Impostazioni = {
-  /** La Supervisione la vedono anche i dipendenti? */
-  supervisione_dipendenti: boolean;
-  /** Le causali che un dipendente può chiedere dai Permessi. */
-  causali_richiedibili: string[];
+  /* ------------------------------------------------------------ turni */
   /** Un turno nuovo oltre le ore da contratto va accettato dall'interessato? */
   conferma_straordinari: boolean;
   /** Una modifica a una settimana già pubblicata va accettata? Due
@@ -20,15 +20,36 @@ export type Impostazioni = {
   /** Con gli orari preimpostati accesi, un turno diverso dall'orario del
    *  contratto della persona va accettato. */
   orari_preimpostati: boolean;
+  /** Cambiare solo il reparto di un turno, senza toccarne gli orari, va
+   *  accettato? Di suo no: le ore restano quelle. */
+  conferma_cambio_reparto: boolean;
+
+  /* ----------------------------------------------------- supervisione */
+  /** L'azienda usa la Supervisione? Spenta, sparisce a tutti. */
+  pagina_supervisione: boolean;
+  /** La Supervisione la vedono anche i dipendenti? */
+  supervisione_dipendenti: boolean;
+
+  /* --------------------------------------------------------- permessi */
+  pagina_permessi: boolean;
+  /** Le causali che un dipendente può chiedere dai Permessi. */
+  causali_richiedibili: string[];
+
+  /* -------------------------------------------------------- prospetto */
+  pagina_prospetto: boolean;
 };
 
 export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
-  supervisione_dipendenti: true,
-  causali_richiedibili: [...CODICI_CAUSALE],
   conferma_straordinari: false,
   conferma_modifiche: false,
   conferma_modifiche_straordinari: false,
   orari_preimpostati: false,
+  conferma_cambio_reparto: false,
+  pagina_supervisione: true,
+  supervisione_dipendenti: true,
+  pagina_permessi: true,
+  causali_richiedibili: [...CODICI_CAUSALE],
+  pagina_prospetto: true,
 };
 
 export function normalizzaImpostazioni(
@@ -39,5 +60,11 @@ export function normalizzaImpostazioni(
 }
 
 export const COLONNE_IMPOSTAZIONI =
-  "supervisione_dipendenti, causali_richiedibili, conferma_straordinari, " +
-  "conferma_modifiche, conferma_modifiche_straordinari, orari_preimpostati";
+  "conferma_straordinari, conferma_modifiche, conferma_modifiche_straordinari, " +
+  "orari_preimpostati, conferma_cambio_reparto, pagina_supervisione, " +
+  "supervisione_dipendenti, pagina_permessi, causali_richiedibili, pagina_prospetto";
+
+/* Le tre `pagina_*` valgono in due posti, e vanno tenuti d'accordo: il menu
+   (src/app/(app)/layout.tsx) che nasconde la voce, e la pagina stessa che
+   si rifiuta di aprirsi dal suo indirizzo. Nascondere e basta non basta:
+   l'indirizzo se lo ricorda il browser. */

@@ -28,6 +28,7 @@ const MOTIVO_CONFERMA = {
   modifica_straordinario:
     "Turno modificato, e ora va oltre le tue ore da contratto.",
   orario_diverso: "Orario diverso da quello del tuo contratto.",
+  cambio_reparto: "Cambia il reparto: stesso orario, un altro posto.",
 } as const;
 
 /** Vista del dipendente: la settimana per giorni, senza griglia. Deve

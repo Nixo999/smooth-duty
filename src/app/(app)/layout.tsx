@@ -17,31 +17,39 @@ export default async function AppLayout({
   const profile = await requireMember();
   const viewer = await getViewer();
 
-  // Al dipendente la Supervisione compare solo se l'azienda la concede:
-  // e' una delle impostazioni generali. Il responsabile la vede sempre.
-  let supervisioneVisibile = true;
-  if (profile.role !== "capo") {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("company_settings")
-      .select(COLONNE_IMPOSTAZIONI)
-      .eq("company_id", profile.company_id)
-      .maybeSingle();
-    supervisioneVisibile = normalizzaImpostazioni(data as never).supervisione_dipendenti;
-  }
+  // Il menu dipende dalle impostazioni: un'azienda puo' aver spento pagine
+  // che non le servono, e la Supervisione puo' essere riservata al
+  // responsabile. Le pagine spente qui spariscono dal menu, e si rifiutano
+  // di aprirsi anche dal loro indirizzo: quel controllo sta in ciascuna.
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("company_settings")
+    .select(COLONNE_IMPOSTAZIONI)
+    .eq("company_id", profile.company_id)
+    .maybeSingle();
+  const impostazioni = normalizzaImpostazioni(data as never);
+
+  const capo = profile.role === "capo";
+  const supervisioneVisibile =
+    impostazioni.pagina_supervisione &&
+    (capo || impostazioni.supervisione_dipendenti);
 
   const sections: Section[] = [
-    { href: "/turni", label: profile.role === "capo" ? "Turni" : "I miei turni", icon: "calendar" },
+    { href: "/turni", label: capo ? "Turni" : "I miei turni", icon: "calendar" },
     // Anche il dipendente, se l'azienda vuole: gli serve per sapere se la
     // giornata e' coperta e chi c'e' con lui.
     ...(supervisioneVisibile
       ? ([{ href: "/supervisione", label: "Supervisione", icon: "eye" }] as Section[])
       : []),
     // Per tutti: il dipendente chiede, il responsabile conferma.
-    { href: "/permessi", label: "Permessi", icon: "sun" },
-    ...(profile.role === "capo"
+    ...(impostazioni.pagina_permessi
+      ? ([{ href: "/permessi", label: "Permessi", icon: "sun" }] as Section[])
+      : []),
+    ...(capo && impostazioni.pagina_prospetto
+      ? ([{ href: "/prospetto", label: "Prospetto", icon: "prospetto" }] as Section[])
+      : []),
+    ...(capo
       ? ([
-          { href: "/prospetto", label: "Prospetto", icon: "prospetto" },
           { href: "/squadra", label: "Squadra", icon: "users" },
           { href: "/impostazioni", label: "Impostazioni", icon: "settings" },
         ] as Section[])
@@ -60,7 +68,7 @@ export default async function AppLayout({
       identity={{
         name: profile.full_name,
         email: profile.email ?? "",
-        roleLabel: profile.role === "capo" ? "Responsabile" : "Dipendente",
+        roleLabel: capo ? "Responsabile" : "Dipendente",
       }}
       esci={esci}
     >

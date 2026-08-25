@@ -35,6 +35,7 @@ import {
 import { WeekNav } from "@/components/turni/week-nav";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
+import { GruppoModifica } from "@/components/ui/gruppo-modifica";
 import { Ricerca } from "@/components/ui/ricerca";
 import { repartoDelTurno } from "@/lib/reparto";
 import {
@@ -621,109 +622,114 @@ export function Roster({
               <option value="pari">In pari</option>
             </Select>
 
-            {/* --------------------- variazioni, in fondo alla riga */}
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={annulla}
-              disabled={!puoAnnullare || inLavoro}
-              aria-label="Annulla l'ultima modifica"
-              title="Annulla l'ultima modifica"
-            >
-              <Undo2 className="size-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={ripeti}
-              disabled={!puoRipetere || inLavoro}
-              aria-label="Ripeti la modifica annullata"
-              title="Ripeti la modifica annullata"
-            >
-              <Redo2 className="size-4" />
-            </Button>
-
-            {inBozza ? (
+            {/* --------------------- variazioni, in fondo alla riga
+                Dentro il loro recinto: nella stessa riga dei filtri sono i
+                soli comandi che il tabellone lo cambiano per davvero, e
+                fra «filtra» e «cancella tutto» ci vuole un confine. */}
+            <GruppoModifica>
               <Button
                 variant="secondary"
-                size="sm"
-                onClick={pubblica}
-                loading={inLavoro}
-                title="Rendi la settimana visibile ai dipendenti"
+                size="icon"
+                onClick={annulla}
+                disabled={!puoAnnullare || inLavoro}
+                aria-label="Annulla l'ultima modifica"
+                title="Annulla l'ultima modifica"
               >
-                Pubblica
+                <Undo2 className="size-4" />
               </Button>
-            ) : sospese.attivo ? (
-              <>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={ripeti}
+                disabled={!puoRipetere || inLavoro}
+                aria-label="Ripeti la modifica annullata"
+                title="Ripeti la modifica annullata"
+              >
+                <Redo2 className="size-4" />
+              </Button>
+
+              {inBozza ? (
                 <Button
+                  variant="secondary"
                   size="sm"
-                  onClick={confermaSospese}
+                  onClick={pubblica}
                   loading={inLavoro}
-                  disabled={sospese.fatte.length === 0}
+                  title="Rendi la settimana visibile ai dipendenti"
                 >
-                  Conferma modifiche
-                  {sospese.fatte.length > 0 ? (
-                    <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
-                      {/* I turni toccati, non i gesti: uno svuotamento e'
-                          una mossa sola ma venti modifiche. */}
-                      {sospese.fatte.flat().length}
-                    </span>
-                  ) : null}
+                  Pubblica
                 </Button>
+              ) : sospese.attivo ? (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={confermaSospese}
+                    loading={inLavoro}
+                    disabled={sospese.fatte.length === 0}
+                  >
+                    Conferma modifiche
+                    {sospese.fatte.length > 0 ? (
+                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                        {/* I turni toccati, non i gesti: uno svuotamento e'
+                            una mossa sola ma venti modifiche. */}
+                        {sospese.fatte.flat().length}
+                      </span>
+                    ) : null}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setSospese({ monday, attivo: false, fatte: [], annullate: [] })
+                    }
+                    title="Scarta le modifiche non confermate"
+                  >
+                    <X className="size-3.5" />
+                    Annulla
+                  </Button>
+                </>
+              ) : (
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={() =>
-                    setSospese({ monday, attivo: false, fatte: [], annullate: [] })
+                    setSospese({ monday, attivo: true, fatte: [], annullate: [] })
                   }
-                  title="Scarta le modifiche non confermate"
+                  title="Modifica la settimana pubblicata: le modifiche valgono solo alla conferma"
                 >
-                  <X className="size-3.5" />
-                  Annulla
+                  <PencilLine className="size-3.5" />
+                  Modifica
                 </Button>
-              </>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() =>
-                  setSospese({ monday, attivo: true, fatte: [], annullate: [] })
-                }
-                title="Modifica la settimana pubblicata: le modifiche valgono solo alla conferma"
-              >
-                <PencilLine className="size-3.5" />
-                Modifica
-              </Button>
-            )}
+              )}
 
-            {confermaSvuota ? (
-              <span className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-2 py-1">
-                <span className="text-[12.5px] font-medium text-danger">
-                  Tutta la settimana?
+              {confermaSvuota ? (
+                <span className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-2 py-1">
+                  <span className="text-[12.5px] font-medium text-danger">
+                    Tutta la settimana?
+                  </span>
+                  <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
+                    Elimina
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfermaSvuota(false)}
+                  >
+                    No
+                  </Button>
                 </span>
-                <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
-                  Elimina
-                </Button>
+              ) : (
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => setConfermaSvuota(false)}
+                  size="icon"
+                  className="text-danger hover:bg-danger-soft"
+                  onClick={() => setConfermaSvuota(true)}
+                  aria-label="Elimina tutti i turni della settimana"
+                  title="Elimina tutti i turni della settimana"
                 >
-                  No
+                  <Trash2 className="size-4" />
                 </Button>
-              </span>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-danger hover:bg-danger-soft"
-                onClick={() => setConfermaSvuota(true)}
-                aria-label="Elimina tutti i turni della settimana"
-                title="Elimina tutti i turni della settimana"
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            )}
+              )}
+            </GruppoModifica>
 
             {/* I tre modi di creare turni, raccolti in un'isoletta: tre
                 bottoni sciolti si contendevano la riga coi filtri. */}
