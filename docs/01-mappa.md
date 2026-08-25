@@ -99,3 +99,4 @@ Sono il cuore, e stanno tutti fuori dai componenti apposta: si provano con
 | `src/lib/turni-staging.ts` | come si accumulano le modifiche prima di spedirle |
 | `src/lib/supervisione/trascina.ts` | dove finisce una barra trascinata |
 | `src/lib/generazione.ts` | chi ci metteresti, in questa settimana vuota? |
+| `src/lib/pubblicazione.ts` | questa settimana si può pubblicare? |

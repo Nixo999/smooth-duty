@@ -53,7 +53,7 @@ uguale(
     dopo: turno("09:00", "20:00"),
     pubblicata: false,
     straordinario: true,
-    imp: imp({ conferma_modifiche: true, conferma_modifiche_straordinari: true }),
+    imp: imp({ conferma_modifiche: true }),
   }),
 );
 
@@ -89,13 +89,13 @@ uguale(
     dopo: turno("08:00", "20:00"),
     pubblicata: true,
     straordinario: true,
-    imp: imp({ conferma_modifiche: true, conferma_modifiche_straordinari: true }),
+    imp: imp({ conferma_modifiche: true }),
   }),
 );
 
 uguale(
-  "stesse ore, altro giorno: un avviso, che la giornata cambia lo stesso",
-  avviso("turno_spostato"),
+  "stesse ore, altro giorno: si chiede, non si comunica",
+  rifiutabile("turno_spostato"),
   esito({
     prima: turno("09:00", "13:00", "2026-08-24"),
     dopo: turno("09:00", "13:00", "2026-08-26"),
@@ -105,8 +105,8 @@ uguale(
 );
 
 uguale(
-  "stesse ore, stesso giorno, orario spostato: avviso",
-  avviso("turno_spostato"),
+  "dal mattino al pomeriggio, a ore identiche: si chiede",
+  rifiutabile("turno_spostato"),
   esito({
     prima: turno("09:00", "13:00"),
     dopo: turno("14:00", "18:00"),
@@ -127,7 +127,7 @@ uguale(
 );
 
 uguale(
-  "con l'interruttore spento non arriva nemmeno l'avviso",
+  "con l'interruttore spento non arriva niente, ne' richiesta ne' avviso",
   niente,
   esito({
     prima: turno("09:00", "17:00"),
@@ -139,27 +139,30 @@ uguale(
 
 /* ------------------------------------------------------ straordinari --- */
 
+// Il caso che fino al 26 agosto 2026 passava in silenzio: c'era una levetta
+// apposta per gli straordinari, esclusiva, e chi accendeva solo quella
+// generale non veniva avvisato proprio del caso piu' grosso.
 uguale(
-  "piu' ore che sfondano il contratto: il suo interruttore, non l'altro",
+  "un interruttore solo copre anche le modifiche che sfondano il contratto",
   rifiutabile("modifica_straordinario"),
   esito({
     prima: turno("09:00", "13:00"),
     dopo: turno("09:00", "21:00"),
     pubblicata: true,
     straordinario: true,
-    imp: imp({ conferma_modifiche: true, conferma_modifiche_straordinari: true }),
+    imp: imp({ conferma_modifiche: true }),
   }),
 );
 
 uguale(
-  "chi ha acceso solo le modifiche normali non viene disturbato per gli straordinari",
-  niente,
+  "e il motivo distingue lo straordinario dalla modifica normale",
+  rifiutabile("modifica"),
   esito({
     prima: turno("09:00", "13:00"),
-    dopo: turno("09:00", "21:00"),
+    dopo: turno("09:00", "17:00"),
     pubblicata: true,
-    straordinario: true,
-    imp: imp({ conferma_modifiche: true, conferma_modifiche_straordinari: false }),
+    straordinario: false,
+    imp: imp({ conferma_modifiche: true }),
   }),
 );
 
@@ -197,7 +200,7 @@ uguale(
     soloReparto: true,
     pubblicata: true,
     straordinario: true,
-    imp: imp({ conferma_cambio_reparto: true, conferma_modifiche_straordinari: true }),
+    imp: imp({ conferma_cambio_reparto: true, conferma_modifiche: true }),
   }),
 );
 

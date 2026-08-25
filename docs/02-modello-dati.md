@@ -25,6 +25,7 @@ migrazioni sono file da incollare, e i tipi TypeScript sono scritti a mano in
 | `14-preapprovazione-e-rifiuti.sql` | **rovescia le conferme**: il turno vale subito e si può rifiutare. `shift_messages`, `rifiuta_turno()` |
 | `15-accettazione-esplicita.sql` | torna il sì accanto al no: `accetta_turno()`, e non si rifiuta ciò che si è accettato |
 | `16-avvisi-e-settimana.sql` | il verso della modifica conta: `shift_notices` (avvisi), `week_requests` (la settimana intera), `conferma_settimana` |
+| `17-turno-spostato.sql` | spostare un turno si chiede, non si comunica: `turno_spostato` fra i motivi di rifiuto |
 
 > ⚠️ La `14` definisce `rifiuta_turno()` e la `15` **la ridefinisce**. Chi
 > deve cambiarla guardi la `15`: è quella l'ultima parola. Vale in generale —
@@ -66,7 +67,11 @@ Vincoli che contano:
 Poi i campi della **preapprovazione**, che si leggono insieme:
 - `richiede_conferma` — perché su questo turno l'interessato può dire la sua:
   `straordinario` | `modifica` | `modifica_straordinario` | `orario_diverso` |
-  `cambio_reparto` | null. Vincolo `shifts_richiede_conferma_valido`;
+  `cambio_reparto` | `turno_spostato` | null. Vincolo
+  `shifts_richiede_conferma_valido`, ed è **l'unica copia** dell'elenco fuori
+  da `MOTIVI_RIFIUTO` (`src/lib/types.ts`), da cui si derivano sia il tipo sia
+  la validazione delle Server Action. `verifica-schema.mjs` controlla che le
+  due siano d'accordo;
 - `confermato_at` — ha detto di sì;
 - `rifiutato_at` · `nota_rifiuto` — ha detto di no, e volendo perché;
 - `stato_prima` (jsonb) — la fotografia di com'era il turno, per poterlo
@@ -152,15 +157,19 @@ dall'approvazione, per poterla revocare) · `decided_by`.
 Una riga per azienda, **facoltativa**: se manca valgono i default, che stanno
 scritti due volte — nel `default` della colonna e in `IMPOSTAZIONI_DEFAULT`
 (`src/lib/impostazioni.ts`). Chi legge passa sempre da
-`normalizzaImpostazioni()`. Undici campi, raggruppati **per pagina** come nella
+`normalizzaImpostazioni()`. Dieci campi letti, raggruppati **per pagina** come nella
 schermata che li mostra:
 
-- turni: `conferma_straordinari · conferma_modifiche ·
-  conferma_modifiche_straordinari · orari_preimpostati ·
+- turni: `conferma_straordinari · conferma_modifiche · orari_preimpostati ·
   conferma_cambio_reparto · conferma_settimana`
 - supervisione: `pagina_supervisione · supervisione_dipendenti`
 - permessi: `pagina_permessi · causali_richiedibili[]`
 - prospetto: `pagina_prospetto`
+
+> ⚠️ `conferma_modifiche_straordinari` **non è più letta da nessuno** dal 26
+> agosto 2026: le modifiche a una settimana pubblicata hanno un interruttore
+> solo. La colonna resta perché toglierla costerebbe una migrazione per non
+> dire niente di più — ma chi la trova nello schema non deve dedurne che serva.
 
 > I nomi che cominciano per `conferma_` sono nati quando quei turni
 > aspettavano un sì. Dalla `14` il verso è rovesciato — il turno vale subito e

@@ -161,9 +161,16 @@ l'importazione:
 
 | Esito | Quando | Cosa vede l'interessato |
 |---|---|---|
-| **rifiutabile** | le ore aumentano | può dire di no; il turno torna com'era |
-| **avviso** | le ore calano, o il turno si sposta a parità di ore | «ho letto», e basta |
+| **rifiutabile** | le ore aumentano, **o il turno si sposta** | può dire di no; il turno torna com'era |
+| **avviso** | le ore calano | «ho letto», e basta |
 | **niente** | il resto, o interruttore spento | niente |
+
+**Spostare un turno si chiede, non si comunica** (migrazione `17`). Nella `16`
+lo spostamento era un avviso: stesse ore, quindi niente da concedere. Era un
+ragionamento da contabile, non da persona. Il mattino e il pomeriggio non sono
+la stessa giornata: chi porta i figli a scuola alle otto, chi ha un secondo
+lavoro, chi ha preso un impegno — per tutti loro un turno che passa dalle
+06–14 alle 14–22 cambia tutto, a ore identiche.
 
 I casi che sembrano pignoleria e non lo sono:
 
@@ -177,6 +184,13 @@ I casi che sembrano pignoleria e non lo sono:
   dal tabellone, e con lui l'unica cosa che avrebbe potuto dirlo;
 - **spegnere l'interruttore delle modifiche non spegne quello degli orari
   preimpostati**: sono due domande diverse, e la seconda ha il suo;
+- **un interruttore solo governa tutte le modifiche**, straordinario compreso.
+  Fino al 26 agosto 2026 gli straordinari ne avevano uno loro, **esclusivo**:
+  chi accendeva quello generale non veniva avvisato proprio del caso più
+  grosso — mandare qualcuno oltre il contratto passava in silenzio. Era il
+  contrario di quello che uno si aspetta accendendo un interruttore. Il motivo
+  però continua a distinguerli (`modifica` / `modifica_straordinario`):
+  all'interessato non è indifferente sapere se quelle ore lo portano oltre;
 - **svuotare la settimana non avvisa nessuno**: svuotandola torna bozza, e una
   settimana in bozza i dipendenti non la vedono proprio.
 
@@ -184,6 +198,41 @@ Gli avvisi stanno in `shift_notices`, che è il verso opposto di
 `shift_messages`. Due tabelle e non una con una colonna «direzione» perché le
 due cose **muoiono in modo diverso**: un rifiuto si chiude quando il
 responsabile ha rimediato, un avviso quando l'interessato preme «ho letto».
+
+## Non si pubblica una settimana sotto contratto
+
+Motore: `chiStaSottoContratto()` (`src/lib/pubblicazione.ts`), puro e provato
+da `npm run prove`.
+
+**In bozza una settimana incompleta è normale** — è tutto il senso della
+bozza: si comincia da un foglio vuoto e ci si arriva. Ma premere Pubblica vuol
+dire dire alla squadra «questa è la settimana», e una settimana che a qualcuno
+dà **meno** ore di quelle che ha per contratto non è pronta: è un errore che
+si scopre a fine mese, sulla busta paga, quando rimediare costa molto di più
+che accorgersene adesso.
+
+Non è un'impostazione e non si spegne. Il messaggio dice **chi** e **di
+quanto**: un divieto che non indica dove mettere le mani costringe a ricontare
+a mano trenta persone, e a quel punto tanto valeva non averlo.
+
+Chi non riguarda, e per lo stesso motivo — non ha un monte ore da rispettare:
+
+- **chi è a chiamata**, che per definizione lavora quando serve;
+- **chi non ha ore da contratto** scritte in scheda.
+
+E **chi è assente conta solo per i giorni in cui c'è**: pretendere quaranta ore
+da chi è in malattia da lunedì bloccherebbe la pubblicazione per sempre, e
+quelle ore non le deve nessuno. La proporzione è la stessa del Prospetto
+(`ore × giorni / 7`) e per la stessa ragione: di un giorno di assenza non si sa
+quante ore avrebbe avuto. I turni scritti su un giorno di assenza non contano —
+non li fa nessuno, e contarli farebbe passare per completa una settimana che
+non lo è.
+
+Il conto è arrotondato **per difetto**: su una settimana spezzata cade sui
+minuti, e bloccare una pubblicazione per un minuto di arrotondamento sarebbe
+una regola che nessuno capirebbe. Se la lettura dei dati fallisce **non si
+blocca**: un divieto basato su dati che non sono arrivati fermerebbe una
+settimana magari a posto.
 
 ## La settimana si accetta intera
 
@@ -554,22 +603,26 @@ d'accordo — `src/app/(app)/layout.tsx` e la guardia dentro ciascuna pagina.
 ha più un motivo, senza Squadra non si aggiunge nessuno, e senza Impostazioni
 non si potrebbe più riaccendere niente.
 
-## Le undici impostazioni dell'azienda
+## Le dieci impostazioni dell'azienda
 
 `company_settings`, tutte facoltative (senza riga valgono i default).
 
 Nel database sono raggruppate per pagina; **nella schermata dei Turni sono
 raggruppate per gesto** — quando pubblichi, quando cambi un turno già
-pubblicato, quando ne aggiungi uno. Sei levette in fila obbligavano a
-leggerle tutte per capire quale riguardasse la cosa che si stava facendo, e
-quello che cambia non è un'opzione: è cosa succede quando si preme un
-bottone.
+pubblicato, quando ne aggiungi uno — e ognuna dice su due righe *quando*
+scatta e *cosa succede se la persona dice di no*. Un elenco di levette in fila
+obbligava a leggerle tutte per capire quale riguardasse la cosa che si stava
+facendo, e quello che cambia non è un'opzione: è cosa succede quando si preme
+un bottone.
+
+Fra loro sta anche una **regola che non si spegne** — non si pubblica una
+settimana sotto contratto — perché è lì che uno la cerca: scoprirla solo nel
+momento in cui l'app dice di no sarebbe peggio.
 
 | Impostazione | Default | Effetto |
 |---|---|---|
 | `conferma_straordinari` | ❌ | un turno nuovo oltre le ore da contratto è rifiutabile |
-| `conferma_modifiche` | ❌ | modificare una settimana pubblicata coinvolge l'interessato: **rifiutabile se aggiunge ore, un avviso se ne toglie** |
-| `conferma_modifiche_straordinari` | ❌ | come sopra, quando la modifica genera straordinario |
+| `conferma_modifiche` | ❌ | modificare una settimana pubblicata coinvolge l'interessato: **rifiutabile se aggiunge ore o sposta il turno, un avviso se ne toglie** — straordinario compreso |
 | `orari_preimpostati` | ❌ | un turno diverso dall'orario del contratto è rifiutabile |
 | `conferma_cambio_reparto` | ❌ | anche il solo cambio di reparto è rifiutabile |
 | `conferma_settimana` | ❌ | alla pubblicazione, chi va in straordinario accetta o rifiuta la settimana intera |

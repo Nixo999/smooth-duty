@@ -57,6 +57,16 @@ const funzioneContiene = async (nome, pezzo) =>
     [nome, pezzo],
   )).n >= 1;
 
+/** Il testo di un vincolo contiene questo pezzo? Come `funzioneContiene`, e
+ *  per la stessa ragione: una migrazione che riscrive un CHECK esistente si
+ *  riconosce solo da cosa quel CHECK ammette adesso. */
+const vincoloContiene = async (nome, pezzo) =>
+  (await uno(
+    `select count(*)::int as n from pg_constraint
+      where conname = $1 and pg_get_constraintdef(oid) like '%' || $2 || '%'`,
+    [nome, pezzo],
+  )).n >= 1;
+
 const trigger = async (t, nome) =>
   (await uno(
     `select count(*)::int as n from pg_trigger g join pg_class c on c.oid=g.tgrelid
@@ -307,6 +317,18 @@ const MIGRAZIONI = [
       // Il no senza motivazione non deve passare: e' la riga che rende utile
       // la richiesta, non un vezzo di forma.
       ["rifiuta_settimana() pretende la motivazione", () => funzioneContiene("rifiuta_settimana", "pulita is null")],
+    ],
+  },
+  {
+    file: "17-turno-spostato.sql",
+    cosa: "spostare un turno si chiede, non si comunica",
+    prove: [
+      // La 17 non aggiunge niente: riscrive un vincolo che c'era gia', quindi
+      // la sua presenza non prova niente e va guardato cosa ammette.
+      [
+        "shifts accetta il motivo turno_spostato",
+        () => vincoloContiene("shifts_richiede_conferma_valido", "turno_spostato"),
+      ],
     ],
   },
 ];

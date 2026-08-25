@@ -11,7 +11,6 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 const schema = z.object({
   conferma_straordinari: z.boolean(),
   conferma_modifiche: z.boolean(),
-  conferma_modifiche_straordinari: z.boolean(),
   orari_preimpostati: z.boolean(),
   conferma_cambio_reparto: z.boolean(),
   conferma_settimana: z.boolean(),

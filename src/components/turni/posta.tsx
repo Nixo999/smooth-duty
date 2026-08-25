@@ -21,7 +21,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
 import { dayLong, formatDuration, fromISODate, timeRange, weekLabel } from "@/lib/date";
-import type { Avviso, RichiestaSettimana, Shift } from "@/lib/types";
+import type {
+  Avviso,
+  MotivoAvviso,
+  RichiestaSettimana,
+  Shift,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** La posta del dipendente: quello che l'app ha da dirgli, in cima alla
@@ -366,11 +371,10 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
 /* ---------------------------------------------------------------- avviso */
 
 /** Come si racconta un avviso: che cosa è successo, in una riga. */
-const COSA_E_SUCCESSO = {
+const COSA_E_SUCCESSO: Record<MotivoAvviso, string> = {
   ore_tolte: "Il tuo turno è stato accorciato",
   turno_rimosso: "Un tuo turno è stato tolto",
-  turno_spostato: "Un tuo turno è stato spostato",
-} as const;
+};
 
 function VoceAvviso({ avviso }: { avviso: Avviso }) {
   const router = useRouter();

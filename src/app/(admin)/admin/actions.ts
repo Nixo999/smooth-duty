@@ -27,7 +27,6 @@ const creaSchema = z.object({
     supervisione_dipendenti: z.boolean(),
     conferma_straordinari: z.boolean(),
     conferma_modifiche: z.boolean(),
-    conferma_modifiche_straordinari: z.boolean(),
     orari_preimpostati: z.boolean(),
   }),
 });

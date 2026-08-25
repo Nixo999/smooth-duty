@@ -11,6 +11,39 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Non si pubblica una settimana in cui qualcuno sta sotto il suo contratto**
+In bozza va benissimo — è tutto il senso della bozza — ma premere Pubblica
+vuol dire dire alla squadra «questa è la settimana», e un buco di ore così si
+scopre a fine mese sulla busta paga, quando rimediare costa molto di più.
+Il messaggio dice chi e di quanto: un divieto che non indica dove mettere le
+mani costringe a ricontare a mano trenta persone. Chi è assente conta per i
+giorni in cui c'è, con la stessa proporzione del Prospetto. Motore puro in
+`src/lib/pubblicazione.ts`, dodici casi in `npm run prove`.
+
+**Spostare un turno si chiede, non si comunica** — migrazione `17`
+La `16` lo aveva messo fra gli avvisi: stesse ore, niente da concedere. Era un
+ragionamento da contabile. Il mattino e il pomeriggio non sono la stessa
+giornata — chi porta i figli a scuola alle otto, chi ha un secondo lavoro —
+e un turno che passa dalle 06–14 alle 14–22 cambia tutto a ore identiche.
+
+**Un interruttore solo per le modifiche, non due**
+`conferma_modifiche_straordinari` sparisce dalla schermata: erano due metà
+esclusive, e chi accendeva quella generale non veniva avvisato proprio del
+caso più grosso — mandare qualcuno oltre il contratto passava in silenzio.
+Il motivo continua a distinguerli, perché all'interessato non è indifferente.
+La colonna resta nel database, inutilizzata.
+
+**I motivi di rifiuto erano in tre posti, e il terzo era dimenticato**
+Aggiungendo `turno_spostato` è saltato fuori che `ripristinaTurni` validava
+con un elenco suo: avrebbe rifiutato i turni col motivo nuovo, in silenzio.
+Ora l'elenco è uno solo (`MOTIVI_RIFIUTO`), e da lì si derivano il tipo e la
+validazione. Una delle trappole di [08-aperto.md](08-aperto.md) in meno.
+
+**Le impostazioni dicono quando scattano e dove vanno a finire**
+Ogni levetta ha ora due righe sue — «Quando» e «Se dice no» — invece di un
+paragrafo in cui bisogna trovarle leggendo. Sono le due domande che uno si fa
+davanti a un interruttore.
+
 **Togliere ore e aggiungerne non sono la stessa domanda** — migrazione `16`
 Una modifica a una settimana pubblicata era rifiutabile in qualunque verso
 andasse. Ma chi si vede accorciare il turno non ha niente da concedere: ha

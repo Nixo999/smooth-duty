@@ -86,6 +86,10 @@ Se la lettura dei turni o delle persone **fallisce**, la pagina mostra
 `ErroreDati` invece di un tabellone vuoto: vedi
 [05-convenzioni.md](05-convenzioni.md).
 
+`pubblicaSettimana` **può dire di no**: se qualcuno sta sotto le sue ore da
+contratto la settimana non si pubblica, e il messaggio dice chi e di quanto.
+Vedi [04-regole.md](04-regole.md).
+
 Azioni: `salvaTurno` · `eliminaTurno` · `eliminaTuttiITurni` ·
 `ripristinaTurni` · `copiaTurni` · `anteprimaCopia` · `pubblicaSettimana` ·
 `accettaTurno` · `rifiutaTurno` · `apriMessaggi` · `chiudiMessaggio` ·
@@ -215,16 +219,21 @@ Due protezioni scritte in `modificaPersona`:
 
 **File**: `src/app/(app)/impostazioni/` · `src/components/impostazioni/`.
 
-Solo capo. Undici impostazioni, tutte descritte in
+Solo capo. Dieci impostazioni, tutte descritte in
 [04-regole.md](04-regole.md): quali pagine l'azienda usa, chi vede la
 Supervisione, quali causali si possono chiedere, e quando la squadra viene
 coinvolta sui turni.
 
-Le sei dei Turni sono raggruppate **per gesto** e non per tipo — quando
+Le cinque dei Turni sono raggruppate **per gesto** e non per tipo — quando
 pubblichi, quando cambi un turno già pubblicato, quando ne aggiungi uno —
 perché quello che cambia non è un'opzione: è cosa succede quando si preme un
-bottone. Ognuna racconta il procedimento intero: chi riceve cosa, cosa può
-fare, e cosa succede se rifiuta.
+bottone. Ognuna dice, su due righe separate dal testo, **quando** scatta e
+**cosa succede se la persona dice di no**: sono le due domande che uno si fa
+davanti a una levetta, e dentro un paragrafo bisogna trovarle leggendo.
+
+Fra le levette c'è anche un riquadro «sempre attiva», che levetta non è: non si
+pubblica una settimana in cui qualcuno sta sotto le sue ore da contratto. Sta
+lì perché è lì che uno la cerca.
 
 Salvando si rivalidano anche `/supervisione`, `/permessi` e `/turni`: queste
 impostazioni cambiano cosa vedono gli altri.

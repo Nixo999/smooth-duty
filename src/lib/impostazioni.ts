@@ -18,10 +18,18 @@ export type Impostazioni = {
    *  disallineamento, e non direbbe niente di più. */
   /** Un turno nuovo oltre le ore da contratto è rifiutabile? */
   conferma_straordinari: boolean;
-  /** Una modifica a una settimana già pubblicata è rifiutabile? Due
-   *  interruttori: le modifiche che generano straordinario e le altre. */
+  /** Su una settimana già pubblicata l'interessato viene coinvolto?
+   *
+   *  Un interruttore solo, ed è poi la modifica a decidere *come*: più ore o
+   *  turno spostato si chiedono, meno ore si avvisano. Fino al 26 agosto
+   *  2026 gli straordinari avevano una levetta loro, **esclusiva**: chi
+   *  accendeva questa e non quella non veniva avvisato proprio del caso più
+   *  grosso — mandare qualcuno oltre il contratto passava in silenzio. Era
+   *  il contrario di quello che uno si aspetta accendendo un interruttore.
+   *  La colonna `conferma_modifiche_straordinari` resta nel database,
+   *  inutilizzata: toglierla costerebbe una migrazione per non dire niente
+   *  di più. */
   conferma_modifiche: boolean;
-  conferma_modifiche_straordinari: boolean;
   /** Con gli orari preimpostati accesi, un turno diverso dall'orario del
    *  contratto della persona è rifiutabile. */
   orari_preimpostati: boolean;
@@ -52,7 +60,6 @@ export type Impostazioni = {
 export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
   conferma_straordinari: false,
   conferma_modifiche: false,
-  conferma_modifiche_straordinari: false,
   orari_preimpostati: false,
   conferma_cambio_reparto: false,
   conferma_settimana: false,
@@ -71,9 +78,8 @@ export function normalizzaImpostazioni(
 }
 
 export const COLONNE_IMPOSTAZIONI =
-  "conferma_straordinari, conferma_modifiche, conferma_modifiche_straordinari, " +
-  "orari_preimpostati, conferma_cambio_reparto, conferma_settimana, " +
-  "pagina_supervisione, " +
+  "conferma_straordinari, conferma_modifiche, orari_preimpostati, " +
+  "conferma_cambio_reparto, conferma_settimana, pagina_supervisione, " +
   "supervisione_dipendenti, pagina_permessi, causali_richiedibili, pagina_prospetto";
 
 /* Le tre `pagina_*` valgono in due posti, e vanno tenuti d'accordo: il menu

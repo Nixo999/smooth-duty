@@ -59,8 +59,8 @@ export const SPIEGA_CONFERMA: Record<StatoConferma, string> = {
  *
  *  | Esito | Quando | Cosa vede l'interessato |
  *  |---|---|---|
- *  | `rifiutabile` | le ore aumentano | può dire di no, e il responsabile riceve il messaggio |
- *  | `avviso` | le ore calano, o si spostano a parità | «ho letto», e basta |
+ *  | `rifiutabile` | le ore aumentano, **o il turno si sposta** | può dire di no, e il responsabile riceve il messaggio |
+ *  | `avviso` | le ore calano | «ho letto», e basta |
  *  | `niente` | il resto | niente |
  *
  *  Funzione pura, apposta: la stessa domanda la fanno `salvaTurno`,
@@ -113,37 +113,41 @@ export function conseguenzaDelSalvataggio(input: {
       : NIENTE;
   }
 
-  // Una modifica vera a una settimana pubblicata. È qui che il verso conta.
-  if (prima && pubblicata) {
+  // Una modifica vera a una settimana pubblicata. È qui che il verso conta,
+  // e un interruttore solo li governa tutti: `conferma_modifiche` vuol dire
+  // «su questa settimana l'interessato viene coinvolto», e poi è la modifica
+  // a decidere *come*. Fino al 26 agosto 2026 gli straordinari avevano una
+  // levetta loro, esclusiva: chi accendeva quella generale non veniva
+  // avvisato proprio del caso più grosso, ed era il contrario di quello che
+  // uno si aspetta accendendo un interruttore.
+  if (prima && pubblicata && imp.conferma_modifiche) {
     if (dopo.minuti > prima.minuti) {
-      // Più ore: si chiede. I due interruttori si escludono a vicenda, come
-      // sono nati: chi accende solo quello degli straordinari ha detto che
-      // le modifiche normali le fa senza chiedere.
-      if (straordinario) {
-        if (imp.conferma_modifiche_straordinari) {
-          return { tipo: "rifiutabile", motivo: "modifica_straordinario" };
-        }
-      } else if (imp.conferma_modifiche) {
-        return { tipo: "rifiutabile", motivo: "modifica" };
-      }
-    } else if (dopo.minuti < prima.minuti) {
+      // Più ore: si chiede. Il motivo distingue comunque i due casi, perché
+      // all'interessato non è indifferente sapere se quelle ore lo portano
+      // oltre il contratto.
+      return {
+        tipo: "rifiutabile",
+        motivo: straordinario ? "modifica_straordinario" : "modifica",
+      };
+    }
+    if (dopo.minuti < prima.minuti) {
       // Meno ore: non si chiede niente, si avvisa. Vale **anche** se la
       // persona resta comunque oltre il contratto: quello che conta è che
       // questo salvataggio le toglie del lavoro, non dove si trova rispetto
       // alla soglia.
-      if (imp.conferma_modifiche) {
-        return { tipo: "avviso", motivo: "ore_tolte" };
-      }
-    } else if (dopo.date !== prima.date || dopo.start_time !== prima.start_time) {
-      // Stesse ore, altro giorno o altro orario. Non toglie e non aggiunge
-      // niente, ma un turno che si sposta cambia la giornata a una persona.
-      if (imp.conferma_modifiche) {
-        return { tipo: "avviso", motivo: "turno_spostato" };
-      }
+      return { tipo: "avviso", motivo: "ore_tolte" };
     }
-    // Se l'interruttore delle modifiche è spento non si è deciso niente, e
-    // si continua: l'orario fuori contratto qui sotto ha un interruttore
-    // suo, e spegnere l'uno non deve spegnere l'altro.
+    if (dopo.date !== prima.date || dopo.start_time !== prima.start_time) {
+      // Stesse ore, altro giorno o altro orario — e **si chiede**, non si
+      // comunica. Contare le ore e concludere che non è cambiato niente è un
+      // ragionamento da contabile: il mattino e il pomeriggio non sono la
+      // stessa giornata. Chi porta i figli a scuola alle otto, chi ha un
+      // secondo lavoro, chi ha preso un impegno — per tutti loro un turno che
+      // passa dalle 06–14 alle 14–22 cambia tutto, a ore identiche.
+      return { tipo: "rifiutabile", motivo: "turno_spostato" };
+    }
+    // Salvato senza cambiare niente: non si disturba nessuno. Si continua,
+    // perché l'orario fuori contratto qui sotto ha un interruttore suo.
   }
 
   // Un turno nuovo che porta oltre le ore da contratto.

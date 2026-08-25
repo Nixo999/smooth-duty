@@ -119,6 +119,8 @@ Fa girare, in fila: `prova-copia` (corrispondenza dei giorni nella copia),
 `prova-copertura` (motore della Supervisione), `prova-prospetto` (i conti delle
 ore), `prova-trascina` (la matematica delle barre trascinate),
 `prova-generazione` (chi il motore mette sui buchi, e cosa lascia scoperto),
+`prova-conferme` (si chiede, si avvisa o si tace), `prova-pubblicazione` (chi
+sta sotto le sue ore da contratto),
 `prova-lettura` (il lettore Excel sul foglio di esempio — la riga che conta è
 quella dei totali).
 

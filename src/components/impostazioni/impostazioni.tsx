@@ -78,59 +78,78 @@ export function Impostazioni({
       <Sezione
         icona={CalendarDays}
         pagina="Turni"
-        nota="Quando la squadra viene coinvolta, e in che modo. Sono raggruppate per gesto tuo: quello che cambia non è un'opzione, è cosa succede quando premi un bottone."
+        nota="Quando la squadra viene coinvolta, e come."
       >
+        <Nota>
+          Il turno vale sempre da subito, anche quando è rifiutabile: qui non
+          si chiede un permesso, si segnala una cosa fuori dall&apos;ordinario e
+          si lascia la facoltà di dire di no. Chi tace ha accettato — ed è il
+          caso di gran lunga più frequente.
+        </Nota>
+
         <Gruppo
           titolo="Quando pubblichi la settimana"
-          spiega="La pubblicazione è il momento in cui la squadra vede la settimana per la prima volta. Chi va oltre le sue ore da contratto riceve una domanda sola, sull'insieme."
+          spiega="È il momento in cui la squadra la vede per la prima volta."
         >
+          <Regola>
+            Non si pubblica una settimana in cui qualcuno sta{" "}
+            <strong className="font-medium text-text">sotto</strong> le sue ore
+            da contratto: l&apos;app lo impedisce e ti dice chi e di quanto. In
+            bozza invece si può, che è tutto il senso della bozza. Chi è assente
+            conta per i giorni in cui c&apos;è, e chi è a chiamata non ha un
+            monte ore da rispettare.
+          </Regola>
           <Interruttore
             acceso={v.conferma_settimana}
             onCambia={(x) => cambia({ conferma_settimana: x })}
             titolo="Settimana in straordinario da accettare"
-            descrizione="A chi la settimana porta oltre le ore da contratto arriva una richiesta sulla settimana intera: la accetta o la rifiuta tutta, e in tutti e due i casi può scrivere. Accettando può chiedere un ritocco («il giovedì smetto alle 18»), che decidi tu: non sposta niente da solo. Rifiutando deve dire perché, e la settimana la rifai tu — i turni non cambiano da sé."
+            descrizione="Una domanda sola sulla settimana intera, non una per turno: la risposta dipende dall'insieme."
+            quando="pubblichi, e a qualcuno la settimana porta oltre le ore da contratto"
+            esito="deve scrivere perché, e la settimana la rifai tu: i turni non cambiano da soli"
           />
         </Gruppo>
 
         <Gruppo
           titolo="Quando cambi un turno già pubblicato"
-          spiega="Prima della pubblicazione il tabellone è un foglio di lavoro e correggerlo non chiede niente a nessuno. Dopo, dipende dal verso: se le ore aumentano si chiede, se calano si avvisa."
+          spiega="Prima della pubblicazione il tabellone è un foglio di lavoro: correggerlo non chiede niente a nessuno."
         >
           <Interruttore
             acceso={v.conferma_modifiche}
             onCambia={(x) => cambia({ conferma_modifiche: x })}
-            titolo="Modifiche: chiedi se aggiungi, avvisa se togli"
-            descrizione="Aggiungi ore e l'interessato può rifiutare: rifiutando, il turno torna com'era. Gliene togli, o gli sposti il turno a parità di ore, e allora non c'è niente da concedere — riceve un avviso che si chiude con «ho letto», e lo stesso vale per un turno che gli cancelli o che passi a un altro. Spento, non gli arriva niente."
-          />
-          <Interruttore
-            acceso={v.conferma_modifiche_straordinari}
-            onCambia={(x) => cambia({ conferma_modifiche_straordinari: x })}
-            titolo="Modifiche che sfondano il contratto"
-            descrizione="Come sopra, ma per le modifiche che portano oltre le ore da contratto: hanno il loro interruttore perché chiedono un'altra cosa. Chi accende solo questo lascia passare le modifiche normali senza disturbare nessuno."
+            titolo="L'interessato viene coinvolto"
+            descrizione="Un interruttore solo; è poi la modifica a decidere come. Più ore o turno spostato si chiedono — il mattino e il pomeriggio non sono la stessa giornata, a ore identiche. Ore tolte, turno cancellato o passato a un altro: arriva un avviso che si chiude con «ho letto», perché lì non c'è niente da concedere."
+            quando="allunghi, sposti, accorci o cancelli un turno di una settimana pubblicata"
+            esito="il turno torna com'era, e tu ricevi il messaggio col motivo"
           />
           <Interruttore
             acceso={v.conferma_cambio_reparto}
             onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
-            titolo="Solo il reparto, stessi orari"
-            descrizione="Spostare qualcuno dalla cassa alla sala senza togliergli un minuto. Spento — ed è il caso normale — non si segnala nemmeno: le ore sono quelle, e non è la modifica per cui si disturba una persona."
+            titolo="Anche il solo cambio di reparto"
+            descrizione="Spostare qualcuno dalla cassa alla sala senza togliergli un minuto. Spento — ed è il caso normale — non si segnala nemmeno."
+            quando="cambi il reparto e nient'altro: stessa persona, stesso giorno, stessi orari"
+            esito="il turno torna al reparto di prima"
           />
         </Gruppo>
 
         <Gruppo
           titolo="Quando aggiungi un turno"
-          spiega="Un turno che non c'era. Non ha un «prima» a cui tornare: se viene rifiutato salta, e resta un buco da coprire che l'app ti tiene in evidenza finché non lo riempi."
+          spiega="Un turno che non c'era non ha un «prima» a cui tornare."
         >
           <Interruttore
             acceso={v.conferma_straordinari}
             onCambia={(x) => cambia({ conferma_straordinari: x })}
             titolo="Straordinari rifiutabili"
-            descrizione="Un turno nuovo che porta la persona oltre le sue ore settimanali da contratto. Chi è a chiamata non ha un monte ore, quindi non lo riguarda."
+            descrizione="Chi è a chiamata non ha un monte ore, quindi non lo riguarda."
+            quando="il turno nuovo porta la persona oltre le sue ore settimanali da contratto"
+            esito="il turno salta, e ti resta un buco da coprire che l'app ti tiene in evidenza"
           />
           <Interruttore
             acceso={v.orari_preimpostati}
             onCambia={(x) => cambia({ orari_preimpostati: x })}
-            titolo="Orari preimpostati da contratto"
-            descrizione="A chi ha un orario scritto sul contratto, un turno con un orario diverso diventa rifiutabile. L'orario si scrive sulla persona, in Squadra."
+            titolo="Orari diversi da quelli del contratto"
+            descrizione="L'orario si scrive sulla persona, in Squadra. Chi non ce l'ha scritto non è toccato da questa regola."
+            quando="il turno ha un orario diverso da quello preimpostato sul suo contratto"
+            esito="il turno salta, come sopra"
           />
         </Gruppo>
       </Sezione>
@@ -293,21 +312,46 @@ function Interruttore({
   onCambia,
   titolo,
   descrizione,
+  quando,
+  esito,
   spento,
 }: {
   acceso: boolean;
   onCambia: (v: boolean) => void;
   titolo: string;
   descrizione: string;
+  /** Il gesto che fa scattare la regola: «allunghi un turno», «pubblichi».
+   *  Sta su una riga sua perché è la prima cosa che si cerca — «questa mi
+   *  riguarda?» — e dentro un paragrafo bisogna trovarla leggendo. */
+  quando?: string;
+  /** Cosa succede se la persona dice di no. Chi accende un interruttore
+   *  vuole sapere dove va a finire, non solo cosa attiva. */
+  esito?: string;
   /** La pagina che lo contiene è spenta: la regola resta scritta ma non
    *  vale, e si vede che non vale. */
   spento?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-3 py-3.5", spento && "opacity-45")}>
+    <div className={cn("flex items-start gap-3 py-3.5", spento && "opacity-45")}>
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-medium">{titolo}</p>
-        <p className="text-[12.5px] text-muted">{descrizione}</p>
+        <p className="mt-0.5 text-[12.5px] text-muted">{descrizione}</p>
+        {quando || esito ? (
+          <dl className="mt-1.5 space-y-0.5 text-[12.5px]">
+            {quando ? (
+              <div className="flex gap-1.5">
+                <dt className="shrink-0 text-faint">Quando</dt>
+                <dd className="min-w-0 text-muted">{quando}</dd>
+              </div>
+            ) : null}
+            {esito ? (
+              <div className="flex gap-1.5">
+                <dt className="shrink-0 text-faint">Se dice no</dt>
+                <dd className="min-w-0 text-muted">{esito}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
       </div>
       <Levetta
         acceso={acceso}
@@ -376,6 +420,31 @@ function Gruppo({
       <p className="text-[13px] font-semibold tracking-tight">{titolo}</p>
       <p className="mt-0.5 text-[12.5px] text-muted">{spiega}</p>
       <div className="mt-1 divide-y divide-border">{children}</div>
+    </div>
+  );
+}
+
+
+/** Una premessa in cima a una sezione: vale per tutte le regole che seguono,
+ *  e ripeterla dentro ognuna le allungherebbe tutte. */
+function Nota({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="py-3.5 text-[12.5px] leading-relaxed text-muted">{children}</p>
+  );
+}
+
+/** Una regola che **non** è un interruttore: vale sempre, non si spegne.
+ *  Sta qui in mezzo alle levette perché è lì che uno la cerca — e perché
+ *  scoprirla solo nel momento in cui l'app dice di no sarebbe peggio. */
+function Regola({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="py-3.5">
+      <div className="rounded-xl bg-surface-2 px-3.5 py-3">
+        <p className="text-[12px] font-medium uppercase tracking-wide text-faint">
+          Sempre attiva
+        </p>
+        <p className="mt-1 text-[12.5px] leading-relaxed text-muted">{children}</p>
+      </div>
     </div>
   );
 }

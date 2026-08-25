@@ -5,13 +5,18 @@ qui e si scrive nel [diario](07-diario.md).
 
 ## ⚠️ Da fare prima di usare l'app — 26 agosto 2026
 
-**La migrazione `16` non è ancora stata eseguita su nessun database.** Il
-codice la dà per fatta.
+**Le migrazioni `16` e `17` non sono ancora state eseguite su nessun
+database.** Il codice le dà per fatte.
 
 ```bash
 node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/16-avvisi-e-settimana.sql
+node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/17-turno-spostato.sql
 node --env-file=.env.local --env-file=.env.db scripts/verifica-schema.mjs
 ```
+
+Senza la `17` un turno spostato non si salva proprio: il vincolo
+`shifts_richiede_conferma_valido` rifiuta il motivo `turno_spostato`, e questa
+volta l'errore si vede.
 
 Finché non gira, l'app **non si rompe ma mente**: le letture di
 `shift_notices` e `week_requests` falliscono e tornano elenchi vuoti (nessun
@@ -43,9 +48,16 @@ Da provare nel browser, in quest'ordine:
    che «ho letto» lo faccia sparire per sempre.
 4. **Le frecce dopo Conferma**: confermare un blocco di modifiche e premere
    indietro — deve tornare tutto, non l'ultimo turno. Poi avanti.
-5. **Le Impostazioni dei Turni**: i tre gruppi, e che salvando non si perda
-   nessuna delle sei levette.
-6. **Sospendi/riattiva in Squadra**, compreso il rifiuto sull'unico
+5. **Le Impostazioni dei Turni**: i tre gruppi, il riquadro «sempre attiva», e
+   che salvando non si perda nessuna delle cinque levette. Anche la stessa
+   schermata ridotta in `/admin`, alla creazione di un'azienda.
+6. **Il blocco alla pubblicazione**: una settimana con qualcuno sotto
+   contratto non si deve pubblicare, e il messaggio deve dire chi e di quanto.
+   Poi la stessa settimana con quella persona segnata assente: deve
+   pubblicarsi.
+7. **Un turno spostato dal mattino al pomeriggio**: adesso è una cosa da
+   accettare, non un avviso.
+8. **Sospendi/riattiva in Squadra**, compreso il rifiuto sull'unico
    responsabile attivo.
 
 ## Non c'è ancora
@@ -104,6 +116,13 @@ dice cosa non va e poi si ferma.
 giorno di cui parla, quindi il responsabile lo legge e va a cercarselo. Legarlo
 a un turno vorrebbe dire farglielo scegliere in un elenco, e forse è peggio.
 
+**Il blocco alla pubblicazione non ha una scappatoia.** Se un'azienda ha
+davvero bisogno di pubblicare una settimana corta — un part-time
+sotto-programmato di comune accordo, un rientro a metà settimana — l'unica
+strada è correggere le ore in scheda o segnare un'assenza. Un «pubblica
+lo stesso» ci starebbe, ma un divieto che si aggira con un click smette di
+essere un divieto dopo la seconda volta.
+
 **`contract_type` e `on_call` dicono la stessa cosa in due modi.** `on_call` è
 il gemello operativo di `contract_type = 'chiamata'`, tenuti d'accordo da
 `rapportoSchema`. Funziona, ma è un campo di troppo che prima o poi qualcuno
@@ -136,9 +155,12 @@ sapere se un database è aggiornato vuol dire far girare
   `shift_notices.motivo`, il tipo `MotivoAvviso`, e la mappa `COSA_E_SUCCESSO`
   in `components/turni/posta.tsx`. Stesso difetto dei motivi di rifiuto, qui
   sotto.
-- **I motivi di rifiuto sono elencati in tre posti**: il vincolo
-  `shifts_richiede_conferma_valido`, il tipo `MotivoRifiuto`, e la mappa `COSA`
-  in `components/turni/messaggi.tsx`.
+- ~~**I motivi di rifiuto sono elencati in tre posti.**~~ Risolto il 26 agosto
+  2026: `MOTIVI_RIFIUTO` (`src/lib/types.ts`) è l'unico elenco, e da lì si
+  derivano il tipo e la validazione zod; le mappe delle etichette sono
+  `Record<MotivoRifiuto, string>`, quindi le tiene in pari il compilatore.
+  Resta la copia nel vincolo `shifts_richiede_conferma_valido`, che
+  `verifica-schema.mjs` controlla.
 - **Le causali sono elencate in tre posti**: il vincolo CHECK su
   `absences.type`, quello su `vacation_requests.type`, e `CAUSALI` in
   `src/lib/assenze.ts`. Aggiungerne una vuol dire toccarli tutti e tre.

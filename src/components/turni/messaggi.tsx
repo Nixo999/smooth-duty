@@ -25,6 +25,7 @@ const COSA: Record<MotivoRifiuto, string> = {
   modifica_straordinario: "il cambio di turno con straordinario",
   orario_diverso: "il turno con orario diverso dal contratto",
   cambio_reparto: "il cambio di reparto",
+  turno_spostato: "il turno spostato",
 };
 
 /** I no dei dipendenti, e cosa ne e' seguito.

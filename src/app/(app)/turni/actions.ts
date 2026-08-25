@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
-import { durationMinutes, hhmm } from "@/lib/date";
+import { durationMinutes, formatDuration, hhmm } from "@/lib/date";
+import { chiStaSottoContratto } from "@/lib/pubblicazione";
 import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
@@ -12,6 +13,7 @@ import {
 import { giorniCoinvolti, mondayOf, weekDaysISO } from "@/lib/week";
 import { createClient } from "@/lib/supabase/server";
 import { conseguenzaDelSalvataggio } from "@/lib/conferme";
+import { MOTIVI_RIFIUTO } from "@/lib/types";
 import type { MotivoAvviso, MotivoRifiuto, StatoTurno } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -635,15 +637,7 @@ const ripristinoSchema = z.object({
         title: z.string().max(2000, "Mansione troppo lunga.").nullable(),
         location: z.string().max(2000, "Luogo troppo lungo.").nullable(),
         notes: z.string().max(5000, "Note troppo lunghe.").nullable(),
-        richiede_conferma: z
-          .enum([
-            "straordinario",
-            "modifica",
-            "modifica_straordinario",
-            "orario_diverso",
-            "cambio_reparto",
-          ])
-          .nullable(),
+        richiede_conferma: z.enum(MOTIVI_RIFIUTO).nullable(),
         stato_prima: statoSchema.nullable(),
       }),
     )
@@ -847,6 +841,20 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   const lunedi = mondayOf(parsed.data);
 
   const supabase = await createClient();
+
+  // Una settimana che a qualcuno dà **meno** ore di quelle che ha per
+  // contratto non si pubblica. In bozza va benissimo — è tutto il senso
+  // della bozza, si comincia da un foglio vuoto e ci si arriva — ma
+  // pubblicare vuol dire dire alla squadra «questa è la settimana», e un
+  // buco di ore così si scopre a fine mese sulla busta paga, quando
+  // rimediare costa molto di più che accorgersene adesso.
+  const manchevole = await chiStaSottoIlSuoContratto(
+    supabase,
+    user.company_id,
+    lunedi,
+  );
+  if (manchevole) return { ok: false, error: manchevole };
+
   const { error } = await supabase
     .from("published_weeks")
     .upsert({ company_id: user.company_id, monday: lunedi });
@@ -857,6 +865,68 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   revalidatePath("/turni");
   revalidatePath("/supervisione");
   return { ok: true };
+}
+
+/** Il messaggio che spiega perché non si può pubblicare, o null se si può.
+ *
+ *  Dice **chi** e **di quanto**, non «la settimana non è completa»: un
+ *  divieto che non indica dove mettere le mani costringe a ricontare a mano
+ *  trenta persone, e a quel punto tanto valeva non averlo.
+ *
+ *  Il conto vero sta in `chiStaSottoContratto()` (`src/lib/pubblicazione.ts`),
+ *  che è puro e si prova senza database. */
+async function chiStaSottoIlSuoContratto(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  lunedi: string,
+): Promise<string | null> {
+  const giorni = weekDaysISO(lunedi);
+
+  const [personeRes, turniRes, assenzeRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, contract_hours, on_call")
+      .eq("company_id", companyId)
+      .eq("active", true),
+    supabase
+      .from("shifts")
+      .select("profile_id, date, start_time, end_time")
+      .eq("company_id", companyId)
+      .gte("date", giorni[0])
+      .lte("date", giorni[6]),
+    supabase
+      .from("absences")
+      .select("id, profile_id, start_date, end_date")
+      .eq("company_id", companyId)
+      .lte("start_date", giorni[6])
+      .or(`end_date.is.null,end_date.gte.${giorni[0]}`),
+  ]);
+
+  // Se non si riesce a leggere non si blocca: un divieto basato su dati che
+  // non sono arrivati fermerebbe una settimana che magari è a posto, e
+  // l'errore vero lo dirà comunque la pagina.
+  if (personeRes.error || turniRes.error) return null;
+
+  const sotto = chiStaSottoContratto({
+    persone: personeRes.data ?? [],
+    turni: turniRes.data ?? [],
+    assenze: assenzeRes.data ?? [],
+    giorni,
+  });
+  if (sotto.length === 0) return null;
+
+  // Tre nomi bastano a far capire dove guardare; trenta sarebbero un muro.
+  const primi = sotto
+    .slice(0, 3)
+    .map((s) => `${s.nome} (${formatDuration(s.mancano)} in meno)`)
+    .join(", ");
+  const altri = sotto.length - 3;
+
+  return (
+    `Non posso pubblicare: ${primi}${altri > 0 ? ` e altre ${altri} persone` : ""} ` +
+    `${sotto.length === 1 ? "sta" : "stanno"} sotto le ore da contratto. ` +
+    "Aggiungi i turni che mancano, oppure segna l'assenza se in quei giorni non ci sono."
+  );
 }
 
 /** Alla pubblicazione, chi va in straordinario riceve **una domanda sola

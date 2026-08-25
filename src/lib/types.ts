@@ -136,12 +136,30 @@ export type Shift = {
   nota_rifiuto: string | null;
 };
 
-export type MotivoRifiuto =
-  | "straordinario"
-  | "modifica"
-  | "modifica_straordinario"
-  | "orario_diverso"
-  | "cambio_reparto";
+/** Perché un turno si può rifiutare.
+ *
+ *  Un elenco solo, da cui si derivano il tipo **e** la validazione delle
+ *  Server Action: erano due copie, e aggiungere `turno_spostato` ne ha
+ *  trovata una terza dimenticata dietro (`ripristinaTurni` rifiutava i turni
+ *  col motivo nuovo, in silenzio). Le mappe delle etichette sono
+ *  `Record<MotivoRifiuto, string>`, quindi il compilatore le tiene in pari
+ *  da solo. Resta una sola copia altrove, il vincolo
+ *  `shifts_richiede_conferma_valido`, che `verifica-schema.mjs` controlla.
+ *
+ *  `turno_spostato` — stesse ore, altro giorno o altro orario — era un avviso
+ *  fino al 26 agosto 2026: contare le ore e concludere che non è cambiato
+ *  niente è un ragionamento da contabile, il mattino e il pomeriggio non sono
+ *  la stessa giornata. */
+export const MOTIVI_RIFIUTO = [
+  "straordinario",
+  "modifica",
+  "modifica_straordinario",
+  "orario_diverso",
+  "cambio_reparto",
+  "turno_spostato",
+] as const;
+
+export type MotivoRifiuto = (typeof MOTIVI_RIFIUTO)[number];
 
 /** Un turno com'era, quel tanto che basta a rimetterlo dov'era.
  *
@@ -197,7 +215,11 @@ export type Avviso = {
   letto_at: string | null;
 };
 
-export type MotivoAvviso = "ore_tolte" | "turno_rimosso" | "turno_spostato";
+/** `shift_notices.motivo` ammette anche `turno_spostato`, che dalla
+ *  migrazione `17` non viene più scritto: spostare un turno si chiede, non si
+ *  comunica. Il valore resta ammesso nel database — toglierlo costerebbe un
+ *  vincolo riscritto per non dire niente di più. */
+export type MotivoAvviso = "ore_tolte" | "turno_rimosso";
 
 /** La domanda che nasce alla pubblicazione per chi va in straordinario: non
  *  otto domande su otto turni, una sola sulla settimana.
