@@ -11,11 +11,13 @@ qui e si scrive nel [diario](07-diario.md).
   nessuno, e nemmeno un rifiuto: chi vuole saperlo apre l'app. Con la
   preapprovazione pesa di più — un no scritto sabato sera lo si scopre solo
   aprendo la casella dei messaggi.
-- **Generazione automatica dei turni.** Le fasce di copertura dicono cosa
-  serve, ma il tabellone lo scrive una persona.
-  🔨 *In lavorazione dal Mac, dal 26 agosto 2026*: il motore puro
-  (`src/lib/generazione.ts`), non ancora l'interfaccia. Chi legge questa riga
-  e voleva metterci mano, guardi prima `git log src/lib/generazione.ts`.
+- **Generazione automatica dei turni: manca l'interfaccia.** Il motore c'è
+  (`src/lib/generazione.ts`, provato da `npm run prove`, regole in
+  [04-regole.md](04-regole.md)): dalle fasce di copertura tira fuori chi
+  metterebbe e cosa resta scoperto. Quello che non c'è è il resto: un bottone
+  nel tabellone, un'anteprima che mostri le proposte **prima** di scriverle —
+  come fa già l'importazione — e la Server Action che le salva. Finché non
+  c'è, quel motore non lo chiama nessuno.
 - **Pubblicazione su un indirizzo pubblico.** L'app gira in locale e sull'APK
   di prova puntato alla rete di casa. Vedi [06-ambiente.md](06-ambiente.md) per
   cosa fare al momento del deploy.
@@ -25,6 +27,19 @@ qui e si scrive nel [diario](07-diario.md).
   settimane vecchie restano tutte lì.
 
 ## Decisioni aperte
+
+**Quanto riposo fra due turni.** Il motore lascia undici ore fra un turno e
+quello del giorno dopo, ma **non** guarda dentro la stessa giornata, dove il
+turno spezzato è normale. È una semplificazione: la legge ragiona su undici ore
+consecutive ogni ventiquattro, e questa regola non è quella. Fa il suo lavoro
+— impedisce la chiusura seguita dall'apertura — e non impedisce ciò che
+l'azienda fa tutti i giorni. Se un domani servisse il conto vero, il posto è
+`riposoRispettato()`.
+
+**Il motore guarda una settimana per volta.** L'equità è dentro la settimana:
+chi è più sotto le sue ore viene prima. Fra una settimana e l'altra no — chi ha
+fatto tre domeniche di fila non ha nessuna precedenza a saltare la quarta,
+perché il motore le domeniche di prima non le vede proprio.
 
 **Ogni persona in turno deve avere un account con una email vera** — non è
 più vero dalla migrazione `07`, ma resta la coda della decisione: l'importazione

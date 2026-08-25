@@ -286,6 +286,87 @@ Quando si apre un turno per chi lavora in più reparti, la proposta di partenza
 `reparto_piu_frequente`): le abitudini vere le sa il tabellone, non una
 preferenza dichiarata.
 
+## Come si propone una settimana
+
+Motore: `src/lib/generazione.ts`. Le fasce di copertura dicevano già di quante
+persone c'è bisogno e quando; qui si parte da lì e si propone **chi ci va**.
+
+> **È una proposta, non una pubblicazione.** Il motore non scrive niente:
+> restituisce i turni che metterebbe **e** i posti che non è riuscito a
+> coprire, col motivo. Un generatore che riempie il tabellone e tace su quello
+> che ha lasciato indietro è peggio di nessun generatore: il responsabile lo
+> vede pieno e smette di controllare.
+
+Le domande «chi c'è» e «quanti ne servono» non hanno una risposta nuova: sono
+le stesse della Supervisione (`copertura.ts`, riusato pari pari). Due motori
+che contano le presenze in due modi finirebbero per dire che una giornata è
+coperta in una pagina e scoperta nell'altra.
+
+### Dal buco al turno
+
+1. Per ogni giorno e per ogni reparto si calcola la copertura a fette da 15
+   minuti — le stesse fette della Supervisione.
+2. Dove mancano *n* persone nascono **n posti sovrapposti**, non un posto «da
+   n»: ognuno diventerà il turno di qualcuno, e due persone possono coprire
+   ore diverse dello stesso buco.
+3. Un posto che finisce a mezzanotte e quello che comincia a mezzanotte il
+   giorno dopo, stesso reparto, sono **lo stesso turno**. Per la copertura un
+   18:00–02:00 è due pezzi, ed è giusto così; ma il turno da proporre è uno, o
+   si darebbe la sera a una persona e la notte a un'altra.
+4. Un buco più corto di **due ore** si allarga fino a lì, restando dentro la
+   fascia che lo ha chiesto. Senza, un collega che stacca alle 12:45 su una
+   fascia che finisce alle 13:00 genererebbe un turno da un quarto d'ora.
+   Allargarlo *fuori* dalla fascia no: vorrebbe dire far venire qualcuno in
+   un'ora in cui l'azienda non ha chiesto nessuno.
+5. Oltre **otto ore** filate il posto si spezza in pezzi uguali.
+
+### Chi viene scelto, e in quale ordine
+
+A parità di tutto decide il nome — non perché conti, ma perché **due giri
+sugli stessi dati devono dare lo stesso tabellone**: un generatore che propone
+cose diverse a ogni esecuzione non si riesce né a provare né a controllare.
+
+| # | Criterio | Perché |
+|---|---|---|
+| 1 | chi ha un contratto, prima di chi è a chiamata | chiamare qualcuno è una telefonata e spesso un costo in più: si fa quando le ore già pagate sono finite |
+| 2 | chi è più **sotto** le sue ore da contratto | è il numero rosso che il responsabile guarda nel tabellone, ed è il primo motivo per cui sta scrivendo la settimana |
+| 3 | chi ha quel reparto come principale | prima di chi ci va di rinforzo |
+| 4 | chi ha meno ore in settimana | per non caricare sempre gli stessi |
+| 5 | il nome | non decide niente, rende ripetibile il risultato |
+
+### Quello che il motore non farà mai
+
+Sono tetti, non preferenze: chi non li rispetta viene escluso, e se non resta
+nessuno il posto va fra gli **scoperti**.
+
+- **Non supera le ore da contratto.** Lo straordinario è una decisione del
+  responsabile, e nell'app è perfino una cosa che il dipendente può rifiutare
+  (vedi «Preapprovazione»): non è roba che si genera da sé. Chi è a chiamata
+  non ha un monte ore, quindi non ha questo tetto.
+- **Non supera le dieci ore in un giorno.** Senza il tetto sulla giornata, i
+  due pezzi di una fascia 08:00–22:00 finirebbero tutti e due alla stessa
+  persona: non ha turni sovrapposti, magari non ha nemmeno il monte ore pieno,
+  e sono quattordici ore.
+- **Lascia undici ore fra un turno e quello del giorno dopo.** È il caso della
+  chiusura seguita dall'apertura: chi smonta dalla notte alle 10:00 non ha
+  niente di sovrapposto alle 10:00, quindi risulterebbe libero, e si
+  incatenerebbe diciannove ore. Vale **solo fra giorni diversi**: nella stessa
+  giornata il turno spezzato — mattina e sera — è normale nel commercio e
+  nella ristorazione, e lo decide l'azienda, non questo file.
+- **Non assegna niente a chi è assente**, e i turni di chi è assente non li
+  conta come copertura: sono il buco che stiamo cercando.
+
+### I tre modi di restare scoperti
+
+Sembrano la stessa cosa e chiedono tre rimedi diversi, per questo il motivo si
+porta dietro fino alla schermata:
+
+| Motivo | Vuol dire | Si rimedia |
+|---|---|---|
+| `nessuno_nel_reparto` | in quel reparto non c'è nessuno che possa lavorarci | assegnare il reparto a qualcuno, o assumere |
+| `tutti_occupati` | ci sono, ma quel giorno hanno già il loro | spostare un turno, o chiamare qualcuno |
+| `oltre_contratto` | ci sono e sono liberi, ma andrebbero in straordinario | è una firma del responsabile, non una scelta del motore |
+
 ## Copia dei turni
 
 `copiaTurni` in `turni/actions.ts`. Una settimana intera o un solo giorno.

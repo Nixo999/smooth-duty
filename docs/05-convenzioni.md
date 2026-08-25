@@ -74,6 +74,7 @@ producono bug che sembrano fantasmi.
 | `lib/impostazioni.ts` | qual è il default quando la riga non c'è? |
 | `lib/conferme.ts` | a che punto sta un turno rifiutabile? |
 | `lib/supervisione/trascina.ts` | dove finisce una barra trascinata? |
+| `lib/generazione.ts` | chi mettere sui buchi di una settimana? |
 
 ## RLS, e perché non basta
 

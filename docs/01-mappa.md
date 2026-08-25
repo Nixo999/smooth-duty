@@ -86,7 +86,7 @@ src/lib/<motore>.ts                  calcola (puro, provabile a riga di comando)
 supabase/NN-*.sql                    definisce e protegge
 ```
 
-## I quattro motori puri
+## I motori puri
 
 Sono il cuore, e stanno tutti fuori dai componenti apposta: si provano con
 `npm run prove`, senza aprire un browser.
@@ -98,3 +98,4 @@ Sono il cuore, e stanno tutti fuori dai componenti apposta: si provano con
 | `src/lib/import/parse.ts` | cosa c'è scritto in questo foglio Excel |
 | `src/lib/turni-staging.ts` | come si accumulano le modifiche prima di spedirle |
 | `src/lib/supervisione/trascina.ts` | dove finisce una barra trascinata |
+| `src/lib/generazione.ts` | chi ci metteresti, in questa settimana vuota? |
