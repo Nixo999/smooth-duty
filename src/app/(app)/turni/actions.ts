@@ -11,15 +11,18 @@ import {
 } from "@/lib/impostazioni";
 import { giorniCoinvolti, mondayOf, weekDaysISO } from "@/lib/week";
 import { createClient } from "@/lib/supabase/server";
-import type { MotivoRifiuto, StatoTurno } from "@/lib/types";
+import { conseguenzaDelSalvataggio } from "@/lib/conferme";
+import type { MotivoAvviso, MotivoRifiuto, StatoTurno } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 /** Esito di un salvataggio: l'id serve a chi tiene la storia delle
  *  modifiche (annulla/ripeti), `richiede` a contare quanti turni sono
- *  preapprovati — valgono subito, ma l'interessato li può rifiutare. */
+ *  preapprovati — valgono subito, ma l'interessato li può rifiutare — e
+ *  `avviso` quanti hanno solo avvertito qualcuno. I due si escludono: o si
+ *  chiede o si informa, mai tutti e due sullo stesso salvataggio. */
 export type SalvaResult =
-  | { ok: true; id: string; richiede: string | null }
+  | { ok: true; id: string; richiede: string | null; avviso: MotivoAvviso | null }
   | { ok: false; error: string };
 
 /** Se la settimana e' rimasta senza turni torna bozza da sola: una
@@ -88,6 +91,74 @@ export type ShiftInput = z.input<typeof shiftSchema>;
  *  finire NULL, altrimenti le viste dovrebbero distinguere due casi identici. */
 const orNull = (v?: string) => (v && v.trim() ? v.trim() : null);
 
+/** «Il turno che avevi non ce l'hai più»: l'avviso di chi perde un turno,
+ *  perché è stato cancellato o passato a un altro.
+ *
+ *  È il caso in cui un avviso serve di più e in cui è più facile
+ *  dimenticarlo: il turno sparisce dal tabellone, e con lui l'unica cosa che
+ *  avrebbe potuto dirlo. Chi lo perde non ha niente da concedere — non gli
+ *  si chiede un permesso — ma se ne accorgerebbe soltanto presentandosi.
+ *
+ *  Silenzio se la settimana è ancora in bozza (nessuno l'ha mai vista) o se
+ *  l'azienda ha spento le conferme sulle modifiche. */
+async function avvisaChiPerdeIlTurno(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  turno: {
+    id: string;
+    profile_id: string | null;
+    date: string;
+    start_time: string;
+    end_time: string;
+    department_id: string | null;
+    title: string | null;
+    location: string | null;
+    notes: string | null;
+  },
+  opzioni: { cancellato: boolean },
+) {
+  if (!turno.profile_id) return; // un turno scoperto non toglie niente a nessuno
+
+  const lunedi = mondayOf(turno.date);
+  const [impRes, pubblicataRes] = await Promise.all([
+    supabase
+      .from("company_settings")
+      .select(COLONNE_IMPOSTAZIONI)
+      .eq("company_id", companyId)
+      .maybeSingle(),
+    supabase
+      .from("published_weeks")
+      .select("monday")
+      .eq("company_id", companyId)
+      .eq("monday", lunedi)
+      .maybeSingle(),
+  ]);
+
+  if (!pubblicataRes.data) return;
+  if (!normalizzaImpostazioni(impRes.data as never).conferma_modifiche) return;
+
+  await supabase.from("shift_notices").insert({
+    company_id: companyId,
+    profile_id: turno.profile_id,
+    // Cancellando il turno il riferimento si azzera da solo
+    // (on delete set null): l'avviso resta, ed è quello che conta.
+    shift_id: opzioni.cancellato ? null : turno.id,
+    motivo: "turno_rimosso",
+    giorno: turno.date,
+    turno_prima: {
+      profile_id: turno.profile_id,
+      date: turno.date,
+      start_time: hhmm(turno.start_time),
+      end_time: hhmm(turno.end_time),
+      department_id: turno.department_id,
+      title: turno.title,
+      location: turno.location,
+      notes: turno.notes,
+    },
+    turno_dopo: null,
+  });
+}
+
 export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   const user = await requireCapo();
 
@@ -125,6 +196,13 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     prima = vecchio ?? null;
   }
   const dataPrima = prima?.date ?? null;
+
+  /** Il turno e' passato a un altro. Per chi lo riceve e' un turno nuovo —
+   *  non ha un «prima» da confrontare, e infatti le sue ore vanno guardate
+   *  come quelle di una nuova assegnazione — mentre per chi lo perde e'
+   *  l'avviso piu' importante che ci sia. */
+  const cambioPersona =
+    prima !== null && prima.profile_id !== null && prima.profile_id !== v.profile_id;
 
   /** Di questo turno e' cambiato solo il reparto: stessa persona, stesso
    *  giorno, stessi orari. E' il caso di chi oggi copre in sala invece che
@@ -182,6 +260,7 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
    *  dato a una versione non vale per quella dopo, che l'interessato non ha
    *  ancora visto. */
   let richiede: string | null = null;
+  let avviso: MotivoAvviso | null = null;
   if (v.profile_id) {
     const lunedi = mondayOf(v.date);
     const giorniSettimana = weekDaysISO(lunedi);
@@ -229,28 +308,41 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
       persona!.contract_hours !== null &&
       minutiDopo > Number(persona!.contract_hours) * 60;
 
-    // "Settimana gia' turnata" = gia' pubblicata: prima della
-    // pubblicazione il tabellone e' un foglio di lavoro, e correggerlo
-    // non deve chiedere niente a nessuno.
-    const modifica = Boolean(v.id) && pubblicata;
-
-    const orarioDiverso =
-      imp.orari_preimpostati &&
+    const fuoriPreset =
       Boolean(persona?.preset_start && persona?.preset_end) &&
       (v.start_time !== String(persona!.preset_start).slice(0, 5) ||
         v.end_time !== String(persona!.preset_end).slice(0, 5));
 
-    if (soloReparto) {
-      richiede = imp.conferma_cambio_reparto ? "cambio_reparto" : null;
-    } else if (modifica && straordinario && imp.conferma_modifiche_straordinari) {
-      richiede = "modifica_straordinario";
-    } else if (modifica && !straordinario && imp.conferma_modifiche) {
-      richiede = "modifica";
-    } else if (!v.id && straordinario && imp.conferma_straordinari) {
-      richiede = "straordinario";
-    } else if (orarioDiverso) {
-      richiede = "orario_diverso";
-    }
+    // La decisione sta in una funzione pura, non qui: la stessa domanda la
+    // fanno l'eliminazione di un turno e — un domani — l'importazione, e
+    // tre risposte diverse sarebbero tre comportamenti diversi per lo
+    // stesso turno. Le regole per esteso in docs/04-regole.md.
+    const conseguenza = conseguenzaDelSalvataggio({
+      // Per chi lo riceve e' un turno nuovo, non una modifica del suo: il
+      // suo «prima» su questo turno non esiste.
+      prima: prima && !cambioPersona
+        ? {
+            date: prima.date,
+            start_time: hhmm(prima.start_time),
+            end_time: hhmm(prima.end_time),
+            minuti: durationMinutes(prima.start_time, prima.end_time),
+          }
+        : null,
+      dopo: {
+        date: v.date,
+        start_time: v.start_time,
+        end_time: v.end_time,
+        minuti: durationMinutes(v.start_time, v.end_time),
+      },
+      soloReparto,
+      pubblicata,
+      straordinario,
+      fuoriPreset,
+      imp,
+    });
+
+    if (conseguenza.tipo === "rifiutabile") richiede = conseguenza.motivo;
+    else if (conseguenza.tipo === "avviso") avviso = conseguenza.motivo;
   }
 
   const row = {
@@ -343,10 +435,61 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     }
   }
 
+  // Chi il turno lo aveva e non ce l'ha piu'.
+  if (cambioPersona && prima) {
+    await avvisaChiPerdeIlTurno(
+      supabase,
+      user.company_id,
+      { ...prima, id },
+      { cancellato: false },
+    );
+  }
+
+  // L'avviso: le ore sono calate, o il turno si e' spostato a parita' di
+  // ore. Non c'e' niente da concedere, quindi non si chiede niente — ma la
+  // persona lo deve sapere, e lo saprà finche' non preme «ho letto».
+  //
+  // Va scritto **dopo** il salvataggio e non prima: se il salvataggio
+  // fallisse, resterebbe in giro l'avviso di un cambiamento mai avvenuto, e
+  // sarebbe l'unica traccia rimasta di un turno che invece e' ancora quello
+  // di prima.
+  if (avviso && v.profile_id && prima) {
+    await supabase.from("shift_notices").insert({
+      company_id: user.company_id,
+      profile_id: v.profile_id,
+      shift_id: id,
+      motivo: avviso,
+      // Il giorno di cui si parla e' quello di **prima**: e' li' che la
+      // persona aveva in testa di lavorare, ed e' li' che deve cercare
+      // quando legge l'avviso.
+      giorno: prima.date,
+      turno_prima: {
+        profile_id: prima.profile_id,
+        date: prima.date,
+        start_time: hhmm(prima.start_time),
+        end_time: hhmm(prima.end_time),
+        department_id: prima.department_id,
+        title: prima.title,
+        location: prima.location,
+        notes: prima.notes,
+      },
+      turno_dopo: {
+        profile_id: v.profile_id,
+        date: v.date,
+        start_time: v.start_time,
+        end_time: v.end_time,
+        department_id: v.department_id,
+        title: orNull(v.title),
+        location: orNull(v.location),
+        notes: orNull(v.notes),
+      },
+    });
+  }
+
   revalidatePath("/turni");
   // Anche la Supervisione: da li' il responsabile modifica i turni.
   revalidatePath("/supervisione");
-  return { ok: true, id, richiede };
+  return { ok: true, id, richiede, avviso };
 }
 
 export async function eliminaTurno(id: string): Promise<ActionResult> {
@@ -354,18 +497,27 @@ export async function eliminaTurno(id: string): Promise<ActionResult> {
 
   const supabase = await createClient();
 
-  // La data prima di cancellare: se era l'ultimo turno della settimana,
-  // la settimana torna bozza.
+  // Il turno intero prima di cancellarlo, e non solo la data: serve alla
+  // settimana che puo' tornare bozza, e serve a raccontare a chi lo perde
+  // che cosa ha perso. Dopo il delete non c'e' piu' niente da leggere.
   const { data: turno } = await supabase
     .from("shifts")
-    .select("date")
+    .select(
+      "id, profile_id, date, start_time, end_time, department_id, title, location, notes",
+    )
     .eq("id", id)
     .maybeSingle();
 
   const { error } = await supabase.from("shifts").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
 
-  if (turno?.date) {
+  if (turno) {
+    // Prima l'avviso, poi il ritorno in bozza: se la settimana si svuota,
+    // torna bozza e i dipendenti non la vedono piu' — ma chi quel turno ce
+    // l'aveva in testa merita comunque di sapere che non c'e' piu'.
+    await avvisaChiPerdeIlTurno(supabase, user.company_id, turno, {
+      cancellato: true,
+    });
     await riportaInBozzaSeVuota(supabase, user.company_id, mondayOf(turno.date));
   }
 
@@ -700,9 +852,93 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
     .upsert({ company_id: user.company_id, monday: lunedi });
   if (error) return { ok: false, error: error.message };
 
+  await chiediLaSettimanaAChiVaInStraordinario(supabase, user.company_id, lunedi);
+
   revalidatePath("/turni");
   revalidatePath("/supervisione");
   return { ok: true };
+}
+
+/** Alla pubblicazione, chi va in straordinario riceve **una domanda sola
+ *  sulla settimana**, non una per turno.
+ *
+ *  Un turno per volta è il modo giusto di chiedere una modifica in corsa, ed
+ *  è il modo sbagliato di chiedere «questa settimana ti va bene?»: la
+ *  risposta dipende dall'insieme. Chi vede otto richieste su otto turni non
+ *  sta guardando la stessa cosa che gli si sta chiedendo, e per rispondere
+ *  dovrebbe rifare a mente la somma che l'app ha già fatto.
+ *
+ *  Non tocca i turni: restano validi e si vedono, come sempre da quando il
+ *  verso è rovesciato. Quello che cambia è che la settimana si presenta in
+ *  arancione finché la persona non si è espressa.
+ *
+ *  Silenziosa se l'interruttore è spento, e su chi non ha un monte ore da
+ *  sfondare: a chiamata non esiste uno straordinario. */
+async function chiediLaSettimanaAChiVaInStraordinario(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  lunedi: string,
+) {
+  const { data: impRiga } = await supabase
+    .from("company_settings")
+    .select(COLONNE_IMPOSTAZIONI)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (!normalizzaImpostazioni(impRiga as never).conferma_settimana) return;
+
+  const giorni = weekDaysISO(lunedi);
+  const [personeRes, turniRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, contract_hours, on_call, user_id")
+      .eq("company_id", companyId)
+      .eq("active", true),
+    supabase
+      .from("shifts")
+      .select("profile_id, start_time, end_time")
+      .eq("company_id", companyId)
+      .gte("date", giorni[0])
+      .lte("date", giorni[6]),
+  ]);
+
+  const minutiDi = new Map<string, number>();
+  for (const t of turniRes.data ?? []) {
+    if (!t.profile_id) continue;
+    minutiDi.set(
+      t.profile_id,
+      (minutiDi.get(t.profile_id) ?? 0) + durationMinutes(t.start_time, t.end_time),
+    );
+  }
+
+  const domande = (personeRes.data ?? [])
+    // Chi non entra nell'app non può rispondere, e una domanda che resta in
+    // attesa per sempre farebbe sembrare la settimana non accettata da
+    // qualcuno che non l'ha mai potuta guardare.
+    .filter((p) => p.user_id && !p.on_call && p.contract_hours !== null)
+    .map((p) => ({
+      persona: p,
+      minuti: minutiDi.get(p.id) ?? 0,
+      contratto: Number(p.contract_hours) * 60,
+    }))
+    .filter((d) => d.minuti > d.contratto)
+    .map((d) => ({
+      company_id: companyId,
+      profile_id: d.persona.id,
+      monday: lunedi,
+      motivo: "straordinario",
+      minuti_previsti: d.minuti,
+      minuti_contratto: d.contratto,
+    }));
+
+  if (domande.length === 0) return;
+
+  // `ignoreDuplicates`: ripubblicare la stessa settimana non rifà la domanda
+  // a chi ha già risposto. Una risposta data è una posizione presa, e
+  // riazzerarla perché il responsabile ha ritoccato il giovedì vorrebbe dire
+  // chiedere due volte la stessa cosa alla stessa persona.
+  await supabase
+    .from("week_requests")
+    .upsert(domande, { onConflict: "company_id,profile_id,monday", ignoreDuplicates: true });
 }
 
 /* -------------------------------------- il sì e il no del dipendente --- */
@@ -922,6 +1158,133 @@ export async function chiudiMessaggio(id: string): Promise<ActionResult> {
     .update({ risolto_at: new Date().toISOString() })
     .eq("id", parsed.data)
     .eq("company_id", user.company_id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  return { ok: true };
+}
+
+/* ============================================== la settimana, e gli avvisi */
+
+/** «Ho letto». Non decide niente e non cambia un turno: toglie di mezzo un
+ *  riquadro che ha finito il suo lavoro.
+ *
+ *  Il bottone c'è — e l'avviso non sparisce da solo dopo qualche giorno —
+ *  perché un avviso che scade è un avviso che qualcuno non ha visto, e
+ *  nessuno saprebbe dire chi. */
+export async function segnaAvvisoLetto(id: string): Promise<ActionResult> {
+  await requireMember();
+
+  const parsed = z.string().uuid("Avviso non valido.").safeParse(id);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: preso, error } = await supabase.rpc("segna_avviso_letto", {
+    avviso: parsed.data,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  if (!preso) return { ok: false, error: "Questo avviso risulta già letto." };
+  return { ok: true };
+}
+
+/** Il sì alla settimana intera, con eventualmente allegata la richiesta di
+ *  un ritocco.
+ *
+ *  La nota **non** è una modifica: la applica il responsabile a mano, se è
+ *  d'accordo. Un sì che cambiasse da solo il tabellone non sarebbe un sì,
+ *  sarebbe un permesso di scrittura sui propri turni — ed è esattamente la
+ *  cosa che tutto il resto dell'app evita. */
+export async function accettaSettimana(
+  monday: string,
+  nota?: string,
+): Promise<ActionResult> {
+  await requireMember();
+
+  const parsed = z
+    .object({
+      monday: day,
+      nota: z.string().trim().max(500, "Nota troppo lunga.").optional(),
+    })
+    .safeParse({ monday, nota });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: preso, error } = await supabase.rpc("accetta_settimana", {
+    lunedi: mondayOf(parsed.data.monday),
+    nota_ritocco: parsed.data.nota ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  if (!preso) {
+    return {
+      ok: false,
+      error:
+        "Su questa settimana non c'è più niente da decidere: o hai già risposto, o la settimana è finita.",
+    };
+  }
+  return { ok: true };
+}
+
+/** Il no alla settimana intera.
+ *
+ *  La motivazione è obbligatoria, e non per burocrazia: un no secco su sette
+ *  giorni non lascia al responsabile niente di cui possa fare qualcosa, e la
+ *  settimana va comunque rifatta. Il controllo sta anche nella funzione del
+ *  database, che è l'unico posto in cui vale sempre. */
+export async function rifiutaSettimana(
+  monday: string,
+  motivazione: string,
+): Promise<ActionResult> {
+  await requireMember();
+
+  const parsed = z
+    .object({
+      monday: day,
+      motivazione: z
+        .string()
+        .trim()
+        .min(1, "Scrivi il motivo: è quello su cui il responsabile rifarà la settimana.")
+        .max(500, "Motivo troppo lungo."),
+    })
+    .safeParse({ monday, motivazione });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: preso, error } = await supabase.rpc("rifiuta_settimana", {
+    lunedi: mondayOf(parsed.data.monday),
+    motivazione: parsed.data.motivazione,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  if (!preso) {
+    return {
+      ok: false,
+      error:
+        "Su questa settimana non c'è più niente da decidere: o hai già risposto, o la settimana è finita.",
+    };
+  }
+  return { ok: true };
+}
+
+/** Il responsabile ha letto la risposta. Non applica niente: una settimana
+ *  rifiutata la rifà lui, ed è la stessa ragione per cui il sì con nota non
+ *  sposta un turno da solo. */
+export async function chiudiRichiestaSettimana(id: string): Promise<ActionResult> {
+  await requireCapo();
+
+  const parsed = z.string().uuid("Richiesta non valida.").safeParse(id);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("week_requests")
+    .update({ visto_at: new Date().toISOString() })
+    .eq("id", parsed.data)
+    .is("visto_at", null);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");
