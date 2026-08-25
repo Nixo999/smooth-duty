@@ -19,8 +19,7 @@ const AZIENDA = process.argv[2] ?? "Pizzeria Prova";
 const PASSWORD = process.env.TURNI_DEMO_PASSWORD;
 if (!PASSWORD || PASSWORD.length < 5) {
   console.error(
-    "Manca TURNI_DEMO_PASSWORD (almeno 5 caratteri).
-" +
+    "Manca TURNI_DEMO_PASSWORD (almeno 5 caratteri).\n" +
       "  TURNI_DEMO_PASSWORD=... node --env-file=.env.local scripts/dati-di-prova.mjs",
   );
   process.exit(1);

@@ -11,6 +11,37 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Lo script dei dati di prova non partiva da tre giorni, e nessuno se n'era
+accorto**
+In `dati-di-prova.mjs` un `\n` era finito nel codice come a capo vero, dentro
+una stringa: il file non si leggeva proprio, `SyntaxError` prima ancora di
+eseguire una riga. È entrato col commit che toglieva le password di ripiego
+(`811e038`) — quel messaggio d'errore è nato lì. Non se n'era accorto nessuno
+perché lo script si lancia solo quando serve popolare un'azienda, e nel
+frattempo nessuno l'aveva fatto. `npx eslint scripts` lo vedeva già.
+
+**Le fasce di copertura sapevano già cosa serve: adesso propongono anche chi**
+Nasce `src/lib/generazione.ts`, il motore che da una settimana vuota tira fuori
+i turni che metterebbe. Non scrive niente e non ha ancora un bottone: è una
+funzione pura, provata da `npm run prove` con ventitré casi. Riusa
+`copertura.ts` invece di ricontare le presenze per conto suo — due motori che
+contano in due modi direbbero che una giornata è coperta nella Supervisione e
+scoperta qui.
+
+Restituisce **anche gli scoperti col motivo**, ed è la parte che conta: un
+generatore che riempie il tabellone e tace su quello che ha lasciato indietro
+è peggio di nessun generatore, perché il responsabile lo vede pieno e smette
+di controllare. `nessuno_nel_reparto`, `tutti_occupati` e `oltre_contratto`
+chiedono tre rimedi diversi.
+
+Due difetti trovati scrivendo le prove, non leggendo il codice: una fascia
+08:00–22:00 si spezzava in due pezzi da sette ore e li dava **alla stessa
+persona** (nessun turno sovrapposto, monte ore capiente: quattordici ore in un
+giorno); e chi smontava dalla notte alle 10:00 risultava libero alle 10:00, e
+si incatenava diciannove ore. Da lì il tetto sulla giornata e le undici ore di
+riposo fra giorni diversi. Le regole per esteso in
+[04-regole.md](04-regole.md).
+
 **Su una macchina nuova non c'era niente da copiare**
 Il README diceva «copia `.env.local.example`», ma quel file non esisteva e non
 poteva esistere: `.gitignore` esclude `.env*` senza eccezioni. Chi montava il
