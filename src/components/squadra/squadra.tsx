@@ -1,10 +1,19 @@
 "use client";
 
-import { KeyRound, LogIn, Plus, Trash2, UserCog } from "lucide-react";
+import {
+  KeyRound,
+  LogIn,
+  PauseCircle,
+  Plus,
+  PlayCircle,
+  Trash2,
+  UserCog,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import {
+  commutaAttiva,
   creaAccesso,
   modificaPersona,
   reimpostaPassword,
@@ -44,6 +53,33 @@ export function Squadra({
   const [cerca, setCerca] = React.useState("");
   const [filtroReparto, setFiltroReparto] = React.useState("");
   const [filtroContratto, setFiltroContratto] = React.useState("");
+  const [inCorso, start] = React.useTransition();
+  /** Chi si sta commutando: senza, la rotellina di una riga spegnerebbe i
+   *  bottoni di tutte le altre. */
+  const [commutando, setCommutando] = React.useState<string | null>(null);
+
+  /** Sospendere e riattivare, dalla riga.
+   *
+   *  Stava solo dentro la scheda, in fondo a un elenco di campi, ed è il
+   *  gesto più frequente qui dentro: chi va via per un periodo, chi torna.
+   *  Non è una rimozione — la persona resta in squadra e la sua storia resta
+   *  nei conti — semplicemente sparisce dai turni finché non torna. */
+  const commuta = (p: Profile) =>
+    start(async () => {
+      setCommutando(p.id);
+      const esito = await commutaAttiva(p.id, !p.active);
+      setCommutando(null);
+      if (!esito.ok) {
+        toast.error(esito.error);
+        return;
+      }
+      toast.success(
+        p.active
+          ? `${p.full_name} è sospeso: non comparirà più nei turni.`
+          : `${p.full_name} è di nuovo attivo.`,
+      );
+      router.refresh();
+    });
 
   const nomeReparto = (id: string | null) =>
     reparti.find((r) => r.id === id) ?? null;
@@ -194,6 +230,33 @@ export function Squadra({
                   {rapporto ? ` · ${rapporto}` : ""}
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => commuta(p)}
+                disabled={inCorso}
+                aria-label={
+                  p.active ? `Sospendi ${p.full_name}` : `Riattiva ${p.full_name}`
+                }
+                title={
+                  p.active
+                    ? "Sospendi: resta in squadra, ma sparisce dai turni"
+                    : "Riattiva: torna disponibile per i turni"
+                }
+                className={cn(
+                  "tap grid size-8 shrink-0 place-items-center rounded-full hover:bg-surface-3 disabled:opacity-45",
+                  p.active
+                    ? "text-muted hover:text-warning"
+                    : "text-warning hover:text-success",
+                  commutando === p.id && "animate-pulse",
+                )}
+              >
+                {p.active ? (
+                  <PauseCircle className="size-4" />
+                ) : (
+                  <PlayCircle className="size-4" />
+                )}
+              </button>
 
               <button
                 type="button"

@@ -14,6 +14,7 @@ const schema = z.object({
   conferma_modifiche_straordinari: z.boolean(),
   orari_preimpostati: z.boolean(),
   conferma_cambio_reparto: z.boolean(),
+  conferma_settimana: z.boolean(),
   pagina_supervisione: z.boolean(),
   supervisione_dipendenti: z.boolean(),
   pagina_permessi: z.boolean(),

@@ -78,38 +78,61 @@ export function Impostazioni({
       <Sezione
         icona={CalendarDays}
         pagina="Turni"
-        nota="Su quali turni l'interessato può dire la sua. Il turno vale da subito — chi non dice niente ha accettato — ma può confermarlo, e allora lo vedi «accettato», oppure rifiutarlo, e allora ti arriva un messaggio."
+        nota="Quando la squadra viene coinvolta, e in che modo. Sono raggruppate per gesto tuo: quello che cambia non è un'opzione, è cosa succede quando premi un bottone."
       >
-        <Interruttore
-          acceso={v.conferma_straordinari}
-          onCambia={(x) => cambia({ conferma_straordinari: x })}
-          titolo="Straordinari rifiutabili"
-          descrizione="Un turno nuovo che porta oltre le ore da contratto. Rifiutato, quel turno salta e va rifatto: non c'era un turno di prima a cui tornare."
-        />
-        <Interruttore
-          acceso={v.conferma_modifiche_straordinari}
-          onCambia={(x) => cambia({ conferma_modifiche_straordinari: x })}
-          titolo="Modifiche con straordinario rifiutabili"
-          descrizione="Modificare un turno di una settimana già pubblicata, se genera straordinario. Rifiutata, il turno torna com'era."
-        />
-        <Interruttore
-          acceso={v.conferma_modifiche}
-          onCambia={(x) => cambia({ conferma_modifiche: x })}
-          titolo="Altre modifiche rifiutabili"
-          descrizione="Modificare un turno di una settimana già pubblicata, anche senza straordinario. Rifiutata, il turno torna com'era."
-        />
-        <Interruttore
-          acceso={v.conferma_cambio_reparto}
-          onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
-          titolo="Cambio di reparto rifiutabile"
-          descrizione="Spostare un turno da un reparto a un altro senza toccarne gli orari. Spento, il cambio di solo reparto non si segnala nemmeno: le ore restano quelle."
-        />
-        <Interruttore
-          acceso={v.orari_preimpostati}
-          onCambia={(x) => cambia({ orari_preimpostati: x })}
-          titolo="Orari preimpostati da contratto"
-          descrizione="A chi ha un orario scritto sul contratto, un turno con un orario diverso diventa rifiutabile. L'orario si scrive sulla persona, in Squadra."
-        />
+        <Gruppo
+          titolo="Quando pubblichi la settimana"
+          spiega="La pubblicazione è il momento in cui la squadra vede la settimana per la prima volta. Chi va oltre le sue ore da contratto riceve una domanda sola, sull'insieme."
+        >
+          <Interruttore
+            acceso={v.conferma_settimana}
+            onCambia={(x) => cambia({ conferma_settimana: x })}
+            titolo="Settimana in straordinario da accettare"
+            descrizione="A chi la settimana porta oltre le ore da contratto arriva una richiesta sulla settimana intera: la accetta o la rifiuta tutta, e in tutti e due i casi può scrivere. Accettando può chiedere un ritocco («il giovedì smetto alle 18»), che decidi tu: non sposta niente da solo. Rifiutando deve dire perché, e la settimana la rifai tu — i turni non cambiano da sé."
+          />
+        </Gruppo>
+
+        <Gruppo
+          titolo="Quando cambi un turno già pubblicato"
+          spiega="Prima della pubblicazione il tabellone è un foglio di lavoro e correggerlo non chiede niente a nessuno. Dopo, dipende dal verso: se le ore aumentano si chiede, se calano si avvisa."
+        >
+          <Interruttore
+            acceso={v.conferma_modifiche}
+            onCambia={(x) => cambia({ conferma_modifiche: x })}
+            titolo="Modifiche: chiedi se aggiungi, avvisa se togli"
+            descrizione="Aggiungi ore e l'interessato può rifiutare: rifiutando, il turno torna com'era. Gliene togli, o gli sposti il turno a parità di ore, e allora non c'è niente da concedere — riceve un avviso che si chiude con «ho letto», e lo stesso vale per un turno che gli cancelli o che passi a un altro. Spento, non gli arriva niente."
+          />
+          <Interruttore
+            acceso={v.conferma_modifiche_straordinari}
+            onCambia={(x) => cambia({ conferma_modifiche_straordinari: x })}
+            titolo="Modifiche che sfondano il contratto"
+            descrizione="Come sopra, ma per le modifiche che portano oltre le ore da contratto: hanno il loro interruttore perché chiedono un'altra cosa. Chi accende solo questo lascia passare le modifiche normali senza disturbare nessuno."
+          />
+          <Interruttore
+            acceso={v.conferma_cambio_reparto}
+            onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
+            titolo="Solo il reparto, stessi orari"
+            descrizione="Spostare qualcuno dalla cassa alla sala senza togliergli un minuto. Spento — ed è il caso normale — non si segnala nemmeno: le ore sono quelle, e non è la modifica per cui si disturba una persona."
+          />
+        </Gruppo>
+
+        <Gruppo
+          titolo="Quando aggiungi un turno"
+          spiega="Un turno che non c'era. Non ha un «prima» a cui tornare: se viene rifiutato salta, e resta un buco da coprire che l'app ti tiene in evidenza finché non lo riempi."
+        >
+          <Interruttore
+            acceso={v.conferma_straordinari}
+            onCambia={(x) => cambia({ conferma_straordinari: x })}
+            titolo="Straordinari rifiutabili"
+            descrizione="Un turno nuovo che porta la persona oltre le sue ore settimanali da contratto. Chi è a chiamata non ha un monte ore, quindi non lo riguarda."
+          />
+          <Interruttore
+            acceso={v.orari_preimpostati}
+            onCambia={(x) => cambia({ orari_preimpostati: x })}
+            titolo="Orari preimpostati da contratto"
+            descrizione="A chi ha un orario scritto sul contratto, un turno con un orario diverso diventa rifiutabile. L'orario si scrive sulla persona, in Squadra."
+          />
+        </Gruppo>
       </Sezione>
 
       {/* ------------------------------------------------ supervisione --- */}
@@ -329,5 +352,30 @@ function Levetta({
         )}
       />
     </button>
+  );
+}
+
+
+/** Un gruppo di interruttori dentro una sezione.
+ *
+ *  Esiste perché sotto «Turni» ce ne sono sei, e un elenco piatto di sei
+ *  levette obbliga a leggerle tutte per capire quale riguarda il gesto che
+ *  si sta facendo. Il titolo non è una categoria: è il momento in cui quella
+ *  regola scatta — pubblichi, cambi, aggiungi. */
+function Gruppo({
+  titolo,
+  spiega,
+  children,
+}: {
+  titolo: string;
+  spiega: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-3.5">
+      <p className="text-[13px] font-semibold tracking-tight">{titolo}</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">{spiega}</p>
+      <div className="mt-1 divide-y divide-border">{children}</div>
+    </div>
   );
 }

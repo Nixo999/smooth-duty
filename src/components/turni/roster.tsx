@@ -202,6 +202,10 @@ export function Roster({
   type VoceStoria = {
     desfai: () => Promise<{ ok: boolean; error?: string }>;
     rifai: () => Promise<{ ok: boolean; error?: string }>;
+    /** Che cosa disfa questa voce, per scriverlo sul bottone. Un blocco
+     *  confermato non è «l'ultima modifica»: sono tutte insieme, e chi ci
+     *  passa sopra col dito deve saperlo prima di premere. */
+    etichetta?: string;
   };
   const [storia, setStoria] = React.useState<{
     monday: string;
@@ -360,13 +364,42 @@ export function Roster({
     ? sospese.annullate.length > 0
     : storia.futuro.length > 0;
 
+  const etichettaAnnulla = sospese.attivo
+    ? "Annulla l'ultima modifica"
+    : (storia.passato[storia.passato.length - 1]?.etichetta ??
+      "Annulla l'ultima modifica");
+
   /** Le sospese partono tutte insieme: prima le cancellazioni, poi i
-   *  salvataggi. Il server ricalcola assenze e conferme su ciascuna. */
+   *  salvataggi. Il server ricalcola assenze e conferme su ciascuna.
+   *
+   *  E il blocco confermato **resta disfabile**. Prima le frecce si
+   *  spegnevano qui: premuto Conferma, il lavoro appena mandato smetteva di
+   *  poter tornare indietro, e un ripensamento voleva dire rimettere a mano
+   *  turno per turno quello che si era appena cambiato — proprio nel momento
+   *  in cui si è meno lucidi, subito dopo aver premuto.
+   *
+   *  Il blocco intero diventa **una** voce di storia: la freccia indietro lo
+   *  disfa tutto, non un turno per volta. È lo stesso criterio dello
+   *  svuotamento — chi ci ripensa non deve premere trenta volte — e la
+   *  differenza con la bozza è solo che qui il giro passa dal server, perché
+   *  quelle modifiche i dipendenti le hanno già viste. */
   const confermaSospese = () =>
     startLavoro(async () => {
       const { daEliminare, daSalvare } = compatta(sospese.fatte.flat());
+
+      // Com'era il tabellone prima di questo blocco: è la fotografia a cui
+      // riporta la freccia indietro. Va presa adesso, non dopo: fra un
+      // istante `shifts` sarà già quello nuovo.
+      const primaDelBlocco = new Map(shifts.map((t) => [t.id, turnoBozzaDa(t)]));
+
+      // Un turno rifatto prende un id nuovo ogni volta. La scatola tiene
+      // quello vivo, come nella storia in bozza, così la freccia avanti sa
+      // ancora su che cosa lavorare.
+      const scatole = new Map<string, { id: string }>();
+
       let errori = 0;
       let richieste = 0;
+      let avvisi = 0;
       for (const id of daEliminare) {
         const r = await eliminaTurno(id);
         if (!r.ok) errori++;
@@ -376,9 +409,80 @@ export function Roster({
           inputDa(t.creazione ? undefined : t.id, t),
         );
         if (!r.ok) errori++;
-        else if (r.richiede) richieste++;
+        else {
+          scatole.set(t.id, { id: r.id });
+          if (r.richiede) richieste++;
+          if (r.avviso) avvisi++;
+        }
       }
+
+      const guasto = (n: number) =>
+        n === 0
+          ? { ok: true as const }
+          : {
+              ok: false as const,
+              error: `${n} ${n === 1 ? "turno non è tornato" : "turni non sono tornati"} al suo posto: controlla il tabellone.`,
+            };
+
+      const quante = daEliminare.length + daSalvare.length;
+      const voce: VoceStoria = {
+        etichetta:
+          quante === 1
+            ? "Annulla la modifica appena confermata"
+            : `Annulla le ${quante} modifiche appena confermate`,
+        desfai: async () => {
+          let male = 0;
+          // Prima se ne vanno i turni che il blocco aveva creato: fossero
+          // rimasti, la persona si ritroverebbe il turno nuovo *e* quello
+          // vecchio rimesso in piedi qui sotto.
+          for (const t of daSalvare) {
+            if (!t.creazione) continue;
+            const s = scatole.get(t.id);
+            if (s) {
+              const r = await eliminaTurno(s.id);
+              if (!r.ok) male++;
+            }
+          }
+          for (const t of daSalvare) {
+            if (t.creazione) continue;
+            const base = primaDelBlocco.get(t.id);
+            const s = scatole.get(t.id);
+            if (!base || !s) continue;
+            const r = await salvaTurno(inputDa(s.id, base));
+            if (!r.ok) male++;
+          }
+          for (const id of daEliminare) {
+            const base = primaDelBlocco.get(id);
+            if (!base) continue;
+            const r = await salvaTurno(inputDa(undefined, base));
+            if (r.ok) scatole.set(id, { id: r.id });
+            else male++;
+          }
+          return guasto(male);
+        },
+        rifai: async () => {
+          let male = 0;
+          for (const id of daEliminare) {
+            const s = scatole.get(id);
+            const r = await eliminaTurno(s?.id ?? id);
+            if (!r.ok) male++;
+          }
+          for (const t of daSalvare) {
+            const s = scatole.get(t.id);
+            const r = await salvaTurno(
+              inputDa(t.creazione ? undefined : (s?.id ?? t.id), t),
+            );
+            if (r.ok) scatole.set(t.id, { id: r.id });
+            else male++;
+          }
+          return guasto(male);
+        },
+      };
+
       setSospese({ monday, attivo: false, fatte: [], annullate: [] });
+      // La storia riparte da qui con una voce sola, quella del blocco: le
+      // voci di prima parlavano di un tabellone che non c'è più.
+      if (errori === 0) setStoria({ monday, passato: [voce], futuro: [] });
       router.refresh();
       if (errori > 0) {
         toast.error(
@@ -386,9 +490,17 @@ export function Roster({
         );
       } else {
         toast.success(
-          richieste > 0
-            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede te lo dicono i messaggi.`
-            : "Modifiche applicate.",
+          [
+            "Modifiche applicate.",
+            richieste > 0
+              ? `${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede te lo dicono i messaggi.`
+              : null,
+            avvisi > 0
+              ? `${avvisi} ${avvisi === 1 ? "persona è stata avvisata" : "persone sono state avvisate"} di quello che le è stato tolto.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" "),
         );
       }
     });
@@ -690,8 +802,8 @@ export function Roster({
                 size="icon"
                 onClick={annulla}
                 disabled={!puoAnnullare || inLavoro}
-                aria-label="Annulla l'ultima modifica"
-                title="Annulla l'ultima modifica"
+                aria-label={etichettaAnnulla}
+                title={etichettaAnnulla}
               >
                 <Undo2 className="size-4" />
               </Button>

@@ -347,3 +347,69 @@ export async function rimuoviPersona(id: string): Promise<ActionResult> {
   aggiorna();
   return { ok: true };
 }
+
+/** Sospendere o riattivare qualcuno, senza aprire la scheda.
+ *
+ *  Esisteva già dentro il pannello di modifica, in fondo a un elenco di
+ *  campi: per mettere in pausa una persona bisognava aprire la sua scheda,
+ *  trovare la tendina, cambiarla e salvare. È il gesto più frequente della
+ *  Squadra — chi va via per un periodo, chi torna — e stava nel posto meno
+ *  raggiungibile.
+ *
+ *  Sospeso vuol dire: resta in squadra e la sua storia resta nei conti, ma
+ *  sparisce dai turni e dalle proposte. Non è una rimozione, che invece
+ *  cancella anche l'account.
+ *
+ *  La protezione è la stessa di `modificaPersona`, e non per simmetria: il
+ *  vincolo vero non è «non toccare te stesso», è che l'azienda non resti
+ *  senza nessuno che possa gestirla. */
+export async function commutaAttiva(
+  id: string,
+  attiva: boolean,
+): Promise<ActionResult> {
+  const capo = await requireCapo();
+
+  const parsed = z
+    .object({ id: z.string().uuid("Persona non valida."), attiva: z.boolean() })
+    .safeParse({ id, attiva });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+
+  if (!parsed.data.attiva) {
+    const { data: persona } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", parsed.data.id)
+      .eq("company_id", capo.company_id)
+      .maybeSingle();
+    if (!persona) return { ok: false, error: "Persona non trovata." };
+
+    if (persona.role === "capo") {
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", capo.company_id)
+        .eq("role", "capo")
+        .eq("active", true)
+        .neq("id", parsed.data.id);
+      if (!count) {
+        return {
+          ok: false,
+          error:
+            "È l'unico responsabile attivo: sospendendolo l'azienda resterebbe senza nessuno che possa gestirla.",
+        };
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ active: parsed.data.attiva })
+    .eq("id", parsed.data.id)
+    .eq("company_id", capo.company_id);
+  if (error) return { ok: false, error: error.message };
+
+  aggiorna();
+  return { ok: true };
+}
