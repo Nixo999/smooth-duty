@@ -13,6 +13,9 @@ qui e si scrive nel [diario](07-diario.md).
   aprendo la casella dei messaggi.
 - **Generazione automatica dei turni.** Le fasce di copertura dicono cosa
   serve, ma il tabellone lo scrive una persona.
+  🔨 *In lavorazione dal Mac, dal 26 agosto 2026*: il motore puro
+  (`src/lib/generazione.ts`), non ancora l'interfaccia. Chi legge questa riga
+  e voleva metterci mano, guardi prima `git log src/lib/generazione.ts`.
 - **Pubblicazione su un indirizzo pubblico.** L'app gira in locale e sull'APK
   di prova puntato alla rete di casa. Vedi [06-ambiente.md](06-ambiente.md) per
   cosa fare al momento del deploy.
