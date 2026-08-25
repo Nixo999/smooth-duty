@@ -1,6 +1,6 @@
 import { Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
-import { ConfermaTurno } from "@/components/turni/conferma-turno";
+import { RifiutaTurno } from "@/components/turni/rifiuta-turno";
 import { WeekNav } from "@/components/turni/week-nav";
 import {
   assenzaAperta,
@@ -21,8 +21,10 @@ import { repartoDelTurno } from "@/lib/reparto";
 import type { Absence, Department, Shift } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Perche' questo turno aspetta un si', scritto come lo si direbbe. */
-const MOTIVO_CONFERMA = {
+/** Perche' questo turno lo si puo' rifiutare, scritto come lo si direbbe.
+ *  Il turno intanto vale: qui non si chiede un permesso, si segnala una
+ *  cosa fuori dall'ordinario e si lascia la facolta' di dire di no. */
+const MOTIVO_RIFIUTO = {
   straordinario: "Straordinario: va oltre le tue ore da contratto.",
   modifica: "Turno modificato dopo la pubblicazione della settimana.",
   modifica_straordinario:
@@ -209,13 +211,27 @@ export function MyWeek({
                           </p>
                         ) : null}
 
-                        {s.richiede_conferma && !s.confermato_at ? (
-                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
-                            <p className="text-[13px] font-medium text-warning">
-                              {MOTIVO_CONFERMA[s.richiede_conferma]}
+                        {/* Il turno vale gia': non c'e' niente da accettare.
+                            Si dice cos'ha di particolare, e si lascia la via
+                            d'uscita a chi quel giorno non ce la fa. */}
+                        {s.richiede_conferma ? (
+                          s.rifiutato_at ? (
+                            <p className="mt-2 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] font-medium text-danger">
+                              Hai rifiutato questo turno: il responsabile è
+                              stato avvisato e ci penserà lui.
                             </p>
-                            <ConfermaTurno turnoId={s.id} />
-                          </div>
+                          ) : (
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
+                              <p className="min-w-0 flex-1 text-[13px] font-medium text-warning">
+                                {MOTIVO_RIFIUTO[s.richiede_conferma]}{" "}
+                                <span className="font-normal">
+                                  Il turno è già valido: se non puoi, dillo
+                                  adesso.
+                                </span>
+                              </p>
+                              <RifiutaTurno turnoId={s.id} />
+                            </div>
+                          )
                         ) : null}
                       </li>
                     );

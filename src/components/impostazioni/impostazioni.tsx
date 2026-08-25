@@ -78,37 +78,37 @@ export function Impostazioni({
       <Sezione
         icona={CalendarDays}
         pagina="Turni"
-        nota="Quando un turno aspetta un sì dell'interessato. Il turno resta valido e visibile, ma segnato «da confermare» finché non accetta."
+        nota="Quali turni l'interessato può rifiutare. Il turno vale da subito — chi non dice niente ha accettato — ma chi non ce la fa lo dice, e a te arriva un messaggio."
       >
         <Interruttore
           acceso={v.conferma_straordinari}
           onCambia={(x) => cambia({ conferma_straordinari: x })}
-          titolo="Straordinari da accettare"
-          descrizione="Un turno nuovo che porta oltre le ore da contratto va accettato dall'interessato."
+          titolo="Straordinari rifiutabili"
+          descrizione="Un turno nuovo che porta oltre le ore da contratto. Rifiutato, quel turno salta e va rifatto: non c'era un turno di prima a cui tornare."
         />
         <Interruttore
           acceso={v.conferma_modifiche_straordinari}
           onCambia={(x) => cambia({ conferma_modifiche_straordinari: x })}
-          titolo="Modifiche con straordinario da accettare"
-          descrizione="Modificare un turno di una settimana già pubblicata, se genera straordinario."
+          titolo="Modifiche con straordinario rifiutabili"
+          descrizione="Modificare un turno di una settimana già pubblicata, se genera straordinario. Rifiutata, il turno torna com'era."
         />
         <Interruttore
           acceso={v.conferma_modifiche}
           onCambia={(x) => cambia({ conferma_modifiche: x })}
-          titolo="Altre modifiche da accettare"
-          descrizione="Modificare un turno di una settimana già pubblicata, anche senza straordinario."
+          titolo="Altre modifiche rifiutabili"
+          descrizione="Modificare un turno di una settimana già pubblicata, anche senza straordinario. Rifiutata, il turno torna com'era."
         />
         <Interruttore
           acceso={v.conferma_cambio_reparto}
           onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
-          titolo="Cambio di reparto da accettare"
-          descrizione="Spostare un turno da un reparto a un altro senza toccarne gli orari. Spento, il cambio di solo reparto non chiede niente a nessuno: le ore restano quelle."
+          titolo="Cambio di reparto rifiutabile"
+          descrizione="Spostare un turno da un reparto a un altro senza toccarne gli orari. Spento, il cambio di solo reparto non si segnala nemmeno: le ore restano quelle."
         />
         <Interruttore
           acceso={v.orari_preimpostati}
           onCambia={(x) => cambia({ orari_preimpostati: x })}
           titolo="Orari preimpostati da contratto"
-          descrizione="A chi ha un orario scritto sul contratto, un turno con un orario diverso va accettato. L'orario si scrive sulla persona, in Squadra."
+          descrizione="A chi ha un orario scritto sul contratto, un turno con un orario diverso diventa rifiutabile. L'orario si scrive sulla persona, in Squadra."
         />
       </Sezione>
 

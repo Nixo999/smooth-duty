@@ -3,13 +3,20 @@ import { Roster } from "@/components/turni/roster";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
+  COLONNE_MESSAGGIO,
   COLONNE_PROFILO_CON_REPARTI,
   COLONNE_REPARTO,
   COLONNE_TURNO,
   conReparti,
 } from "@/lib/colonne";
 import { createClient } from "@/lib/supabase/server";
-import type { Absence, Department, Profile, Shift } from "@/lib/types";
+import type {
+  Absence,
+  Department,
+  MessaggioTurno,
+  Profile,
+  Shift,
+} from "@/lib/types";
 import { resolveMonday, weekDaysISO } from "@/lib/week";
 
 export default async function TurniPage({
@@ -49,6 +56,7 @@ export default async function TurniPage({
     absencesResult,
     frequenteResult,
     bozzaResult,
+    messaggiResult,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -82,6 +90,18 @@ export default async function TurniPage({
       .eq("company_id", user.company_id)
       .eq("monday", monday)
       .maybeSingle(),
+    // I rifiuti ancora aperti. Non si filtrano per settimana: un turno
+    // rifiutato di sabato non deve sparire perche' il responsabile sta
+    // guardando lunedi'. Solo al responsabile: al dipendente il proprio no
+    // lo dice gia' il suo turno.
+    user.role === "capo"
+      ? supabase
+          .from("shift_messages")
+          .select(COLONNE_MESSAGGIO)
+          .eq("company_id", user.company_id)
+          .is("risolto_at", null)
+          .order("creato_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const inBozza = !bozzaResult.data;
@@ -109,6 +129,7 @@ export default async function TurniPage({
         assenze={absences}
         repartoFrequente={frequente}
         inBozza={inBozza}
+        messaggi={(messaggiResult.data ?? []) as MessaggioTurno[]}
       />
     );
   }

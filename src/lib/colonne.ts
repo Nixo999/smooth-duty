@@ -22,7 +22,11 @@ export function conReparti<T extends { profile_departments?: { department_id: st
 }
 
 export const COLONNE_TURNO =
-  "id, company_id, profile_id, date, start_time, end_time, title, location, notes, department_id, richiede_conferma, confermato_at";
+  "id, company_id, profile_id, date, start_time, end_time, title, location, notes, department_id, richiede_conferma, confermato_at, rifiutato_at, nota_rifiuto";
+
+/** I messaggi che i rifiuti lasciano al responsabile. */
+export const COLONNE_MESSAGGIO =
+  "id, profile_id, shift_id, motivo, nota, giorno, turno_prima, turno_dopo, esito, creato_at, visto_at, risolto_at";
 
 export const COLONNE_REPARTO = "id, company_id, name, hue, position";
 

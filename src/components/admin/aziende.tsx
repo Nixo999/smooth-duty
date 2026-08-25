@@ -271,12 +271,12 @@ function CreateDialog({
             {(
               [
                 ["supervisione_dipendenti", "Supervisione visibile ai dipendenti"],
-                ["conferma_straordinari", "Straordinari da accettare dall'interessato"],
+                ["conferma_straordinari", "Straordinari rifiutabili dall'interessato"],
                 [
                   "conferma_modifiche_straordinari",
-                  "Modifiche con straordinario da accettare",
+                  "Modifiche con straordinario rifiutabili",
                 ],
-                ["conferma_modifiche", "Altre modifiche da accettare"],
+                ["conferma_modifiche", "Altre modifiche rifiutabili"],
                 ["orari_preimpostati", "Orari preimpostati da contratto"],
               ] as const
             ).map(([chiave, testo]) => (

@@ -225,7 +225,7 @@ export function Supervisione({
       } else {
         toast.success(
           richieste > 0
-            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno aspetta" : "turni aspettano"} la conferma dell'interessato, con la motivazione scritta.`
+            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede lo trovi nei messaggi, nei Turni.`
             : "Modifiche applicate.",
         );
       }

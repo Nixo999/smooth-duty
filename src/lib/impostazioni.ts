@@ -10,18 +10,23 @@ import { CODICI_CAUSALE } from "@/lib/assenze";
  *  Sono raggruppate per pagina, come nella schermata che le mostra: chi
  *  cerca una regola parte sempre da dove la vede applicata. */
 export type Impostazioni = {
-  /* ------------------------------------------------------------ turni */
-  /** Un turno nuovo oltre le ore da contratto va accettato dall'interessato? */
+  /* ------------------------------------------------------------ turni
+   *  I nomi cominciano tutti per `conferma_` perché sono nati quando quei
+   *  turni aspettavano un sì. Oggi il verso è rovesciato — il turno vale
+   *  subito e l'interessato semmai lo rifiuta — ma le colonne si chiamano
+   *  ancora così: rinominarle costerebbe una migrazione e una giornata di
+   *  disallineamento, e non direbbe niente di più. */
+  /** Un turno nuovo oltre le ore da contratto è rifiutabile? */
   conferma_straordinari: boolean;
-  /** Una modifica a una settimana già pubblicata va accettata? Due
+  /** Una modifica a una settimana già pubblicata è rifiutabile? Due
    *  interruttori: le modifiche che generano straordinario e le altre. */
   conferma_modifiche: boolean;
   conferma_modifiche_straordinari: boolean;
   /** Con gli orari preimpostati accesi, un turno diverso dall'orario del
-   *  contratto della persona va accettato. */
+   *  contratto della persona è rifiutabile. */
   orari_preimpostati: boolean;
-  /** Cambiare solo il reparto di un turno, senza toccarne gli orari, va
-   *  accettato? Di suo no: le ore restano quelle. */
+  /** Cambiare solo il reparto di un turno, senza toccarne gli orari, è
+   *  rifiutabile? Di suo no: le ore restano quelle. */
   conferma_cambio_reparto: boolean;
 
   /* ----------------------------------------------------- supervisione */

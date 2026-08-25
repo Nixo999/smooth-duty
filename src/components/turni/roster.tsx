@@ -26,6 +26,7 @@ import {
   salvaTurno,
 } from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
+import { Messaggi } from "@/components/turni/messaggi";
 import {
   ShiftDialog,
   shiftToDraft,
@@ -57,7 +58,13 @@ import {
   timeRange,
 } from "@/lib/date";
 import { assenzaDelGiorno, ETICHETTA } from "@/lib/assenze";
-import type { Absence, Department, Profile, Shift } from "@/lib/types";
+import type {
+  Absence,
+  Department,
+  MessaggioTurno,
+  Profile,
+  Shift,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const UNASSIGNED = "__scoperti__";
@@ -123,6 +130,7 @@ export function Roster({
   assenze,
   repartoFrequente,
   inBozza,
+  messaggi,
 }: {
   monday: string;
   days: string[];
@@ -134,6 +142,8 @@ export function Roster({
   repartoFrequente: Record<string, string>;
   /** La settimana e' in bozza: i dipendenti non la vedono. */
   inBozza: boolean;
+  /** I rifiuti ancora aperti, di tutte le settimane. */
+  messaggi: MessaggioTurno[];
 }) {
   const router = useRouter();
   const [inLavoro, startLavoro] = React.useTransition();
@@ -365,7 +375,7 @@ export function Roster({
       } else {
         toast.success(
           richieste > 0
-            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno aspetta" : "turni aspettano"} la conferma dell'interessato, con la motivazione scritta.`
+            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede te lo dicono i messaggi.`
             : "Modifiche applicate.",
         );
       }
@@ -567,6 +577,19 @@ export function Roster({
 
   return (
     <div className="space-y-4">
+      {/* Sopra il tabellone, prima di tutto: sono turni gia' cambiati, o da
+          rifare. Restano qui anche cambiando settimana — il buco non e' di
+          questa settimana, e' della giornata che l'ha lasciato. */}
+      <Messaggi
+        messaggi={messaggi}
+        nomeDi={(id) =>
+          profiles.find((p) => p.id === id)?.full_name ?? "Una persona"
+        }
+        onCreaTurno={(profileId, giorno) =>
+          setDraft({ date: giorno, profile_id: profileId })
+        }
+      />
+
       {profiles.length === 0 ? (
         <>
           <WeekNav monday={monday} />
@@ -1013,13 +1036,18 @@ function Chip({
           ? "bg-warning-soft text-warning"
           : "bg-accent-soft text-accent",
         assente && "assente border border-current",
-        // Aspetta il si' dell'interessato: un anello, non un colore nuovo.
-        shift.richiede_conferma && !shift.confermato_at && "ring-1 ring-warning",
+        // Un anello, non un colore nuovo: il turno vale, ha solo qualcosa
+        // di particolare. Rosso quando l'interessato ha detto no — quello
+        // il responsabile lo deve vedere anche con la coda dell'occhio.
+        shift.richiede_conferma && !shift.rifiutato_at && "ring-1 ring-warning",
+        shift.rifiutato_at && "ring-2 ring-danger",
       )}
       title={
-        shift.richiede_conferma && !shift.confermato_at
-          ? "In attesa della conferma della persona"
-          : undefined
+        shift.rifiutato_at
+          ? "Rifiutato dalla persona: apri i messaggi in cima alla pagina"
+          : shift.richiede_conferma
+            ? "Preapprovato: la persona può ancora rifiutarlo"
+            : undefined
       }
     >
       <span className="orario block text-[12px] font-semibold tabular-nums">

@@ -15,8 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 /** Esito di un salvataggio: l'id serve a chi tiene la storia delle
- *  modifiche (annulla/ripeti), `richiede` a contare quanti turni
- *  aspettano un si' dell'interessato. */
+ *  modifiche (annulla/ripeti), `richiede` a contare quanti turni sono
+ *  preapprovati — valgono subito, ma l'interessato li può rifiutare. */
 export type SalvaResult =
   | { ok: true; id: string; richiede: string | null }
   | { ok: false; error: string };
@@ -92,11 +92,16 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     end_time: string;
     profile_id: string | null;
     department_id: string | null;
+    title: string | null;
+    location: string | null;
+    notes: string | null;
   } | null = null;
   if (v.id) {
     const { data: vecchio } = await supabase
       .from("shifts")
-      .select("date, start_time, end_time, profile_id, department_id")
+      .select(
+        "date, start_time, end_time, profile_id, department_id, title, location, notes",
+      )
       .eq("id", v.id)
       .maybeSingle();
     prima = vecchio ?? null;
@@ -237,6 +242,25 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     notes: orNull(v.notes),
     richiede_conferma: richiede,
     confermato_at: null,
+    // Ogni salvataggio riapre la partita: un no dato alla versione di prima
+    // non vale per questa, che l'interessato non ha ancora visto.
+    rifiutato_at: null,
+    nota_rifiuto: null,
+    // Com'era, per poterci tornare se l'interessato rifiuta. Solo se c'e' una
+    // facolta' di rifiuto e c'era gia' un turno: un turno nato adesso non ha
+    // un "prima", e infatti rifiutarlo lo toglie invece di riportarlo.
+    stato_prima:
+      richiede && prima
+        ? {
+            date: prima.date,
+            start_time: hhmm(prima.start_time),
+            end_time: hhmm(prima.end_time),
+            department_id: prima.department_id,
+            title: prima.title,
+            location: prima.location,
+            notes: prima.notes,
+          }
+        : null,
   };
 
   let id = v.id ?? "";
@@ -255,6 +279,20 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
 
   if (dataPrima && mondayOf(dataPrima) !== mondayOf(v.date)) {
     await riportaInBozzaSeVuota(supabase, user.company_id, mondayOf(dataPrima));
+  }
+
+  // Il buco lasciato da un rifiuto e' coperto: il compito si chiude da solo.
+  // Lo cerca per persona e giorno perche' e' quello che il responsabile
+  // doveva rimediare, non un turno in particolare.
+  if (v.profile_id) {
+    await supabase
+      .from("shift_messages")
+      .update({ risolto_at: new Date().toISOString() })
+      .eq("company_id", user.company_id)
+      .eq("profile_id", v.profile_id)
+      .eq("giorno", v.date)
+      .eq("esito", "da_rifare")
+      .is("risolto_at", null);
   }
 
   revalidatePath("/turni");
@@ -396,10 +434,10 @@ export type RipristinoInput = z.input<typeof ripristinoSchema>;
 /** Rimette in piedi i turni di una settimana svuotata: e' quello che fa la
  *  freccia indietro dopo «Svuota».
  *
- *  Tre cose che non fa, tutte volute. Non ricrea le conferme: il si' di un
- *  dipendente lo scrive solo lui, dalla funzione `conferma_turno`, e un
- *  responsabile non deve poterlo dichiarare al posto suo — la settimana
- *  torna comunque bozza, dove le conferme non servono. Non ripubblica la
+ *  Tre cose che non fa, tutte volute. Non rimette i turni come rifiutabili
+ *  ne' riporta i no gia' dati: la settimana torna bozza, e in bozza non c'e'
+ *  niente da rifiutare perche' i dipendenti non la vedono ancora; se poi la
+ *  si ripubblica sara' un salvataggio nuovo a decidere. Non ripubblica la
  *  settimana, per la stessa ragione per cui svuotarla la riporta in bozza.
  *  E non controlla le assenze come fa `salvaTurno`: quei turni esistevano
  *  gia', e il turno di chi e' assente e' proprio il buco da tenere in vista. */
@@ -595,17 +633,180 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Il si' del dipendente su un turno che lo richiede. Passa da una funzione
- *  SECURITY DEFINER: l'unica cosa che puo' toccare e' la conferma del
- *  proprio turno, non gli orari. */
-export async function confermaTurno(id: string): Promise<ActionResult> {
+/* ------------------------------------------------- rifiuti e messaggi --- */
+
+/** Il no del dipendente su un turno preapprovato.
+ *
+ *  Il turno vale gia': questo non e' un permesso mancato, e' una facolta'
+ *  esercitata. Passa da una funzione SECURITY DEFINER perche' l'unica cosa
+ *  che l'interessato puo' toccare del proprio turno e' questa — con un
+ *  permesso di scrittura vero potrebbe riscriversi gli orari — ed e' la
+ *  stessa funzione a lasciare il messaggio al responsabile. */
+export async function rifiutaTurno(
+  id: string,
+  nota?: string,
+): Promise<ActionResult> {
   await requireMember();
 
-  const parsed = z.string().uuid().safeParse(id);
-  if (!parsed.success) return { ok: false, error: "Turno non valido." };
+  const parsed = z
+    .object({
+      id: z.string().uuid("Turno non valido."),
+      nota: z.string().trim().max(300, "Motivo troppo lungo.").optional(),
+    })
+    .safeParse({ id, nota });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("conferma_turno", { turno: parsed.data });
+  const { error } = await supabase.rpc("rifiuta_turno", {
+    turno: parsed.data.id,
+    motivazione: parsed.data.nota ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  revalidatePath("/supervisione");
+  return { ok: true };
+}
+
+/** Uno stato di turno come sta scritto nel messaggio. */
+const statoSchema = z.object({
+  date: z.string(),
+  start_time: z.string(),
+  end_time: z.string(),
+  department_id: z.string().nullable(),
+  title: z.string().nullable(),
+  location: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+/** Apre i messaggi mai visti e ne applica l'effetto.
+ *
+ *  E' qui che il rifiuto diventa una cosa vera, non quando il dipendente
+ *  preme: il responsabile deve poter vedere cos'e' successo nello stesso
+ *  momento in cui succede, altrimenti si troverebbe il tabellone cambiato
+ *  senza sapere ne' quando ne' perche'.
+ *
+ *  Tre strade: il turno torna com'era, oppure — se era nato adesso — si
+ *  toglie e resta da rifare; se pero' il responsabile lo aveva gia' cambiato
+ *  di suo, non si tocca niente: l'ultima parola e' la sua, e un ripristino
+ *  gli cancellerebbe il lavoro fatto dopo. */
+export async function apriMessaggi(): Promise<ActionResult> {
+  const user = await requireCapo();
+  const supabase = await createClient();
+
+  const { data: nuovi, error } = await supabase
+    .from("shift_messages")
+    .select("id, shift_id, turno_prima, turno_dopo")
+    .eq("company_id", user.company_id)
+    .is("visto_at", null);
+  if (error) return { ok: false, error: error.message };
+  if (!nuovi || nuovi.length === 0) return { ok: true };
+
+  const adesso = new Date().toISOString();
+
+  for (const m of nuovi) {
+    // Il messaggio si prenota prima di toccarlo: due responsabili che aprono
+    // la casella nello stesso momento se lo contenderebbero, e il secondo
+    // troverebbe un turno gia' ripristinato scambiandolo per uno cambiato a
+    // mano. Vince chi arriva primo, l'altro passa oltre.
+    const { data: preso } = await supabase
+      .from("shift_messages")
+      .update({ visto_at: adesso })
+      .eq("id", m.id)
+      .is("visto_at", null)
+      .select("id");
+    if (!preso || preso.length === 0) continue;
+
+    const prima = statoSchema.nullable().safeParse(m.turno_prima);
+    const dopo = statoSchema.safeParse(m.turno_dopo);
+
+    // Il turno c'e' ancora, ed e' ancora quello che e' stato rifiutato?
+    let attuale: typeof dopo.data | null = null;
+    if (m.shift_id) {
+      const { data: t } = await supabase
+        .from("shifts")
+        .select("date, start_time, end_time, department_id, title, location, notes")
+        .eq("id", m.shift_id)
+        .maybeSingle();
+      if (t) {
+        attuale = {
+          ...t,
+          start_time: hhmm(t.start_time),
+          end_time: hhmm(t.end_time),
+        };
+      }
+    }
+
+    let esito: "ripristinato" | "da_rifare" | "superato" = "superato";
+
+    const invariato =
+      attuale !== null &&
+      dopo.success &&
+      attuale.date === dopo.data.date &&
+      attuale.start_time === dopo.data.start_time &&
+      attuale.end_time === dopo.data.end_time &&
+      attuale.department_id === dopo.data.department_id;
+
+    if (invariato && m.shift_id) {
+      if (prima.success && prima.data) {
+        await supabase
+          .from("shifts")
+          .update({
+            ...prima.data,
+            richiede_conferma: null,
+            confermato_at: null,
+            rifiutato_at: null,
+            nota_rifiuto: null,
+            stato_prima: null,
+          })
+          .eq("id", m.shift_id);
+        esito = "ripristinato";
+        // Se la modifica aveva spostato il turno di settimana, tornando
+        // indietro puo' lasciare vuota quella dov'era finito.
+        if (dopo.success && mondayOf(dopo.data.date) !== mondayOf(prima.data.date)) {
+          await riportaInBozzaSeVuota(
+            supabase,
+            user.company_id,
+            mondayOf(dopo.data.date),
+          );
+        }
+      } else {
+        await supabase.from("shifts").delete().eq("id", m.shift_id);
+        esito = "da_rifare";
+        // Se quel turno era l'ultimo della settimana, la settimana torna
+        // bozza: vale qui come per ogni altra cancellazione.
+        if (dopo.success) {
+          await riportaInBozzaSeVuota(
+            supabase,
+            user.company_id,
+            mondayOf(dopo.data.date),
+          );
+        }
+      }
+    }
+
+    await supabase.from("shift_messages").update({ esito }).eq("id", m.id);
+  }
+
+  revalidatePath("/turni");
+  revalidatePath("/supervisione");
+  return { ok: true };
+}
+
+/** Il compito chiuso a mano: il responsabile ha rimediato in un altro modo —
+ *  ha chiamato un altro, ha spostato il lavoro — e quel buco non c'e' piu'. */
+export async function chiudiMessaggio(id: string): Promise<ActionResult> {
+  const user = await requireCapo();
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { ok: false, error: "Messaggio non valido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("shift_messages")
+    .update({ risolto_at: new Date().toISOString() })
+    .eq("id", parsed.data)
+    .eq("company_id", user.company_id);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");

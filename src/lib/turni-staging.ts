@@ -61,10 +61,13 @@ export function proietta(base: Shift[], modifiche: Operazione[]): Shift[] {
     }
     const esistente = perId.get(m.dopo.id);
     perId.set(m.dopo.id, {
-      // company_id e conferme: dal turno vero se c'è, altrimenti vuoti.
+      // company_id e lo stato dei rifiuti: dal turno vero se c'è, altrimenti
+      // vuoti. Sono campi che decide il server a salvataggio avvenuto.
       company_id: esistente?.company_id ?? "",
       richiede_conferma: null,
       confermato_at: null,
+      rifiutato_at: null,
+      nota_rifiuto: null,
       ...m.dopo,
       start_time: `${m.dopo.start_time}:00`,
       end_time: `${m.dopo.end_time}:00`,

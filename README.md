@@ -10,10 +10,11 @@ settimana, ogni dipendente vede la sua.
 Serve un progetto Supabase (gratuito).
 
 1. Vai su [supabase.com](https://supabase.com) → **New project**.
-2. A progetto creato, apri **SQL Editor** → **New query** ed esegui in ordine
-   [`01-schema.sql`](supabase/01-schema.sql),
-   [`02-amministratori.sql`](supabase/02-amministratori.sql) e
-   [`03-vincoli.sql`](supabase/03-vincoli.sql).
+2. A progetto creato, apri **SQL Editor** → **New query** ed esegui **tutti**
+   i file di [`supabase/`](supabase) **in ordine di numero**, da
+   [`01-schema.sql`](supabase/01-schema.sql) fino all'ultimo. Sono
+   incrementali: ognuno dà per fatto quello prima, e fermarsi a metà lascia
+   un database a cui l'app chiederà colonne che non esistono.
 3. Apri **Project Settings › API** e copia tre valori.
 
 ### 2. Le chiavi
@@ -135,6 +136,15 @@ consegnare va sostituito con l'indirizzo pubblico HTTPS e va tolto
   salva solo dopo conferma. Vedi sotto.
 - **Squadra** — il responsabile crea gli account, assegna i ruoli, sospende
   chi non deve più entrare.
+- **Supervisione** — la giornata reparto per reparto, con i buchi di
+  copertura. In modalità Modifica le barre si trascinano: i bordi cambiano
+  l'orario, il centro sposta il turno, anche di reparto dove la persona sa
+  lavorare.
+- **Rifiuti** — un turno particolare vale subito ma si può rifiutare, e il
+  responsabile lo scopre dai messaggi in cima ai Turni. Vedi sotto.
+- **Impostazioni** — le regole dell'azienda, divise per pagina. Supervisione,
+  Permessi e Prospetto si possono spegnere: chi non le usa non se le ritrova
+  nel menu.
 
 ## Le decisioni che contano
 
@@ -145,6 +155,18 @@ azienda non uscirebbero. Le policy leggono azienda e ruolo tramite funzioni
 `SECURITY DEFINER` (`current_company_id()`, `is_capo()`): una policy che
 interroga direttamente una tabella a sua volta protetta manda Postgres in
 ricorsione infinita (errore 42P17).
+
+**Il turno vale subito, e semmai lo si rifiuta.** Uno straordinario, un turno
+cambiato dopo la pubblicazione, un orario diverso da quello del contratto: il
+turno è preapprovato — vale, si vede, si conta — e l'interessato ha la facoltà
+di dire di no. Chi tace ha accettato, che è il caso di gran lunga più
+frequente, e il responsabile non resta fermo ad aspettare chi non apre l'app
+per due giorni. Un rifiuto lascia un messaggio, e l'effetto scatta quando il
+responsabile lo apre: se quel turno esisteva già torna com'era, se era nato
+adesso se ne va e resta un buco dichiarato da coprire. Le richieste di
+permesso vanno nel verso opposto — nascono con riserva e valgono solo quando
+il responsabile le approva — perché un'assenza data per buona in attesa di
+smentita è un buco in turno che nessuno ha visto arrivare.
 
 **I turni sono date civili, non istanti.** Un turno del 3 marzo resta del
 3 marzo per chiunque lo guardi. Se salvassimo un `timestamptz`, chi apre l'app
@@ -171,31 +193,49 @@ l'**elenco**, una riga per turno con colonne Nome, Data, Da, A. Le caselle che
 non sono orari (`R` riposo, `F` ferie, `A` assenza, `M` malattia, `P` permesso)
 vengono riconosciute e non diventano turni.
 
+**Un rifiuto ha effetto quando il responsabile lo legge**, non quando il
+dipendente preme. Il turno resta com'è, marcato rifiutato, finché il
+responsabile non apre i messaggi: solo lì torna com'era o sparisce. Farlo
+scattare subito vorrebbe dire trovarsi il tabellone cambiato senza sapere né
+quando né perché — e la spiegazione arriverebbe dopo il fatto, invece che
+insieme. Se nel frattempo quel turno il responsabile l'aveva già cambiato di
+suo, il rifiuto non tocca niente: l'ultima parola è la sua, e un ripristino
+gli cancellerebbe il lavoro.
+
 **I colori stanno solo in `globals.css`.** I componenti usano i token
 (`bg-surface`, `text-muted`, `bg-accent`), mai un colore scritto a mano: è
-l'unico modo perché chiaro e scuro restino coerenti mentre l'app cresce.
+l'unico modo perché chiaro e scuro restino coerenti mentre l'app cresce. I
+grigi del testo stanno sopra il rapporto di contrasto 4.5 anche a 11px: sotto,
+un'etichetta si legge solo da vicino e con la luce giusta.
 
 ## Struttura
 
 ```
 src/
   app/
-    (auth)/          accesso e cambio password obbligatorio
-    (admin)/         amministrazione: elenco e creazione aziende
-    (app)/turni/     tabellone del responsabile · settimana del dipendente
-    (app)/squadra/   gestione delle persone
+    (auth)/            accesso e cambio password obbligatorio
+    (admin)/           amministrazione: elenco e creazione aziende
+    (app)/turni/       tabellone del responsabile · settimana del dipendente
+    (app)/supervisione/ la giornata per reparti, con le barre da trascinare
+    (app)/permessi/    richieste di assenza · (app)/prospetto/ ore per persona
+    (app)/squadra/     gestione delle persone
+    (app)/impostazioni/ le regole dell'azienda, divise per pagina
   components/
-    ui/              bottone, campi, finestra, tema
-    turni/           tabellone, finestra turno, importazione
-    squadra/  admin/
+    ui/                bottone, campi, finestra, tema, recinto dei comandi
+    turni/             tabellone, finestra turno, importazione, messaggi
+    supervisione/  permessi/  prospetto/  squadra/  admin/
   lib/
-    supabase/        client browser · server · service_role
-    auth.ts          chi sta usando l'app, con guardie per le pagine
-    date.ts          settimane, durate, turni a cavallo della mezzanotte
-    import/          lettura del foglio, riconoscimento, abbinamento nomi
-supabase/*.sql       tabelle e regole di accesso, in ordine numerico
-android/             guscio Capacitor per l'APK di prova
-scripts/             generazione icone e prova del lettore su un file finto
+    supabase/          client browser · server · service_role
+    auth.ts            chi sta usando l'app, con guardie per le pagine
+    date.ts            settimane, durate, turni a cavallo della mezzanotte
+    colonne.ts         le colonne chieste a Supabase, in un posto solo
+    impostazioni.ts    le regole dell'azienda, coi valori di ripiego
+    turni-staging.ts   le modifiche in sospeso, condivise fra le due pagine
+    supervisione/      copertura e buchi · matematica del trascinamento
+    import/            lettura del foglio, riconoscimento, abbinamento nomi
+supabase/*.sql         tabelle e regole di accesso, in ordine numerico
+android/               guscio Capacitor per l'APK di prova
+scripts/               prove senza framework (`npm run prove`), icone, seed
 ```
 
 ## Pubblicare
@@ -261,7 +301,11 @@ git grep -I -l "sb_secret_" $(git rev-list --all)
 Lettura dei turni da una foto, notifiche via email e push, generazione
 automatica dei turni, pubblicazione su un indirizzo pubblico, app sugli store.
 
-E una decisione aperta: oggi ogni persona in turno deve avere un account con
-una email vera. Su un tabellone da trenta persone è un peso, e limita
-l'importazione — si importano solo i turni di chi è già in squadra. L'alternativa
-è permettere persone senza account, attivabili più avanti.
+Le persone senza account, che erano la decisione aperta di ieri, ci sono da
+[`07-persone-senza-account.sql`](supabase/07-persone-senza-account.sql): una
+persona sta in squadra e va in turno anche senza una email vera, e l'accesso
+glielo si dà dopo, se serve.
+
+E un pezzo che manca a quello che c'è: un rifiuto lo si scopre aprendo i
+Turni. Finché non arrivano le notifiche vere — email o push — un responsabile
+che non apre l'app non sa che qualcuno ha detto di no.

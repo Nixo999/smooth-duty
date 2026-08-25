@@ -117,18 +117,57 @@ export type Shift = {
   /** Reparto solo per questo turno: serve a dire "oggi copre in sala".
    *  null = vale quello della persona. */
   department_id: string | null;
-  /** Perché il turno aspetta un sì dell'interessato. null = non serve.
-   *  I valori ammessi stanno anche nel vincolo
-   *  `shifts_richiede_conferma_valido`: aggiungerne uno vuol dire toccare
-   *  tutti e due. */
-  richiede_conferma:
-    | "straordinario"
-    | "modifica"
-    | "modifica_straordinario"
-    | "orario_diverso"
-    | "cambio_reparto"
-    | null;
+  /** Perché questo turno l'interessato lo può rifiutare. null = è un turno
+   *  come tutti gli altri.
+   *
+   *  Il nome è rimasto quello di quando serviva un sì; oggi il turno vale
+   *  comunque — è preapprovato — e questo campo dice soltanto che c'è una
+   *  facoltà di dire no, e per quale ragione. I valori ammessi stanno anche
+   *  nel vincolo `shifts_richiede_conferma_valido`: aggiungerne uno vuol
+   *  dire toccare tutti e due. */
+  richiede_conferma: MotivoRifiuto | null;
   confermato_at: string | null;
+  /** Ha detto no: da quando, e volendo perché. */
+  rifiutato_at: string | null;
+  nota_rifiuto: string | null;
+};
+
+export type MotivoRifiuto =
+  | "straordinario"
+  | "modifica"
+  | "modifica_straordinario"
+  | "orario_diverso"
+  | "cambio_reparto";
+
+/** Un turno com'era, quel tanto che basta a rimetterlo dov'era. */
+export type StatoTurno = {
+  date: string;
+  start_time: string; // HH:MM
+  end_time: string;
+  department_id: string | null;
+  title: string | null;
+  location: string | null;
+  notes: string | null;
+};
+
+/** Il no di un dipendente, in attesa del responsabile.
+ *
+ *  `esito` è vuoto finché il responsabile non apre il messaggio: è
+ *  l'apertura a far tornare indietro il turno o a toglierlo, e il messaggio
+ *  poi racconta quale delle due è stata. */
+export type MessaggioTurno = {
+  id: string;
+  profile_id: string;
+  shift_id: string | null;
+  motivo: MotivoRifiuto;
+  nota: string | null;
+  giorno: string;
+  turno_prima: StatoTurno | null;
+  turno_dopo: StatoTurno;
+  esito: "ripristinato" | "da_rifare" | "superato" | null;
+  creato_at: string;
+  visto_at: string | null;
+  risolto_at: string | null;
 };
 
 /** Il profilo di chi sta usando l'app, con l'azienda gia' risolta. */
