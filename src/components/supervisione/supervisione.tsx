@@ -589,6 +589,13 @@ export function Supervisione({
                                 s={s}
                                 nome={riga.nome}
                                 tinta={riga.tinta}
+                                // Solo il no si segnala qui. Questa pagina
+                                // risponde a «la giornata e' coperta?», e un
+                                // turno rifiutato e' un buco che sta per
+                                // aprirsi; chi ha detto si' e chi non ha
+                                // ancora risposto si guardano nei Turni,
+                                // persona per persona.
+                                rifiutato={capo && Boolean(turno?.rifiutato_at)}
                                 apribile={capo && sospese.attivo}
                                 // Si trascina solo il turno che comincia nel
                                 // giorno mostrato: della coda di un turno di
@@ -769,6 +776,7 @@ function BarraTurno({
   s,
   nome,
   tinta,
+  rifiutato,
   apribile,
   trascinabile,
   inizio,
@@ -784,6 +792,9 @@ function BarraTurno({
   s: Segmento;
   nome: string;
   tinta: number;
+  /** L'interessato ha detto no: il turno c'è ancora, ma sta per non
+   *  esserci più. */
+  rifiutato: boolean;
   apribile: boolean;
   trascinabile: boolean;
   /** Minuti veri del turno intero — inizio dalla mezzanotte del suo giorno
@@ -926,6 +937,7 @@ function BarraTurno({
         "group barra absolute inset-y-0 flex select-none items-center overflow-hidden rounded-md px-2 text-left",
         !s.profileId && "border-dashed",
         s.assenza && "assente",
+        rifiutato && "ring-2 ring-danger",
         apribile && "tap cursor-pointer",
         trascinabile && !anteprima && "cursor-grab",
         anteprima && "z-10 cursor-grabbing shadow-float",
@@ -938,7 +950,7 @@ function BarraTurno({
         // scorrimento orizzontale della corsia.
         touchAction: trascinabile ? "none" : undefined,
       }}
-      title={`${nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${trascinabile ? " · tocca per modificare, trascina per aggiustare" : apribile ? " · tocca per modificare" : ""}`}
+      title={`${nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${rifiutato ? " · rifiutato: apri i messaggi nei Turni" : ""}${trascinabile ? " · tocca per modificare, trascina per aggiustare" : apribile ? " · tocca per modificare" : ""}`}
     >
       <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
         {daPrima ? "◂ " : ""}
@@ -1078,6 +1090,15 @@ function Legenda({ capo }: { capo: boolean }) {
         assente: il turno resta visibile ma non conta
       </span>
       <span>◂ ▸ il turno continua nel giorno prima o dopo</span>
+      {capo ? (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="barra h-3 w-6 rounded ring-2 ring-danger"
+            style={{ ["--tinta" as string]: 210 }}
+          />
+          rifiutato: leggi i messaggi nei Turni
+        </span>
+      ) : null}
       {capo ? (
         <span>
           in Modifica le barre si trascinano: i bordi cambiano l&apos;orario, il
