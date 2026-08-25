@@ -104,6 +104,11 @@ create policy shift_messages_update on public.shift_messages
 -- con quello l'interessato potrebbe riscriversi gli orari. Qui puo' fare una
 -- cosa sola, e solo sul proprio turno.
 --
+-- ATTENZIONE: questa funzione e' stata poi ridefinita in
+-- 15-accettazione-esplicita.sql, che le aggiunge il controllo su
+-- `confermato_at` (non si rifiuta quello che si e' gia' accettato). Chi la
+-- deve cambiare guardi li': e' quella l'ultima parola.
+--
 -- Restituisce se il no e' stato preso o no. Un `void` che esce in silenzio
 -- farebbe dire all'app «il responsabile e' stato avvisato» anche quando non
 -- e' partito niente — ed e' l'unica cosa che questa funzione promette.
