@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ListFilter,
   PencilLine,
+  Redo2,
   Settings2,
   Undo2,
   Users,
@@ -26,17 +27,24 @@ import {
   type ShiftDraft,
 } from "@/components/turni/shift-dialog";
 import { Button } from "@/components/ui/button";
-import { dayLong, fromISODate, isToday, toISODate } from "@/lib/date";
+import { dayLong, durationMinutes, fromISODate, isToday, toISODate } from "@/lib/date";
 import {
   buchi as calcolaBuchi,
   copertura,
   fasceDelGiorno,
   intervalloVisibile,
+  minutiDa,
   oraDa,
   segmentiDelGiorno,
+  MINUTI_GIORNO,
   type Buco,
   type Segmento,
 } from "@/lib/supervisione/copertura";
+import {
+  applicaTrascina,
+  orariDa,
+  type TipoTrascina,
+} from "@/lib/supervisione/trascina";
 import type { AbsenceDay, CoverageBand, Department, Profile, Shift } from "@/lib/types";
 import {
   compatta,
@@ -144,12 +152,14 @@ export function Supervisione({
 
   /* -------------------------------------------- modifiche in sospeso ----
    * Da qui si modifica solo premendo Modifica: le barre diventano
-   * premibili, le modifiche restano locali, e partono tutte insieme con
-   * «Pubblica modifiche». La freccia toglie solo l'ultima. */
+   * premibili e trascinabili, le modifiche restano locali, e partono tutte
+   * insieme con «Pubblica modifiche». Le frecce tolgono e rimettono una
+   * modifica alla volta. */
   const [sospese, setSospese] = React.useState<{
     attivo: boolean;
     fatte: Operazione[];
-  }>({ attivo: false, fatte: [] });
+    annullate: Operazione[];
+  }>({ attivo: false, fatte: [], annullate: [] });
   const [inApplica, startApplica] = React.useTransition();
 
   /** I turni che si vedono: quelli veri, o quelli con le modifiche in
@@ -175,6 +185,7 @@ export function Supervisione({
       setSospese((s0) => ({
         ...s0,
         fatte: [...s0.fatte, { tipo: "salva", dopo: { id, ...dati } }],
+        annullate: [],
       }));
       return { ok: true };
     },
@@ -184,6 +195,7 @@ export function Supervisione({
       setSospese((s0) => ({
         ...s0,
         fatte: [...s0.fatte, { tipo: "elimina", prima: turnoBozzaDa(turno) }],
+        annullate: [],
       }));
       return { ok: true };
     },
@@ -203,7 +215,7 @@ export function Supervisione({
         if (!r.ok) errori++;
         else if (r.richiede) richieste++;
       }
-      setSospese({ attivo: false, fatte: [] });
+      setSospese({ attivo: false, fatte: [], annullate: [] });
       router.refresh();
       if (errori > 0) {
         toast.error(
@@ -228,6 +240,39 @@ export function Supervisione({
     if (!sospese.attivo) return;
     const turno = perId.get(turnoId);
     if (turno) setDaModificare(shiftToDraft(turno));
+  };
+
+  /* ---------------------------------------------------- trascinamento ----
+   * In Modifica le barre si aggiustano direttamente: i bordi cambiano
+   * l'orario di inizio o di fine, il centro sposta il turno — anche in un
+   * altro reparto, ma solo dove la persona sa lavorare. Ogni rilascio e'
+   * un'operazione in sospeso come le altre: le frecce la tolgono e la
+   * rimettono, e niente parte prima di «Pubblica modifiche». */
+  const [repartoEvidenziato, setRepartoEvidenziato] = React.useState<string | null>(null);
+
+  const applicaTrascinamento = (
+    turnoId: string,
+    orari: { start_time: string; end_time: string },
+    repartoId?: string,
+  ) => {
+    const turno = perId.get(turnoId);
+    if (!turno) return;
+    const dati = turnoBozzaDa(turno);
+    setSospese((s0) => ({
+      ...s0,
+      fatte: [
+        ...s0.fatte,
+        {
+          tipo: "salva",
+          dopo: {
+            ...dati,
+            ...orari,
+            ...(repartoId !== undefined ? { department_id: repartoId } : {}),
+          },
+        },
+      ],
+      annullate: [],
+    }));
   };
 
   const vai = (g: string) =>
@@ -380,7 +425,13 @@ export function Supervisione({
                   variant="secondary"
                   size="icon"
                   onClick={() =>
-                    setSospese((s0) => ({ ...s0, fatte: s0.fatte.slice(0, -1) }))
+                    setSospese((s0) => {
+                      const fatte = [...s0.fatte];
+                      const ultima = fatte.pop();
+                      return ultima
+                        ? { ...s0, fatte, annullate: [...s0.annullate, ultima] }
+                        : s0;
+                    })
                   }
                   disabled={sospese.fatte.length === 0 || inApplica}
                   aria-label="Togli l'ultima modifica"
@@ -389,9 +440,27 @@ export function Supervisione({
                   <Undo2 className="size-4" />
                 </Button>
                 <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() =>
+                    setSospese((s0) => {
+                      const annullate = [...s0.annullate];
+                      const ultima = annullate.pop();
+                      return ultima
+                        ? { ...s0, annullate, fatte: [...s0.fatte, ultima] }
+                        : s0;
+                    })
+                  }
+                  disabled={sospese.annullate.length === 0 || inApplica}
+                  aria-label="Rimetti la modifica tolta"
+                  title="Rimetti la modifica tolta"
+                >
+                  <Redo2 className="size-4" />
+                </Button>
+                <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSospese({ attivo: false, fatte: [] })}
+                  onClick={() => setSospese({ attivo: false, fatte: [], annullate: [] })}
                   disabled={inApplica}
                   title="Scarta tutte le modifiche non pubblicate"
                 >
@@ -416,7 +485,7 @@ export function Supervisione({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setSospese({ attivo: true, fatte: [] })}
+                onClick={() => setSospese({ attivo: true, fatte: [], annullate: [] })}
                 title="Modifica i turni da qui: valgono solo quando li pubblichi"
               >
                 <PencilLine className="size-3.5" />
@@ -453,7 +522,14 @@ export function Supervisione({
           {visibili.map((g) => (
             <section
               key={g.id}
-              className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card"
+              // L'attributo dice al trascinamento su quale reparto sta
+              // passando la barra; l'anello risponde solo quando il reparto
+              // puo' accoglierla.
+              data-reparto={g.id}
+              className={cn(
+                "overflow-hidden rounded-2xl border border-border bg-surface shadow-card",
+                repartoEvidenziato === g.id && "border-accent ring-2 ring-accent",
+              )}
             >
               <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-2 px-4 py-2.5">
                 <div className="flex items-center gap-2">
@@ -495,38 +571,54 @@ export function Supervisione({
                     ) : (
                       g.righe.map((riga) => (
                         <Corsia key={riga.chiave} ore={oreIntere} pct={pct}>
-                          {riga.segmenti.map((s) => (
-                            <button
-                              key={s.turnoId}
-                              type="button"
-                              // Il dipendente la barra la guarda e basta: senza
-                              // il bottone niente cursore, niente fuoco da
-                              // tastiera, niente da premere per sbaglio.
-                              disabled={!capo || !sospese.attivo}
-                              onClick={() => apri(s.turnoId)}
-                              className={cn(
-                                "barra absolute inset-y-0 flex items-center overflow-hidden rounded-md px-2 text-left",
-                                !s.profileId && "border-dashed",
-                                s.assenza && "assente",
-                                capo && sospese.attivo && "tap cursor-pointer",
-                              )}
-                              style={{
-                                ["--tinta" as string]: riga.tinta,
-                                left: `${pct(s.da)}%`,
-                                width: `${pct(s.a) - pct(s.da)}%`,
-                              }}
-                              title={`${riga.nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${capo && sospese.attivo ? " · tocca per modificare" : ""}`}
-                            >
-                              <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
-                                {s.daPrima ? "◂ " : ""}
-                                {riga.nome}
-                                {s.finoADopo ? " ▸" : ""}
-                              </span>
-                              <span className="orario ml-1.5 shrink-0 truncate text-[11px] tabular-nums opacity-70">
-                                {s.assenza ? "assente" : `${oraDa(s.da)}–${oraDa(s.a)}`}
-                              </span>
-                            </button>
-                          ))}
+                          {riga.segmenti.map((s) => {
+                            const turno = perId.get(s.turnoId);
+                            const persona = s.profileId
+                              ? persone.find((p) => p.id === s.profileId)
+                              : undefined;
+                            return (
+                              <BarraTurno
+                                key={s.turnoId}
+                                s={s}
+                                nome={riga.nome}
+                                tinta={riga.tinta}
+                                apribile={capo && sospese.attivo}
+                                // Si trascina solo il turno che comincia nel
+                                // giorno mostrato: della coda di un turno di
+                                // ieri qui si vede mezzo pezzo, e gli orari
+                                // veri si cambiano dal pannello.
+                                trascinabile={
+                                  capo && sospese.attivo && !!turno && turno.date === giorno
+                                }
+                                inizio={turno ? minutiDa(turno.start_time) : 0}
+                                durata={
+                                  turno
+                                    ? durationMinutes(turno.start_time, turno.end_time)
+                                    : 0
+                                }
+                                repartoCorrente={g.id}
+                                // Dove la barra puo' traslocare: i reparti in
+                                // cui la persona sa lavorare. Un turno
+                                // scoperto non ha vincoli: lo fara' chi
+                                // verra' scelto.
+                                ammessi={
+                                  s.profileId
+                                    ? new Set(
+                                        (persona
+                                          ? [persona.department_id, ...persona.reparti]
+                                          : []
+                                        ).filter((r): r is string => Boolean(r)),
+                                      )
+                                    : new Set(reparti.map((r) => r.id))
+                                }
+                                vista={vista}
+                                pct={pct}
+                                onApri={apri}
+                                onCommit={applicaTrascinamento}
+                                onBersaglio={setRepartoEvidenziato}
+                              />
+                            );
+                          })}
                         </Corsia>
                       ))
                     )}
@@ -638,6 +730,248 @@ function Corsia({
   );
 }
 
+/** Quello che serve a seguire un dito, dal tocco al rilascio. Vive in un
+ *  ref, non nello stato: cambia a ogni pixel e non deve ridisegnare niente
+ *  — ridisegna solo l'anteprima, che cambia a ogni scatto. */
+type CorsoDiTrascinamento = {
+  tipo: TipoTrascina;
+  puntatore: number;
+  x0: number;
+  y0: number;
+  minutiPerPixel: number;
+  mosso: boolean;
+  /** Il reparto ammesso su cui la barra sta passando, se e' un altro. */
+  bersaglio: string | null;
+};
+
+/** Una barra della linea del tempo. Fuori da Modifica si guarda e basta; in
+ *  Modifica il tocco la apre nel pannello e il trascinamento la aggiusta:
+ *  i bordi cambiano l'orario di inizio o di fine, il centro la sposta con
+ *  le stesse ore — anche in un altro reparto, se la persona ci sa
+ *  lavorare. Qui vive solo l'anteprima mentre il dito e' giu': il rilascio
+ *  consegna la modifica al genitore, che la mette fra quelle in sospeso. */
+function BarraTurno({
+  s,
+  nome,
+  tinta,
+  apribile,
+  trascinabile,
+  inizio,
+  durata,
+  repartoCorrente,
+  ammessi,
+  vista,
+  pct,
+  onApri,
+  onCommit,
+  onBersaglio,
+}: {
+  s: Segmento;
+  nome: string;
+  tinta: number;
+  apribile: boolean;
+  trascinabile: boolean;
+  /** Minuti veri del turno intero — inizio dalla mezzanotte del suo giorno
+   *  e durata — non il pezzo ritagliato sull'asse, che di un 18:00–02:00
+   *  vede solo meta'. */
+  inizio: number;
+  durata: number;
+  repartoCorrente: string;
+  /** I reparti in cui questa barra puo' traslocare. */
+  ammessi: ReadonlySet<string>;
+  vista: { da: number; a: number };
+  pct: (m: number) => number;
+  onApri: (turnoId: string) => void;
+  onCommit: (
+    turnoId: string,
+    orari: { start_time: string; end_time: string },
+    repartoId?: string,
+  ) => void;
+  onBersaglio: (repartoId: string | null) => void;
+}) {
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const corso = React.useRef<CorsoDiTrascinamento | null>(null);
+  // Dopo un trascinamento col mouse il browser emette comunque un click:
+  // non deve aprire il pannello per giunta. Da telefono quel click non
+  // arriva mai, quindi il segno non si puo' lasciare in attesa di essere
+  // consumato: lo azzera il gesto successivo.
+  const soppresso = React.useRef(false);
+  const [anteprima, setAnteprima] = React.useState<{
+    inizio: number;
+    durata: number;
+  } | null>(null);
+
+  const inizia = (tipo: TipoTrascina, e: React.PointerEvent) => {
+    if (!trascinabile || e.button !== 0 || corso.current) return;
+    soppresso.current = false;
+    // La corsia e' il metro: la sua larghezza in pixel copre l'intervallo
+    // visibile, e da li' si sa quanti minuti vale un pixel.
+    const corsia = ref.current?.parentElement;
+    const larghezza = corsia?.getBoundingClientRect().width ?? 0;
+    if (larghezza <= 0) return;
+    corso.current = {
+      tipo,
+      puntatore: e.pointerId,
+      x0: e.clientX,
+      y0: e.clientY,
+      minutiPerPixel: (vista.a - vista.da) / larghezza,
+      mosso: false,
+      bersaglio: null,
+    };
+    ref.current?.setPointerCapture(e.pointerId);
+  };
+
+  const muovi = (e: React.PointerEvent) => {
+    const c = corso.current;
+    if (!c || e.pointerId !== c.puntatore) return;
+    const dx = e.clientX - c.x0;
+    // La stessa soglia che i browser usano per distinguere un tocco da un
+    // trascinamento. Piu' bassa, il tremolio del dito su un tocco fermo
+    // diventerebbe un trascinamento da zero minuti: la barra non si
+    // muoverebbe e il pannello non si aprirebbe, un tocco a vuoto.
+    if (!c.mosso && Math.abs(dx) < 10 && Math.abs(e.clientY - c.y0) < 10) return;
+    c.mosso = true;
+    setAnteprima(applicaTrascina(c.tipo, inizio, durata, dx * c.minutiPerPixel));
+
+    if (c.tipo !== "sposta") return;
+    // Il reparto sotto il dito: la barra e' catturata ma sta ferma in
+    // verticale, quindi appena il dito scende su un'altra scheda e' quella
+    // a rispondere. Vale solo un reparto vero, diverso, e ammesso.
+    const sotto = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest("[data-reparto]");
+    const id = sotto instanceof HTMLElement ? (sotto.dataset.reparto ?? null) : null;
+    const valido =
+      id && id !== repartoCorrente && id !== SENZA_REPARTO && ammessi.has(id)
+        ? id
+        : null;
+    if (valido !== c.bersaglio) {
+      c.bersaglio = valido;
+      onBersaglio(valido);
+    }
+  };
+
+  const finisci = (e: React.PointerEvent) => {
+    const c = corso.current;
+    if (!c || e.pointerId !== c.puntatore) return;
+    corso.current = null;
+    setAnteprima(null);
+    onBersaglio(null);
+    if (!c.mosso) return;
+
+    const dx = e.clientX - c.x0;
+    const esito = applicaTrascina(c.tipo, inizio, durata, dx * c.minutiPerPixel);
+    const reparto = c.tipo === "sposta" ? c.bersaglio : null;
+    // Un trascinamento che riporta tutto dov'era non e' una modifica, e
+    // nemmeno un motivo per mangiarsi il click: era un tocco storto, e
+    // aprire il pannello e' quello che l'utente voleva.
+    if (esito.inizio === inizio && esito.durata === durata && !reparto) return;
+    soppresso.current = true;
+    onCommit(s.turnoId, orariDa(esito.inizio, esito.durata), reparto ?? undefined);
+  };
+
+  const interrompi = (e: React.PointerEvent) => {
+    if (corso.current?.puntatore !== e.pointerId) return;
+    corso.current = null;
+    setAnteprima(null);
+    onBersaglio(null);
+  };
+
+  // L'anteprima e' in minuti veri e puo' sporgere dall'asse: il pezzo oltre
+  // la mezzanotte si taglia come per ogni segmento, il resto puo' sbordare
+  // di poco finche' il dito e' giu' — al rilascio l'asse si riadatta.
+  const fine = anteprima ? anteprima.inizio + anteprima.durata : 0;
+  const visDa = anteprima ? anteprima.inizio : s.da;
+  const visA = anteprima ? Math.min(fine, MINUTI_GIORNO) : s.a;
+  const finoADopo = anteprima ? fine > MINUTI_GIORNO : s.finoADopo;
+  const daPrima = anteprima ? false : s.daPrima;
+  const orario = anteprima
+    ? `${oraDa(anteprima.inizio)}–${oraDa((anteprima.inizio + anteprima.durata) % MINUTI_GIORNO)}`
+    : `${oraDa(s.da)}–${oraDa(s.a)}`;
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      // Il dipendente la barra la guarda e basta: senza il bottone niente
+      // cursore, niente fuoco da tastiera, niente da premere per sbaglio.
+      disabled={!apribile}
+      onClick={() => {
+        if (soppresso.current) {
+          soppresso.current = false;
+          return;
+        }
+        onApri(s.turnoId);
+      }}
+      onPointerDown={(e) => inizia("sposta", e)}
+      onPointerMove={muovi}
+      onPointerUp={finisci}
+      onPointerCancel={interrompi}
+      className={cn(
+        "group barra absolute inset-y-0 flex select-none items-center overflow-hidden rounded-md px-2 text-left",
+        !s.profileId && "border-dashed",
+        s.assenza && "assente",
+        apribile && "tap cursor-pointer",
+        trascinabile && !anteprima && "cursor-grab",
+        anteprima && "z-10 cursor-grabbing shadow-float",
+      )}
+      style={{
+        ["--tinta" as string]: tinta,
+        left: `${pct(visDa)}%`,
+        width: `${pct(visA) - pct(visDa)}%`,
+        // Senza, sul telefono il trascinamento litigherebbe con lo
+        // scorrimento orizzontale della corsia.
+        touchAction: trascinabile ? "none" : undefined,
+      }}
+      title={`${nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${trascinabile ? " · tocca per modificare, trascina per aggiustare" : apribile ? " · tocca per modificare" : ""}`}
+    >
+      <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
+        {daPrima ? "◂ " : ""}
+        {nome}
+        {finoADopo ? " ▸" : ""}
+      </span>
+      <span className="orario ml-1.5 shrink-0 truncate text-[11px] tabular-nums opacity-70">
+        {s.assenza ? "assente" : orario}
+      </span>
+
+      {trascinabile ? (
+        <>
+          {/* Le maniglie dei bordi: strette da vedere, larghe da prendere.
+              Fermano la discesa dell'evento, altrimenti partirebbe anche lo
+              spostamento dal centro.
+
+              Mai oltre il 30% della barra per parte: su un turno di un
+              quarto d'ora due maniglie da dieci pixel la coprirebbero
+              tutta, e quel turno non si potrebbe piu' spostare — resterebbe
+              solo da accorciare. */}
+          <span
+            aria-hidden
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              inizia("inizio", e);
+            }}
+            style={{ width: "min(10px, 30%)" }}
+            className="absolute inset-y-0 left-0 cursor-ew-resize"
+          >
+            <span className="absolute inset-y-[7px] left-[3px] w-[3px] rounded-full bg-current opacity-30 transition-opacity group-hover:opacity-60" />
+          </span>
+          <span
+            aria-hidden
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              inizia("fine", e);
+            }}
+            style={{ width: "min(10px, 30%)" }}
+            className="absolute inset-y-0 right-0 cursor-ew-resize"
+          >
+            <span className="absolute inset-y-[7px] right-[3px] w-[3px] rounded-full bg-current opacity-30 transition-opacity group-hover:opacity-60" />
+          </span>
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 function Stato({ buchi, conRegole }: { buchi: Buco[]; conRegole: boolean }) {
   if (!conRegole) {
     return (
@@ -729,6 +1063,13 @@ function Legenda({ capo }: { capo: boolean }) {
         assente: il turno resta visibile ma non conta
       </span>
       <span>◂ ▸ il turno continua nel giorno prima o dopo</span>
+      {capo ? (
+        <span>
+          in Modifica le barre si trascinano: i bordi cambiano l&apos;orario, il
+          centro sposta il turno — anche di reparto, dove la persona ci sa
+          lavorare
+        </span>
+      ) : null}
     </div>
   );
 }

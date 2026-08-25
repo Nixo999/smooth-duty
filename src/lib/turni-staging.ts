@@ -27,6 +27,13 @@ export type Operazione =
   | { tipo: "salva"; dopo: TurnoBozza }
   | { tipo: "elimina"; prima: TurnoBozza };
 
+/** Un gesto dell'utente: quasi sempre un'operazione sola, ma «Svuota» ne
+ *  fa una per turno. La freccia indietro toglie una mossa intera — chi
+ *  svuota e ci ripensa non deve premere trenta volte. A `proietta` e
+ *  `compatta` le mosse arrivano appiattite: per loro conta cosa e' successo,
+ *  non in quanti gesti. */
+export type Mossa = Operazione[];
+
 export function turnoBozzaDa(s: Shift): TurnoBozza {
   return {
     id: s.id,

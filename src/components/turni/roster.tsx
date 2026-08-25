@@ -22,6 +22,7 @@ import {
   eliminaTurno,
   eliminaTuttiITurni,
   pubblicaSettimana,
+  ripristinaTurni,
   salvaTurno,
 } from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
@@ -40,7 +41,7 @@ import {
   compatta,
   proietta,
   turnoBozzaDa,
-  type Operazione,
+  type Mossa,
   type TurnoBozza,
 } from "@/lib/turni-staging";
 import { corrisponde } from "@/lib/ricerca";
@@ -152,12 +153,13 @@ export function Roster({
    * Una settimana pubblicata si tocca solo premendo Modifica: da li' le
    * modifiche restano locali — i dipendenti continuano a vedere la
    * versione pubblicata — e partono tutte insieme con Conferma. Le frecce
-   * annullano e ripetono sull'elenco locale. */
+   * annullano e ripetono sull'elenco locale, una mossa alla volta: quasi
+   * sempre un'operazione sola, per «Svuota» tutte insieme. */
   const [sospese, setSospese] = React.useState<{
     monday: string;
     attivo: boolean;
-    fatte: Operazione[];
-    annullate: Operazione[];
+    fatte: Mossa[];
+    annullate: Mossa[];
   }>({ monday, attivo: false, fatte: [], annullate: [] });
   // Cambio settimana = altro tabellone: le sospese dell'altra non valgono.
   if (sospese.monday !== monday) {
@@ -168,7 +170,7 @@ export function Roster({
   /** Il tabellone che si vede: quello vero, oppure quello con le modifiche
    *  in sospeso applicate sopra. Niente memo: la proiezione costa meno del
    *  ragionarci, e cosi' puo' stare prima del gestore che la usa. */
-  const turniVivi = sospese.attivo ? proietta(shifts, sospese.fatte) : shifts;
+  const turniVivi = sospese.attivo ? proietta(shifts, sospese.fatte.flat()) : shifts;
 
   /* ------------------------------------------------ storia (in bozza) ---
    * In bozza si salva subito, ma ogni passo si sa disfare: le voci portano
@@ -207,7 +209,7 @@ export function Roster({
           const vero = id ?? `nuovo:${contatoreNuovi.current++}`;
           setSospese((s0) => ({
             ...s0,
-            fatte: [...s0.fatte, { tipo: "salva", dopo: { id: vero, ...dati } }],
+            fatte: [...s0.fatte, [{ tipo: "salva", dopo: { id: vero, ...dati } }]],
             annullate: [],
           }));
           return { ok: true };
@@ -217,7 +219,7 @@ export function Roster({
           if (!turno) return { ok: false, error: "Turno non trovato." };
           setSospese((s0) => ({
             ...s0,
-            fatte: [...s0.fatte, { tipo: "elimina", prima: turnoBozzaDa(turno) }],
+            fatte: [...s0.fatte, [{ tipo: "elimina", prima: turnoBozzaDa(turno) }]],
             annullate: [],
           }));
           return { ok: true };
@@ -339,7 +341,7 @@ export function Roster({
    *  salvataggi. Il server ricalcola assenze e conferme su ciascuna. */
   const confermaSospese = () =>
     startLavoro(async () => {
-      const { daEliminare, daSalvare } = compatta(sospese.fatte);
+      const { daEliminare, daSalvare } = compatta(sospese.fatte.flat());
       let errori = 0;
       let richieste = 0;
       for (const id of daEliminare) {
@@ -369,7 +371,24 @@ export function Roster({
     });
 
   const [confermaSvuota, setConfermaSvuota] = React.useState(false);
-  const svuota = () =>
+  const svuota = () => {
+    // In modalita' Modifica lo svuotamento e' una modifica come le altre:
+    // resta locale, e' una mossa sola — la freccia indietro la toglie tutta
+    // insieme — e il server non vede niente fino alla conferma.
+    if (sospese.attivo) {
+      if (turniVivi.length > 0) {
+        setSospese((s0) => ({
+          ...s0,
+          fatte: [
+            ...s0.fatte,
+            turniVivi.map((t) => ({ tipo: "elimina" as const, prima: turnoBozzaDa(t) })),
+          ],
+          annullate: [],
+        }));
+      }
+      setConfermaSvuota(false);
+      return;
+    }
     startLavoro(async () => {
       const esito = await eliminaTuttiITurni(monday);
       if (!esito.ok) {
@@ -377,11 +396,31 @@ export function Roster({
         return;
       }
       setConfermaSvuota(false);
-      setSospese({ monday, attivo: false, fatte: [], annullate: [] });
-      setStoria({ monday, passato: [], futuro: [] });
-      toast.success("Settimana svuotata: torna in bozza.");
+      // Il ritratto di quello che e' stato cancellato lo fa il server, nel
+      // momento in cui cancella. Le voci di storia vecchie puntano a turni
+      // che non esistono piu': la storia riparte da qui, e lo svuotamento
+      // e' l'unica cosa che ora si puo' disfare.
+      const ritratto = esito.ritratto;
+      setStoria({
+        monday,
+        passato: ritratto
+          ? [
+              {
+                desfai: () => ripristinaTurni({ monday, turni: ritratto }),
+                rifai: async () => eliminaTuttiITurni(monday),
+              },
+            ]
+          : [],
+        futuro: [],
+      });
+      toast.success(
+        ritratto
+          ? "Settimana svuotata: torna in bozza. Finché resti qui, la freccia indietro la rimette com'era."
+          : "Settimana svuotata: torna in bozza.",
+      );
       router.refresh();
     });
+  };
   const [copiaAperta, setCopiaAperta] = React.useState(false);
   const [cerca, setCerca] = React.useState("");
   const [filtroReparto, setFiltroReparto] = React.useState("");
@@ -625,7 +664,9 @@ export function Roster({
                   Conferma modifiche
                   {sospese.fatte.length > 0 ? (
                     <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
-                      {sospese.fatte.length}
+                      {/* I turni toccati, non i gesti: uno svuotamento e'
+                          una mossa sola ma venti modifiche. */}
+                      {sospese.fatte.flat().length}
                     </span>
                   ) : null}
                 </Button>
@@ -924,6 +965,7 @@ export function Roster({
         <CopiaDialog
           monday={monday}
           giorno={selectedDay}
+          onCopiato={() => setStoria({ monday, passato: [], futuro: [] })}
           onClose={() => setCopiaAperta(false)}
         />
       ) : null}

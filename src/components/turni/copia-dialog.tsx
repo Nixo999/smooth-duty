@@ -27,10 +27,15 @@ type Modo = "settimana" | "giorno";
 export function CopiaDialog({
   monday,
   giorno,
+  onCopiato,
   onClose,
 }: {
   monday: string;
   giorno: string;
+  /** La copia cambia i turni senza passare dalla storia di annulla/ripeti:
+   *  chi quella storia la tiene deve saperlo, o la freccia indietro
+   *  prometterebbe di riportare un tabellone che non c'e' piu'. */
+  onCopiato: () => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -110,6 +115,7 @@ export function CopiaDialog({
           ? `${r.copiati} turni copiati, ${r.sostituiti} sostituiti.`
           : `${r.copiati} turni copiati.`,
       );
+      onCopiato();
       router.push(`/turni?s=${mondayOf(r.vaiA)}`, { scroll: false });
       router.refresh();
       onClose();

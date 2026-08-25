@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
-import { durationMinutes } from "@/lib/date";
+import { durationMinutes, hhmm } from "@/lib/date";
 import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
@@ -265,9 +265,44 @@ export async function eliminaTurno(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/** Un turno come torna indietro da uno svuotamento. Sono i campi che
+ *  descrivono il turno, non il suo stato: le conferme non ci sono:
+ *  vedi `ripristinaTurni`. */
+export type TurnoRipristinabile = {
+  profile_id: string | null;
+  department_id: string | null;
+  date: string;
+  start_time: string; // HH:MM
+  end_time: string;
+  title: string | null;
+  location: string | null;
+  notes: string | null;
+};
+
+/** Oltre questa soglia lo svuotamento non promette il ritorno indietro: una
+ *  settimana cosi' non si rimette in piedi con un solo insert, e promettere
+ *  un annullamento che poi fallisce e' peggio che non prometterlo. Duemila
+ *  turni sono un tabellone da trecento persone: nessuna azienda vera ci
+ *  arriva, ma il limite dev'esserci. */
+const MAX_RIPRISTINO = 2000;
+
+export type SvuotaResult =
+  | {
+      ok: true;
+      /** I turni cancellati, per rimetterli. null se erano troppi: la
+       *  settimana e' comunque svuotata, ma senza rete. */
+      ritratto: TurnoRipristinabile[] | null;
+    }
+  | { ok: false; error: string };
+
 /** Svuota la settimana, bozza o pubblicata che sia. Vuota, torna bozza:
- *  la conferma la chiede l'interfaccia, qui si esegue e basta. */
-export async function eliminaTuttiITurni(monday: string): Promise<ActionResult> {
+ *  la conferma la chiede l'interfaccia, qui si esegue e basta.
+ *
+ *  Restituisce i turni che ha cancellato, ed e' il server a fotografarli
+ *  proprio mentre li toglie: il tabellone che il browser ha in mano puo'
+ *  essere di dieci minuti fa, e rimettere in piedi quello cancellerebbe in
+ *  silenzio i turni aggiunti nel frattempo da un altro responsabile. */
+export async function eliminaTuttiITurni(monday: string): Promise<SvuotaResult> {
   const user = await requireCapo();
 
   const parsed = day.safeParse(monday);
@@ -276,12 +311,13 @@ export async function eliminaTuttiITurni(monday: string): Promise<ActionResult> 
   const giorni = weekDaysISO(lunedi);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: cancellati, error } = await supabase
     .from("shifts")
     .delete()
     .eq("company_id", user.company_id)
     .gte("date", giorni[0])
-    .lte("date", giorni[6]);
+    .lte("date", giorni[6])
+    .select("profile_id, department_id, date, start_time, end_time, title, location, notes");
   if (error) return { ok: false, error: error.message };
 
   await supabase
@@ -289,6 +325,101 @@ export async function eliminaTuttiITurni(monday: string): Promise<ActionResult> 
     .delete()
     .eq("company_id", user.company_id)
     .eq("monday", lunedi);
+
+  revalidatePath("/turni");
+  revalidatePath("/supervisione");
+
+  const righe = cancellati ?? [];
+  return {
+    ok: true,
+    ritratto:
+      righe.length === 0 || righe.length > MAX_RIPRISTINO
+        ? null
+        : righe.map((t) => ({
+            ...t,
+            // In colonna gli orari hanno i secondi, lo schema li vuole senza.
+            start_time: hhmm(t.start_time),
+            end_time: hhmm(t.end_time),
+          })),
+  };
+}
+
+/** I turni che tornano indietro. Le lunghezze sono larghe e i messaggi in
+ *  italiano perche' qui non si sta compilando un modulo: sono righe che il
+ *  database aveva gia' accettato, e rifiutarle ora vorrebbe dire perdere una
+ *  settimana per una nota di troppo. */
+const ripristinoSchema = z.object({
+  monday: day,
+  turni: z
+    .array(
+      z.object({
+        profile_id: z.string().uuid().nullable(),
+        department_id: z.string().uuid().nullable(),
+        date: day,
+        start_time: time,
+        end_time: time,
+        title: z.string().max(2000, "Mansione troppo lunga.").nullable(),
+        location: z.string().max(2000, "Luogo troppo lungo.").nullable(),
+        notes: z.string().max(5000, "Note troppo lunghe.").nullable(),
+      }),
+    )
+    .min(1, "Non c'è niente da rimettere.")
+    .max(MAX_RIPRISTINO, "Troppi turni da rimettere in una volta."),
+});
+
+export type RipristinoInput = z.input<typeof ripristinoSchema>;
+
+/** Rimette in piedi i turni di una settimana svuotata: e' quello che fa la
+ *  freccia indietro dopo «Svuota».
+ *
+ *  Tre cose che non fa, tutte volute. Non ricrea le conferme: il si' di un
+ *  dipendente lo scrive solo lui, dalla funzione `conferma_turno`, e un
+ *  responsabile non deve poterlo dichiarare al posto suo — la settimana
+ *  torna comunque bozza, dove le conferme non servono. Non ripubblica la
+ *  settimana, per la stessa ragione per cui svuotarla la riporta in bozza.
+ *  E non controlla le assenze come fa `salvaTurno`: quei turni esistevano
+ *  gia', e il turno di chi e' assente e' proprio il buco da tenere in vista. */
+export async function ripristinaTurni(input: RipristinoInput): Promise<ActionResult> {
+  const user = await requireCapo();
+
+  const parsed = ripristinoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const lunedi = mondayOf(parsed.data.monday);
+  const giorni = weekDaysISO(lunedi);
+
+  // I turni tornano nella settimana da cui sono stati tolti, non altrove.
+  if (parsed.data.turni.some((t) => t.date < giorni[0] || t.date > giorni[6])) {
+    return { ok: false, error: "Ci sono turni fuori dalla settimana da rimettere." };
+  }
+
+  const supabase = await createClient();
+
+  // Solo su una settimana ancora vuota. Fra lo svuotamento e la freccia
+  // indietro ci si puo' aver copiato dentro un'altra settimana, o averla
+  // rifatta a mano: rimettere il vecchio tabellone sopra il nuovo darebbe
+  // un doppione, e nessuno saprebbe piu' quale dei due vale.
+  const { count } = await supabase
+    .from("shifts")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", user.company_id)
+    .gte("date", giorni[0])
+    .lte("date", giorni[6]);
+  if (count) {
+    return {
+      ok: false,
+      error:
+        "La settimana non è più vuota: i turni di prima non si rimettono sopra quelli nuovi.",
+    };
+  }
+
+  const { error } = await supabase.from("shifts").insert(
+    parsed.data.turni.map((t) => ({
+      ...t,
+      company_id: user.company_id,
+      created_by: user.id,
+    })),
+  );
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/turni");
   revalidatePath("/supervisione");
