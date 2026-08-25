@@ -1,5 +1,6 @@
 import { MyWeek } from "@/components/turni/my-week";
 import { Roster } from "@/components/turni/roster";
+import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
@@ -103,6 +104,17 @@ export default async function TurniPage({
           .order("creato_at", { ascending: false })
       : Promise.resolve({ data: [] }),
   ]);
+
+  // Un errore di lettura non deve mai travestirsi da settimana vuota: sono
+  // due cose diversissime, e chi apre il tabellone non ha modo di
+  // distinguerle. Meglio una pagina che dice «non riesco a leggere» di una
+  // che mostra zero turni e lascia credere che siano stati cancellati.
+  if (shiftsResult.error) {
+    return <ErroreDati cosa="i turni" dettaglio={shiftsResult.error.message} />;
+  }
+  if (profilesResult.error) {
+    return <ErroreDati cosa="le persone" dettaglio={profilesResult.error.message} />;
+  }
 
   const inBozza = !bozzaResult.data;
 

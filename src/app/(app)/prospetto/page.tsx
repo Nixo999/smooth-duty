@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Prospetto } from "@/components/prospetto/prospetto";
+import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireCapo } from "@/lib/auth";
 import { COLONNE_ASSENZA, COLONNE_PROFILO, COLONNE_REPARTO } from "@/lib/colonne";
 import { toISODate, weekStart } from "@/lib/date";
@@ -81,6 +82,15 @@ export default async function ProspettoPage({
   // indirizzo si torna ai Turni.
   if (!normalizzaImpostazioni(impostazioni.data as never).pagina_prospetto) {
     redirect("/turni");
+  }
+
+  // Un errore di lettura qui darebbe un prospetto di zero ore per tutti,
+  // che e' un dato falso e credibile: peggio di nessun dato.
+  if (turni.error) {
+    return <ErroreDati cosa="i turni" dettaglio={turni.error.message} />;
+  }
+  if (persone.error) {
+    return <ErroreDati cosa="le persone" dettaglio={persone.error.message} />;
   }
 
   const dati = calcolaProspetto({

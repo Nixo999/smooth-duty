@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Supervisione } from "@/components/supervisione/supervisione";
+import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_IMPOSTAZIONI,
@@ -80,6 +81,15 @@ export default async function SupervisionePage({
       .eq("company_id", user.company_id)
       .in("monday", [...new Set([mondayOf(giorno), mondayOf(giornoPrima)])]),
   ]);
+
+  // Come nei Turni: se la lettura non riesce lo si dice, invece di
+  // disegnare una giornata deserta che sembra un tabellone cancellato.
+  if (turni.error) {
+    return <ErroreDati cosa="i turni" dettaglio={turni.error.message} />;
+  }
+  if (persone.error) {
+    return <ErroreDati cosa="le persone" dettaglio={persone.error.message} />;
+  }
 
   const capo = user.role === "capo";
 
