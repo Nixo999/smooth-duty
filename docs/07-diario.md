@@ -11,6 +11,13 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Su una macchina nuova non c'era niente da copiare**
+Il README diceva «copia `.env.local.example`», ma quel file non esisteva e non
+poteva esistere: `.gitignore` esclude `.env*` senza eccezioni. Chi montava il
+progetto altrove doveva indovinare i nomi delle variabili leggendo il codice.
+Ora i due modelli — `.env.local.example` e `.env.db.example` — sono in git con
+dentro solo segnaposto, e l'esclusione ha le sue due eccezioni.
+
 **Il progetto si lavora da due macchine, e i documenti smettono di darne per
 scontata una**
 Un Mac si è aggiunto al Windows su cui l'app è nata. I documenti scrivevano il

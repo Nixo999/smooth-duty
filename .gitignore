@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# I due modelli invece si committano: senza, su una macchina nuova non c'e'
+# niente da copiare e i nomi delle variabili si indovinano.
+!.env.local.example
+!.env.db.example
 
 # vercel
 .vercel

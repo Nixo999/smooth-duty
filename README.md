@@ -34,6 +34,11 @@ SUPABASE_SERVICE_ROLE_KEY=<Project API keys › service_role>
 `service_role` scavalca ogni regola di sicurezza: resta solo sul server, non
 va committata e non deve mai finire in una variabile `NEXT_PUBLIC_`.
 
+Serve solo a chi lancia gli script di migrazione: `.env.db.example` → `.env.db`,
+con la password del database (**Project Settings › Database**). L'API REST di
+Supabase non sa creare tabelle, quindi quegli script parlano con Postgres
+direttamente.
+
 ### 3. Il server
 
 ```bash

@@ -10,8 +10,8 @@ serve a **lavorarci**, e le cose che valgono solo su questa macchina.
 | Cartella di lavoro | cambia da macchina a macchina, vedi sotto |
 | Repository | `https://github.com/Nixo999/smooth-duty.git`, ramo `main` |
 | Database di sviluppo | progetto Supabase `rytuurzafjxzlrpgforj` (regione Irlanda) |
-| Chiavi | `.env.local` (fuori da git) |
-| Password del database, per gli script | `.env.db` (fuori da git) |
+| Chiavi | `.env.local` (fuori da git, si parte da `.env.local.example`) |
+| Password del database, per gli script | `.env.db` (fuori da git, si parte da `.env.db.example`) |
 
 ## Si lavora da più macchine
 
