@@ -3,6 +3,10 @@
 Pianificazione turni per squadre e aziende. Il responsabile costruisce la
 settimana, ogni dipendente vede la sua.
 
+> Questo file spiega come si installa e come funziona l'app. Per **lavorare al
+> codice** — modello dei dati, regole di dominio, convenzioni, diario delle
+> modifiche — la memoria del progetto sta in [`docs/`](docs/README.md).
+
 ## Avvio in locale
 
 ### 1. Il database
