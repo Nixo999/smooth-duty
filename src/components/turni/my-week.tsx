@@ -1,7 +1,8 @@
 import { Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
-import { RifiutaTurno } from "@/components/turni/rifiuta-turno";
+import { RispondiTurno } from "@/components/turni/rispondi-turno";
 import { WeekNav } from "@/components/turni/week-nav";
+import { statoConferma } from "@/lib/conferme";
 import {
   assenzaAperta,
   assenzaDelGiorno,
@@ -216,30 +217,7 @@ export function MyWeek({
                           </p>
                         ) : null}
 
-                        {/* Il turno vale gia': non c'e' niente da accettare.
-                            Si dice cos'ha di particolare, e si lascia la via
-                            d'uscita a chi quel giorno non ce la fa — ma solo
-                            finche' quel giorno deve ancora arrivare: un turno
-                            gia' lavorato non si rifiuta, si e' fatto. */}
-                        {s.richiede_conferma ? (
-                          s.rifiutato_at ? (
-                            <p className="mt-2 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] font-medium text-danger">
-                              Hai rifiutato questo turno: il responsabile è
-                              stato avvisato e ci penserà lui.
-                            </p>
-                          ) : passato ? null : (
-                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
-                              <p className="min-w-0 flex-1 text-[13px] font-medium text-warning">
-                                {MOTIVO_RIFIUTO[s.richiede_conferma]}{" "}
-                                <span className="font-normal">
-                                  Il turno è già valido: se non puoi, dillo
-                                  adesso.
-                                </span>
-                              </p>
-                              <RifiutaTurno turnoId={s.id} />
-                            </div>
-                          )
-                        ) : null}
+                        <Risposta turno={s} passato={passato} />
                       </li>
                     );
                   })}
@@ -249,6 +227,50 @@ export function MyWeek({
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/** Come sta messo un turno particolare, e cosa può ancora farci
+ *  l'interessato.
+ *
+ *  Il turno vale già: non c'è niente da sbloccare. Si dice cos'ha di
+ *  particolare e si lasciano due strade — un sì, che toglie il responsabile
+ *  dal dubbio, e un no, che gli manda un messaggio — ma solo finché quel
+ *  giorno deve ancora arrivare: su un turno già lavorato non c'è più niente
+ *  da dire. */
+function Risposta({ turno, passato }: { turno: Shift; passato: boolean }) {
+  const stato = statoConferma(turno);
+  if (!stato) return null;
+
+  if (stato === "rifiutato") {
+    return (
+      <p className="mt-2 rounded-xl bg-danger-soft px-3 py-2.5 text-[13px] font-medium text-danger">
+        Hai rifiutato questo turno: il responsabile è stato avvisato e ci
+        penserà lui.
+      </p>
+    );
+  }
+
+  if (stato === "accettato") {
+    return (
+      <p className="mt-2 rounded-xl bg-success-soft px-3 py-2.5 text-[13px] font-medium text-success">
+        Hai accettato questo turno.
+      </p>
+    );
+  }
+
+  if (passato || !turno.richiede_conferma) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
+      <p className="min-w-0 flex-1 text-[13px] font-medium text-warning">
+        {MOTIVO_RIFIUTO[turno.richiede_conferma]}{" "}
+        <span className="font-normal">
+          Il turno è già valido: rispondi solo se vuoi — o se non puoi.
+        </span>
+      </p>
+      <RispondiTurno turnoId={turno.id} />
     </div>
   );
 }

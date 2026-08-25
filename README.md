@@ -140,8 +140,10 @@ consegnare va sostituito con l'indirizzo pubblico HTTPS e va tolto
   copertura. In modalità Modifica le barre si trascinano: i bordi cambiano
   l'orario, il centro sposta il turno, anche di reparto dove la persona sa
   lavorare.
-- **Rifiuti** — un turno particolare vale subito ma si può rifiutare, e il
-  responsabile lo scopre dai messaggi in cima ai Turni. Vedi sotto.
+- **Sì e no sui turni** — un turno particolare vale subito; l'interessato può
+  accettarlo o rifiutarlo, e il responsabile vede sul tabellone a che punto
+  sta: in attesa, accettato, rifiutato. I rifiuti diventano messaggi in cima
+  ai Turni. Vedi sotto.
 - **Impostazioni** — le regole dell'azienda, divise per pagina. Supervisione,
   Permessi e Prospetto si possono spegnere: chi non le usa non se le ritrova
   nel menu.
@@ -167,6 +169,15 @@ adesso se ne va e resta un buco dichiarato da coprire. Le richieste di
 permesso vanno nel verso opposto — nascono con riserva e valgono solo quando
 il responsabile le approva — perché un'assenza data per buona in attesa di
 smentita è un buco in turno che nessuno ha visto arrivare.
+
+**Ma dire di sì e non dire niente non sono la stessa cosa**, e sul tabellone
+si distinguono: *in attesa* (arancio) è il turno che vale e su cui nessuno si
+è ancora espresso, *accettato* (verde) quello che l'interessato ha guardato e
+approvato, *rifiutato* (rosso) quello su cui c'è un messaggio da leggere. Il
+sì non serve a rendere valido niente — il turno lo era già — serve a togliere
+il responsabile dal dubbio il sabato sera. Una volta detta, la parola vale:
+quello che si è accettato non si rifiuta più, e chi ha un imprevisto vero
+chiede un permesso, che è l'altra strada e c'è apposta.
 
 **I turni sono date civili, non istanti.** Un turno del 3 marzo resta del
 3 marzo per chiunque lo guardi. Se salvassimo un `timestamptz`, chi apre l'app

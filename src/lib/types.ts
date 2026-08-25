@@ -117,17 +117,21 @@ export type Shift = {
   /** Reparto solo per questo turno: serve a dire "oggi copre in sala".
    *  null = vale quello della persona. */
   department_id: string | null;
-  /** Perché questo turno l'interessato lo può rifiutare. null = è un turno
+  /** Perché su questo turno l'interessato può dire la sua. null = è un turno
    *  come tutti gli altri.
    *
-   *  Il nome è rimasto quello di quando serviva un sì; oggi il turno vale
-   *  comunque — è preapprovato — e questo campo dice soltanto che c'è una
-   *  facoltà di dire no, e per quale ragione. I valori ammessi stanno anche
-   *  nel vincolo `shifts_richiede_conferma_valido`: aggiungerne uno vuol
-   *  dire toccare tutti e due. */
+   *  Il turno vale comunque — è preapprovato — e questo campo dice soltanto
+   *  che c'è qualcosa di particolare da segnalare, e cosa. I valori ammessi
+   *  stanno anche nel vincolo `shifts_richiede_conferma_valido`: aggiungerne
+   *  uno vuol dire toccare tutti e due. */
   richiede_conferma: MotivoRifiuto | null;
+  /** Ha detto di sì: da quando. Non serviva a rendere valido il turno, che
+   *  lo era già; serve a distinguere «ha guardato ed è d'accordo» da «non si
+   *  è ancora fatto vivo». */
   confermato_at: string | null;
-  /** Ha detto no: da quando, e volendo perché. */
+  /** Ha detto no: da quando, e volendo perché. Le due date si escludono a
+   *  vicenda — una posizione presa non si cambia — e a leggerle insieme
+   *  pensa `statoConferma` in src/lib/conferme.ts. */
   rifiutato_at: string | null;
   nota_rifiuto: string | null;
 };

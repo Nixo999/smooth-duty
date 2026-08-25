@@ -78,7 +78,7 @@ export function Impostazioni({
       <Sezione
         icona={CalendarDays}
         pagina="Turni"
-        nota="Quali turni l'interessato può rifiutare. Il turno vale da subito — chi non dice niente ha accettato — ma chi non ce la fa lo dice, e a te arriva un messaggio."
+        nota="Su quali turni l'interessato può dire la sua. Il turno vale da subito — chi non dice niente ha accettato — ma può confermarlo, e allora lo vedi «accettato», oppure rifiutarlo, e allora ti arriva un messaggio."
       >
         <Interruttore
           acceso={v.conferma_straordinari}

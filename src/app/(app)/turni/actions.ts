@@ -693,6 +693,38 @@ export async function pubblicaSettimana(monday: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/* -------------------------------------- il sì e il no del dipendente --- */
+
+/** Il si' esplicito su un turno preapprovato.
+ *
+ *  Non serve a rendere valido il turno — lo e' gia' — ma a togliere il
+ *  responsabile dal dubbio: senza, «non si e' ancora espresso» e «ha
+ *  guardato ed e' d'accordo» si somigliano troppo. */
+export async function accettaTurno(id: string): Promise<ActionResult> {
+  await requireMember();
+
+  const parsed = z.string().uuid("Turno non valido.").safeParse(id);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: preso, error } = await supabase.rpc("accetta_turno", {
+    turno: parsed.data,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/turni");
+  if (!preso) {
+    return {
+      ok: false,
+      error:
+        "Su questo turno non c'è più niente da accettare: controlla che sia ancora quello che avevi visto, e che il giorno non sia già passato.",
+    };
+  }
+
+  revalidatePath("/supervisione");
+  return { ok: true };
+}
+
 /* ------------------------------------------------- rifiuti e messaggi --- */
 
 /** Il no del dipendente su un turno preapprovato.

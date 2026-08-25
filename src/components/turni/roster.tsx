@@ -38,6 +38,12 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { GruppoModifica } from "@/components/ui/gruppo-modifica";
 import { Ricerca } from "@/components/ui/ricerca";
+import {
+  ETICHETTA_CONFERMA,
+  SPIEGA_CONFERMA,
+  statoConferma,
+  type StatoConferma,
+} from "@/lib/conferme";
 import { repartoDelTurno } from "@/lib/reparto";
 import {
   compatta,
@@ -1037,6 +1043,7 @@ function Chip({
   onOpen: () => void;
 }) {
   const unassigned = shift.profile_id === null;
+  const stato = statoConferma(shift);
   return (
     <span
       role="button"
@@ -1058,19 +1065,16 @@ function Chip({
           ? "bg-warning-soft text-warning"
           : "bg-accent-soft text-accent",
         assente && "assente border border-current",
-        // Un anello, non un colore nuovo: il turno vale, ha solo qualcosa
-        // di particolare. Rosso quando l'interessato ha detto no — quello
-        // il responsabile lo deve vedere anche con la coda dell'occhio.
-        shift.richiede_conferma && !shift.rifiutato_at && "ring-1 ring-warning",
-        shift.rifiutato_at && "ring-2 ring-danger",
+        // Un anello, non un colore nuovo: il turno vale comunque, ha solo
+        // qualcosa di particolare. Arancio finche' la persona non si e'
+        // espressa, verde quando ha detto di si', rosso quando ha detto di
+        // no — e il rosso e' piu' spesso perche' e' l'unico che chiede al
+        // responsabile di fare qualcosa.
+        stato === "in_attesa" && "ring-1 ring-warning",
+        stato === "accettato" && "ring-1 ring-success",
+        stato === "rifiutato" && "ring-2 ring-danger",
       )}
-      title={
-        shift.rifiutato_at
-          ? "Rifiutato dalla persona: apri i messaggi in cima alla pagina"
-          : shift.richiede_conferma
-            ? "Preapprovato: la persona può ancora rifiutarlo"
-            : undefined
-      }
+      title={stato ? SPIEGA_CONFERMA[stato] : undefined}
     >
       <span className="orario block text-[12px] font-semibold tabular-nums">
         {timeRange(shift.start_time, shift.end_time)}
@@ -1168,27 +1172,20 @@ function DayList({
                         {hhmm(s.end_time)}
                       </span>
                       {/* Da telefono questa e' l'unica vista del tabellone:
-                          senza queste due pastiglie un turno rifiutato
-                          sarebbe indistinguibile da uno qualunque, e il
+                          senza la pastiglia, com'e' messo un turno che
+                          aspetta una risposta non si vedrebbe proprio — e il
                           telefono e' dove l'app si usa di piu'. */}
-                      {s.rifiutato_at ? (
-                        <span className="ml-auto shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-[11.5px] font-medium text-danger">
-                          rifiutato
-                        </span>
-                      ) : s.richiede_conferma ? (
-                        <span className="ml-auto shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium text-warning">
-                          rifiutabile
-                        </span>
-                      ) : (
-                        <span className="ml-auto truncate text-[13px] text-muted">
-                          {assente(s)
+                      <Pastiglia
+                        stato={statoConferma(s)}
+                        altrimenti={
+                          assente(s)
                             ? "non conta"
                             : (reparto(s) ??
                               formatDuration(
                                 durationMinutes(s.start_time, s.end_time),
-                              ))}
-                        </span>
-                      )}
+                              ))
+                        }
+                      />
                     </button>
                   </li>
                 ))}
@@ -1198,6 +1195,38 @@ function DayList({
         </ul>
       )}
     </div>
+  );
+}
+
+/** In coda alla riga del giorno: come sta messo il turno, o — quando non
+ *  c'e' niente di particolare da dire — quello che ci starebbe comunque
+ *  (il reparto, o quanto dura). */
+function Pastiglia({
+  stato,
+  altrimenti,
+}: {
+  stato: StatoConferma | null;
+  altrimenti: string;
+}) {
+  if (!stato) {
+    return (
+      <span className="ml-auto truncate text-[13px] text-muted">{altrimenti}</span>
+    );
+  }
+  return (
+    <span
+      title={SPIEGA_CONFERMA[stato]}
+      className={cn(
+        "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium",
+        stato === "rifiutato"
+          ? "bg-danger-soft text-danger"
+          : stato === "accettato"
+            ? "bg-success-soft text-success"
+            : "bg-warning-soft text-warning",
+      )}
+    >
+      {ETICHETTA_CONFERMA[stato]}
+    </span>
   );
 }
 
