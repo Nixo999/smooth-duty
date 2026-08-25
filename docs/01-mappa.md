@@ -4,9 +4,10 @@
 variabile — negozi, magazzini, ristorazione. Il responsabile costruisce la
 settimana; ogni dipendente vede la sua.
 
-Repository: `https://github.com/Nixo999/smooth-duty.git` — cartella locale
-`C:\Users\User\Desktop\turni`, ramo `main`. Il nome del progetto npm è `turni`;
-`smooth-duty` è solo il nome del repository su GitHub.
+Repository: `https://github.com/Nixo999/smooth-duty.git`, ramo `main`. Il nome
+del progetto npm è `turni`; `smooth-duty` è solo il nome del repository su
+GitHub, e la cartella locale si chiama diversamente su ogni macchina — si
+lavora da più di una, l'elenco sta in [06-ambiente.md](06-ambiente.md).
 
 ## Chi la usa
 

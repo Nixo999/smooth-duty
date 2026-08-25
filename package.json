@@ -9,7 +9,7 @@
     "lint": "eslint",
     "start:rete": "next start -H 0.0.0.0 -p 3000",
     "icone": "node scripts/crea-icone.mjs && node scripts/icone-android.mjs",
-    "apk": "cd android && gradlew.bat assembleDebug",
+    "apk": "node scripts/apk.mjs",
     "prove": "node --import ./scripts/alias.mjs scripts/prova-copia.mjs && node --import ./scripts/alias.mjs scripts/prova-copertura.mjs && node --import ./scripts/alias.mjs scripts/prova-prospetto.mjs && node --import ./scripts/alias.mjs scripts/prova-trascina.mjs && node scripts/prova-lettura.mjs"
   },
   "dependencies": {

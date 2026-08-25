@@ -11,6 +11,20 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Il progetto si lavora da due macchine, e i documenti smettono di darne per
+scontata una**
+Un Mac si è aggiunto al Windows su cui l'app è nata. I documenti scrivevano il
+percorso di lavoro come se ce ne fosse uno solo, e tre cose non partivano
+proprio da qui: `npm run apk` invocava `gradlew.bat`, il wrapper `gradlew`
+arrivava da git senza il bit di esecuzione, e `org.gradle.java.home` in
+`android/gradle.properties` è un percorso `C:\`. Le prime due sono state
+sistemate (`scripts/apk.mjs` sceglie il nome giusto); la terza no, di
+proposito: toglierla romperebbe la build dell'altra macchina, e Gradle legge
+comunque per primo `~/.gradle/gradle.properties`. In
+[06-ambiente.md](06-ambiente.md) c'è ora anche il modo di lavorare in parallelo
+senza pestarsi i piedi — pull prima di cominciare, `verifica-schema.mjs` subito
+dopo, commit piccoli, mai un `--force` su `main`.
+
 **Le migrazioni 13, 14 e 15 eseguite sul database «swift control»**
 Il database era fermo alla 12 mentre il codice era alla 15: mancavano
 `shifts.rifiutato_at`, `nota_rifiuto`, `stato_prima`, la tabella
