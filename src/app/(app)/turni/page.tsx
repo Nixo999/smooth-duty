@@ -4,18 +4,22 @@ import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
+  COLONNE_AVVISO,
   COLONNE_MESSAGGIO,
   COLONNE_PROFILO_CON_REPARTI,
   COLONNE_REPARTO,
+  COLONNE_RICHIESTA_SETTIMANA,
   COLONNE_TURNO,
   conReparti,
 } from "@/lib/colonne";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Absence,
+  Avviso,
   Department,
   MessaggioTurno,
   Profile,
+  RichiestaSettimana,
   Shift,
 } from "@/lib/types";
 import { resolveMonday, weekDaysISO } from "@/lib/week";
@@ -58,6 +62,8 @@ export default async function TurniPage({
     frequenteResult,
     bozzaResult,
     messaggiResult,
+    avvisiResult,
+    settimaneResult,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -103,6 +109,38 @@ export default async function TurniPage({
           .is("risolto_at", null)
           .order("creato_at", { ascending: false })
       : Promise.resolve({ data: [] }),
+    // Gli avvisi non ancora letti, solo per chi li deve leggere. Non
+    // filtrati per settimana, per la stessa ragione dei messaggi: un turno
+    // tolto di sabato non deve sparire perche' si sta guardando lunedi'.
+    // Il filtro sulla persona e' esplicito perche' RLS lascia leggere al
+    // responsabile anche quelli degli altri: la rete non e' il filtro.
+    user.role === "capo"
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from("shift_notices")
+          .select(COLONNE_AVVISO)
+          .eq("company_id", user.company_id)
+          .eq("profile_id", user.id)
+          .is("letto_at", null)
+          .order("creato_at", { ascending: false }),
+    // Le settimane: al dipendente quella che sta guardando, se ha ancora
+    // una domanda aperta; al responsabile le risposte che non ha ancora
+    // letto, di qualunque settimana.
+    user.role === "capo"
+      ? supabase
+          .from("week_requests")
+          .select(COLONNE_RICHIESTA_SETTIMANA)
+          .eq("company_id", user.company_id)
+          .neq("stato", "in_attesa")
+          .is("visto_at", null)
+          .order("deciso_at", { ascending: false })
+      : supabase
+          .from("week_requests")
+          .select(COLONNE_RICHIESTA_SETTIMANA)
+          .eq("company_id", user.company_id)
+          .eq("profile_id", user.id)
+          .eq("monday", monday)
+          .eq("stato", "in_attesa"),
   ]);
 
   // Un errore di lettura non deve mai travestirsi da settimana vuota: sono
@@ -142,6 +180,7 @@ export default async function TurniPage({
         repartoFrequente={frequente}
         inBozza={inBozza}
         messaggi={(messaggiResult.data ?? []) as MessaggioTurno[]}
+        risposteSettimana={(settimaneResult.data ?? []) as RichiestaSettimana[]}
       />
     );
   }
@@ -158,6 +197,10 @@ export default async function TurniPage({
       reparti={departments}
       repartoPersona={user.department_id}
       inBozza={inBozza}
+      avvisi={(avvisiResult.data ?? []) as Avviso[]}
+      richiestaSettimana={
+        ((settimaneResult.data ?? []) as RichiestaSettimana[])[0] ?? null
+      }
     />
   );
 }

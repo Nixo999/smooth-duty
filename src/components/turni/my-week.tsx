@@ -1,6 +1,6 @@
 import { Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
-import { RispondiTurno } from "@/components/turni/rispondi-turno";
+import { Posta } from "@/components/turni/posta";
 import { WeekNav } from "@/components/turni/week-nav";
 import { statoConferma } from "@/lib/conferme";
 import {
@@ -20,7 +20,13 @@ import {
   timeRange,
 } from "@/lib/date";
 import { repartoDelTurno } from "@/lib/reparto";
-import type { Absence, Department, Shift } from "@/lib/types";
+import type {
+  Absence,
+  Avviso,
+  Department,
+  RichiestaSettimana,
+  Shift,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Perche' questo turno lo si puo' rifiutare, scritto come lo si direbbe.
@@ -46,6 +52,8 @@ export function MyWeek({
   reparti,
   repartoPersona,
   inBozza,
+  avvisi,
+  richiestaSettimana,
 }: {
   monday: string;
   days: string[];
@@ -57,6 +65,11 @@ export function MyWeek({
   repartoPersona: string | null;
   /** La settimana e' ancora in bozza: i turni non arrivano proprio. */
   inBozza: boolean;
+  /** Gli avvisi non ancora letti. Non sono filtrati per settimana: un turno
+   *  tolto di sabato non deve sparire perche' si sta guardando lunedi'. */
+  avvisi: Avviso[];
+  /** La domanda sulla settimana mostrata, se c'e' e se e' ancora aperta. */
+  richiestaSettimana: RichiestaSettimana | null;
 }) {
   const assente = (s: Shift) =>
     Boolean(assenzaDelGiorno(assenze, s.profile_id, s.date));
@@ -75,8 +88,26 @@ export function MyWeek({
 
   const inCorso = assenzaAperta(assenze, profileId);
 
+  /** I turni su cui non si e' ancora detto niente e che devono ancora
+   *  arrivare: sono quelli che finiscono nella posta. Su un turno gia'
+   *  lavorato non c'e' piu' niente da dire, e il database lo rifiuterebbe. */
+  const oggi = oggiCivile();
+  const daDecidere = shifts.filter(
+    (s) => statoConferma(s) === "in_attesa" && s.date >= oggi,
+  );
+
   return (
     <div className="space-y-4">
+      <Posta
+        turni={daDecidere}
+        avvisi={avvisi}
+        settimana={richiestaSettimana}
+        monday={monday}
+        motivoDelTurno={(t) =>
+          t.richiede_conferma ? MOTIVO_RIFIUTO[t.richiede_conferma] : ""
+        }
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeekNav monday={monday} />
         <div className="rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium tabular-nums text-muted">
@@ -264,15 +295,17 @@ function Risposta({ turno, passato }: { turno: Shift; passato: boolean }) {
 
   if (passato || !turno.richiede_conferma) return null;
 
+  // Il giorno dice **che cosa** ha di particolare; a rispondere si va nella
+  // posta, in cima alla pagina. I due bottoni stavano qui dentro, e sembrava
+  // logico: ma una cosa da decidere che sta dentro un giorno si vede solo se
+  // si guarda quel giorno, e chi apre l'app il lunedì non scorre fino a
+  // sabato.
   return (
-    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-warning-soft px-3 py-2.5">
-      <p className="min-w-0 flex-1 text-[13px] font-medium text-warning">
-        {MOTIVO_RIFIUTO[turno.richiede_conferma]}{" "}
-        <span className="font-normal">
-          Il turno è già valido: rispondi solo se vuoi — o se non puoi.
-        </span>
-      </p>
-      <RispondiTurno turnoId={turno.id} />
-    </div>
+    <p className="mt-2 rounded-xl bg-warning-soft px-3 py-2.5 text-[13px] font-medium text-warning">
+      {MOTIVO_RIFIUTO[turno.richiede_conferma]}{" "}
+      <span className="font-normal">
+        Il turno è già valido. Per rispondere, il riquadro in cima alla pagina.
+      </span>
+    </p>
   );
 }

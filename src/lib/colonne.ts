@@ -28,6 +28,15 @@ export const COLONNE_TURNO =
 export const COLONNE_MESSAGGIO =
   "id, profile_id, shift_id, motivo, nota, giorno, turno_prima, turno_dopo, esito, creato_at, visto_at, risolto_at";
 
+/** Gli avvisi: il verso opposto dei messaggi. Il responsabile ha cambiato
+ *  qualcosa che toglie ore, e l'interessato ha diritto di saperlo. */
+export const COLONNE_AVVISO =
+  "id, profile_id, shift_id, motivo, giorno, turno_prima, turno_dopo, creato_at, letto_at";
+
+/** La domanda che nasce alla pubblicazione per chi va in straordinario. */
+export const COLONNE_RICHIESTA_SETTIMANA =
+  "id, profile_id, monday, motivo, minuti_previsti, minuti_contratto, stato, nota, creato_at, deciso_at, visto_at";
+
 export const COLONNE_REPARTO = "id, company_id, name, hue, position";
 
 export const COLONNE_ASSENZA =

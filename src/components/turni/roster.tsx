@@ -70,6 +70,7 @@ import type {
   Absence,
   Department,
   MessaggioTurno,
+  RichiestaSettimana,
   Profile,
   Shift,
 } from "@/lib/types";
@@ -139,6 +140,7 @@ export function Roster({
   repartoFrequente,
   inBozza,
   messaggi,
+  risposteSettimana,
 }: {
   monday: string;
   days: string[];
@@ -152,6 +154,8 @@ export function Roster({
   inBozza: boolean;
   /** I rifiuti ancora aperti, di tutte le settimane. */
   messaggi: MessaggioTurno[];
+  /** Le risposte alla domanda sulla settimana intera, non ancora lette. */
+  risposteSettimana: RichiestaSettimana[];
 }) {
   const router = useRouter();
   const [inLavoro, startLavoro] = React.useTransition();
@@ -606,6 +610,7 @@ export function Roster({
           questa settimana, e' della giornata che l'ha lasciato. */}
       <Messaggi
         messaggi={messaggi}
+        risposteSettimana={risposteSettimana}
         nomeDi={(id) =>
           profiles.find((p) => p.id === id)?.full_name ?? "Una persona"
         }

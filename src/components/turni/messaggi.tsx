@@ -4,10 +4,18 @@ import { AlertTriangle, Check, Inbox, Mail, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { apriMessaggi, chiudiMessaggio } from "@/app/(app)/turni/actions";
+import {
+  apriMessaggi,
+  chiudiMessaggio,
+  chiudiRichiestaSettimana,
+} from "@/app/(app)/turni/actions";
 import { Button } from "@/components/ui/button";
-import { dayLong, fromISODate } from "@/lib/date";
-import type { MessaggioTurno, MotivoRifiuto } from "@/lib/types";
+import { dayLong, formatDuration, fromISODate, weekLabel } from "@/lib/date";
+import type {
+  MessaggioTurno,
+  MotivoRifiuto,
+  RichiestaSettimana,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Come si chiama, in una riga, la cosa che e' stata rifiutata. */
@@ -28,12 +36,18 @@ const COSA: Record<MotivoRifiuto, string> = {
  *  responsabile guarda, non alle sue spalle. */
 export function Messaggi({
   messaggi,
+  risposteSettimana,
   nomeDi,
   inSquadra,
   onCreaTurno,
 }: {
   /** Solo quelli aperti: un messaggio risolto ha finito il suo lavoro. */
   messaggi: MessaggioTurno[];
+  /** Le risposte alla domanda sulla settimana intera, quelle non ancora
+   *  lette. Stanno qui e non in un riquadro loro perche' sono la stessa
+   *  cosa vista da piu' lontano: qualcuno ha detto la sua su quello che il
+   *  responsabile ha scritto, e lui deve leggerla. */
+  risposteSettimana: RichiestaSettimana[];
   nomeDi: (profileId: string) => string;
   /** La persona è ancora in squadra: a chi non c'è più non si rifà il turno. */
   inSquadra: (profileId: string) => boolean;
@@ -80,11 +94,26 @@ export function Messaggi({
       router.refresh();
     });
 
-  if (messaggi.length === 0) return null;
+  const chiudiSettimana = (id: string) =>
+    start(async () => {
+      setInLavorazione(id);
+      const esito = await chiudiRichiestaSettimana(id);
+      setInLavorazione(null);
+      if (!esito.ok) {
+        toast.error(esito.error);
+        return;
+      }
+      router.refresh();
+    });
+
+  if (messaggi.length === 0 && risposteSettimana.length === 0) return null;
 
   // Una coda che aspetta il responsabile si annuncia in arancio, come le
   // richieste di permesso: il blu in questa app vuol dire "informazione".
-  const daFare = daVedere.length > 0 || daRifare > 0;
+  const daFare =
+    daVedere.length > 0 ||
+    daRifare > 0 ||
+    risposteSettimana.some((r) => r.stato === "rifiutata");
 
   return (
     <section
@@ -132,6 +161,21 @@ export function Messaggi({
           Aprendo i messaggi vedi cos&apos;è successo, e i turni si sistemano
           di conseguenza.
         </p>
+      ) : null}
+
+      {risposteSettimana.length > 0 ? (
+        <ul className="divide-y divide-border">
+          {risposteSettimana.map((r) => (
+            <RigaSettimana
+              key={r.id}
+              richiesta={r}
+              nome={nomeDi(r.profile_id)}
+              inCorso={inCorso}
+              attiva={inLavorazione === r.id}
+              onChiudi={() => chiudiSettimana(r.id)}
+            />
+          ))}
+        </ul>
       ) : null}
 
       <ul className="divide-y divide-border">
@@ -272,6 +316,85 @@ function Riga({
           </Button>
         </div>
       </div>
+    </li>
+  );
+}
+
+/** Una risposta alla domanda sulla settimana intera.
+ *
+ *  Non c'e' niente da applicare, ed e' voluto: una settimana rifiutata la
+ *  rifa' il responsabile, e il ritocco chiesto insieme a un si' lo valuta
+ *  lui. Un'app che spostasse i turni da sola su richiesta dell'interessato
+ *  gli avrebbe dato un permesso di scrittura sui propri turni — che e'
+ *  esattamente la cosa che tutto il resto evita.
+ *
+ *  Per questo il bottone dice «letto» e non «applica». */
+function RigaSettimana({
+  richiesta,
+  nome,
+  inCorso,
+  attiva,
+  onChiudi,
+}: {
+  richiesta: RichiestaSettimana;
+  nome: string;
+  inCorso: boolean;
+  attiva: boolean;
+  onChiudi: () => void;
+}) {
+  const rifiutata = richiesta.stato === "rifiutata";
+  const oltre = richiesta.minuti_previsti - richiesta.minuti_contratto;
+
+  return (
+    <li className="flex flex-wrap items-start gap-3 px-4 py-3">
+      <span
+        className={cn(
+          "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full",
+          rifiutata ? "bg-danger-soft text-danger" : "bg-success-soft text-success",
+        )}
+      >
+        {rifiutata ? <AlertTriangle className="size-3.5" /> : <Check className="size-3.5" />}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[13.5px]">
+          <strong className="font-medium">{nome}</strong>{" "}
+          {rifiutata ? "ha rifiutato" : "ha accettato"} la settimana del{" "}
+          {weekLabel(fromISODate(richiesta.monday))}
+          <span className="text-muted">
+            {" "}
+            ({formatDuration(richiesta.minuti_previsti)}, {formatDuration(oltre)} oltre
+            il contratto)
+          </span>
+        </p>
+        {richiesta.nota ? (
+          <p
+            className={cn(
+              "mt-1.5 rounded-lg px-3 py-2 text-[13px]",
+              rifiutata ? "bg-danger-soft text-danger" : "bg-surface-2 text-muted",
+            )}
+          >
+            {rifiutata ? "" : "Chiede un ritocco: "}
+            {richiesta.nota}
+          </p>
+        ) : null}
+        {rifiutata ? (
+          <p className="mt-1.5 text-[12.5px] text-muted">
+            I turni non sono cambiati: la settimana va rifatta a mano.
+          </p>
+        ) : null}
+      </div>
+
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={onChiudi}
+        loading={inCorso && attiva}
+        disabled={inCorso}
+      >
+        <Check className="size-3.5" />
+        Letto
+      </Button>
     </li>
   );
 }
