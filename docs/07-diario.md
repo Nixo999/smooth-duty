@@ -11,6 +11,51 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Togliere ore e aggiungerne non sono la stessa domanda** — migrazione `16`
+Una modifica a una settimana pubblicata era rifiutabile in qualunque verso
+andasse. Ma chi si vede accorciare il turno non ha niente da concedere: ha
+diritto di saperlo. Ora gli esiti sono tre — si chiede, si avvisa, si tace —
+e la regola sta in `conseguenzaDelSalvataggio()`, pura, sedici casi in
+`npm run prove`. Nascono `shift_notices` (gli avvisi, che si chiudono con «ho
+letto») e `week_requests`.
+
+**La settimana si accetta intera** — migrazione `16`
+Alla pubblicazione, chi va oltre le sue ore riceve una domanda sola
+sull'insieme invece di una per turno: un turno per volta è il modo giusto di
+chiedere una modifica in corsa ed è quello sbagliato di chiedere «questa
+settimana ti va bene?». Il no vuole la motivazione, il sì può portarsi dietro
+un ritocco che però **non sposta niente da solo** — lo valuta il responsabile.
+Si accende con `conferma_settimana`, spento di suo.
+
+**Una cosa da decidere dentro un giorno si vede solo se si guarda quel
+giorno**
+I due bottoni del dipendente stavano attaccati al loro turno. Chi apre l'app
+il lunedì non scorre fino a sabato, e un turno cambiato di sabato restava lì
+ad aspettare. Nasce la posta, in cima alla schermata: si chiude ma non
+sparisce, sparisce solo dopo una risposta.
+
+**Le frecce non si spengono più quando confermi**
+Premuto Conferma, il lavoro appena mandato smetteva di poter tornare
+indietro. Ora il blocco confermato è una voce di storia sola: indietro lo
+disfa tutto, come per lo svuotamento. Disfacendo si tolgono prima i turni
+creati e poi si rimettono quelli di prima, o la persona si ritroverebbe tutti
+e due.
+
+**Le impostazioni dei Turni si leggono per gesto, non per tipo**
+Sei levette in fila obbligavano a leggerle tutte per capire quale riguardasse
+la cosa che si stava facendo. Ora sono tre gruppi — quando pubblichi, quando
+cambi un turno già pubblicato, quando ne aggiungi uno — e ognuna racconta il
+procedimento intero.
+
+**Sospendere una persona è un bottone nella riga**
+Esisteva già, in fondo a un elenco di campi dentro la scheda: il gesto più
+frequente della Squadra nel posto meno raggiungibile.
+
+> ⚠️ Tutto quanto sopra è **scritto e non visto a schermo**: sul Mac mancano
+> le chiavi Supabase. Passano prove, tsc, eslint e build. L'elenco di cosa
+> resta da guardare, in ordine, sta in [08-aperto.md](08-aperto.md) — e la
+> migrazione `16` non è ancora stata eseguita su nessun database.
+
 **Lo script dei dati di prova non partiva da tre giorni, e nessuno se n'era
 accorto**
 In `dati-di-prova.mjs` un `\n` era finito nel codice come a capo vero, dentro

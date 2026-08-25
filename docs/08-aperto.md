@@ -3,11 +3,58 @@
 Il documento delle cose non fatte. Quando una voce viene chiusa, si toglie da
 qui e si scrive nel [diario](07-diario.md).
 
+## ⚠️ Da fare prima di usare l'app — 26 agosto 2026
+
+**La migrazione `16` non è ancora stata eseguita su nessun database.** Il
+codice la dà per fatta.
+
+```bash
+node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/16-avvisi-e-settimana.sql
+node --env-file=.env.local --env-file=.env.db scripts/verifica-schema.mjs
+```
+
+Finché non gira, l'app **non si rompe ma mente**: le letture di
+`shift_notices` e `week_requests` falliscono e tornano elenchi vuoti (nessun
+avviso, nessuna richiesta di settimana), e `company_settings` fallisce tutta
+insieme perché chiede `conferma_settimana` — quindi le Impostazioni mostrano i
+default e salvarle dà errore. È esattamente il tipo di guasto che il
+[05](05-convenzioni.md) racconta: un errore che si traveste da «non c'è
+niente».
+
+## ⚠️ Scritto ma mai visto a schermo
+
+Tutto quello che segue è stato fatto sul Mac, dove **non ci sono
+`.env.local` né `.env.db`**: non si è potuto aprire una schermata e guardarla.
+Passano `npm run prove` (132 controlli), `npx tsc --noEmit`, `npx eslint src
+scripts` e `npm run build` — che non è la stessa cosa.
+
+Da provare nel browser, in quest'ordine:
+
+1. **La posta del dipendente** (`components/turni/posta.tsx`, mai renderizzata):
+   che compaia in cima, che il bottone la accartocci nella pastiglia, che
+   riaprendola torni tutto, e che una voce sparisca **solo** dopo la
+   risposta. Da telefono soprattutto.
+2. **La settimana in straordinario**: accendere `conferma_settimana`,
+   pubblicare una settimana che sfonda il contratto di qualcuno, controllare
+   che la richiesta nasca solo per chi ha un accesso e un monte ore. Poi il sì
+   con nota e il no senza motivazione, che dev'essere rifiutato.
+3. **Gli avvisi**: accorciare un turno pubblicato, cancellarne uno,
+   riassegnarne uno; controllare che arrivi l'avviso giusto a chi lo perde e
+   che «ho letto» lo faccia sparire per sempre.
+4. **Le frecce dopo Conferma**: confermare un blocco di modifiche e premere
+   indietro — deve tornare tutto, non l'ultimo turno. Poi avanti.
+5. **Le Impostazioni dei Turni**: i tre gruppi, e che salvando non si perda
+   nessuna delle sei levette.
+6. **Sospendi/riattiva in Squadra**, compreso il rifiuto sull'unico
+   responsabile attivo.
+
 ## Non c'è ancora
 
 - **Lettura dei turni da una foto.** L'importazione legge Excel e CSV; una foto
   del tabellone appeso in bacheca no.
-- **Notifiche**, né email né push. Un turno pubblicato o modificato non avvisa
+- **Notifiche fuori dall'app**, né email né push. Dentro l'app ora qualcosa
+  c'è — la posta in cima ai Turni — ma resta una cosa che si vede *aprendo*
+  l'app. Un turno pubblicato o modificato non avvisa
   nessuno, e nemmeno un rifiuto: chi vuole saperlo apre l'app. Con la
   preapprovazione pesa di più — un no scritto sabato sera lo si scopre solo
   aprendo la casella dei messaggi.
@@ -47,6 +94,16 @@ più vero dalla migrazione `07`, ma resta la coda della decisione: l'importazion
 in squadra viene lasciato fuori, e va aggiunto prima a mano. L'alternativa
 sarebbe creare le persone mancanti durante l'importazione stessa.
 
+**Una settimana rifiutata non si disfa da sola.** Il responsabile riceve il no
+con la motivazione e rifà la settimana a mano. È voluto — non esiste un «prima»
+a cui tornare per una settimana appena pubblicata, e sette giorni non si
+ripristinano come un turno — ma resta il caso in cui l'app aiuta di meno:
+dice cosa non va e poi si ferma.
+
+**Il ritocco chiesto insieme a un sì è testo libero.** Nessuno lo collega al
+giorno di cui parla, quindi il responsabile lo legge e va a cercarselo. Legarlo
+a un turno vorrebbe dire farglielo scegliere in un elenco, e forse è peggio.
+
 **`contract_type` e `on_call` dicono la stessa cosa in due modi.** `on_call` è
 il gemello operativo di `contract_type = 'chiamata'`, tenuti d'accordo da
 `rapportoSchema`. Funziona, ma è un campo di troppo che prima o poi qualcuno
@@ -75,6 +132,10 @@ sapere se un database è aggiornato vuol dire far girare
 - **Le tre `pagina_*` valgono in due posti** che nessuno tiene d'accordo
   automaticamente: il menu in `layout.tsx` e la guardia dentro ciascuna pagina.
   Aggiungerne una quarta vuol dire ricordarsi di entrambi.
+- **I motivi degli avvisi sono elencati in tre posti**: il vincolo su
+  `shift_notices.motivo`, il tipo `MotivoAvviso`, e la mappa `COSA_E_SUCCESSO`
+  in `components/turni/posta.tsx`. Stesso difetto dei motivi di rifiuto, qui
+  sotto.
 - **I motivi di rifiuto sono elencati in tre posti**: il vincolo
   `shifts_richiede_conferma_valido`, il tipo `MotivoRifiuto`, e la mappa `COSA`
   in `components/turni/messaggi.tsx`.

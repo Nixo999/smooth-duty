@@ -43,6 +43,20 @@ due implementazioni divergerebbero al primo bug.
   mai esistito.
 - I turni non ancora nati hanno id `nuovo:N`.
 
+**E il blocco confermato resta disfabile.** Fino al 26 agosto 2026 le frecce si
+spegnevano premendo Conferma: il lavoro appena mandato smetteva di poter
+tornare indietro, e un ripensamento voleva dire rimettere a mano turno per
+turno — proprio nel momento in cui si è meno lucidi, subito dopo aver premuto.
+
+Il blocco intero diventa **una** voce di storia: la freccia indietro lo disfa
+tutto, non un turno per volta. È lo stesso criterio dello svuotamento — chi ci
+ripensa non deve premere trenta volte. La differenza con la bozza è che qui il
+giro passa dal server: quelle modifiche i dipendenti le hanno già viste, quindi
+disfarle è a sua volta un cambiamento pubblico, e il server ricalcola conferme
+e avvisi su ciascuna. Disfacendo, **prima si tolgono i turni creati dal blocco**
+e poi si rimettono quelli di prima: nell'ordine inverso la persona si
+ritroverebbe il turno nuovo *e* quello vecchio.
+
 **In bozza** invece si salva subito, ma ogni passo si sa disfare: la storia in
 `roster.tsx` tiene per ogni voce l'operazione contraria, e l'id vivo sta in una
 «scatola» condivisa perché *rifare* una creazione produce un id nuovo.
@@ -74,6 +88,10 @@ bozza.
 > ⚠️ **Il verso è stato rovesciato il 25 agosto 2026** (migrazioni `14` e
 > `15`). Un documento che dica «il turno resta appeso finché l'interessato non
 > conferma» descrive l'app di prima.
+>
+> ⚠️ E dal **26 agosto 2026** (migrazione `16`) non basta più chiedersi *se* un
+> turno è cambiato: conta **in che verso**. Le ore che aumentano si chiedono,
+> quelle che calano si avvisano. Vedi «Il verso della modifica» qui sotto.
 
 **Prima**: il turno che generava straordinario, o che veniva cambiato dopo la
 pubblicazione, restava appeso finché l'interessato non diceva di sì. Il
@@ -126,7 +144,83 @@ senza quello che si sta salvando, più il turno nuovo.
 **Ogni salvataggio ricalcola da capo e cancella il no precedente**: un no dato a
 una versione non vale per quella dopo, che l'interessato non ha ancora visto.
 
-### La fotografia di partenza (`stato_prima`)
+### Il verso della modifica: si chiede, o si avvisa
+
+**Togliere ore a qualcuno e aggiungergliene non sono la stessa domanda.**
+
+Fino al 26 agosto una modifica a una settimana pubblicata era rifiutabile in
+qualunque verso andasse. Ma chi si vede accorciare il turno non ha niente da
+concedere: ha diritto di saperlo. Chiedergli un permesso che non può che dare
+è un giro a vuoto — e non dirgli niente è peggio, perché il turno cambia e lui
+lo scopre presentandosi.
+
+Da qui tre esiti invece di due. La regola sta in una funzione pura,
+`conseguenzaDelSalvataggio()` (`src/lib/conferme.ts`), perché la stessa
+domanda la fanno il salvataggio, l'eliminazione e — un domani —
+l'importazione:
+
+| Esito | Quando | Cosa vede l'interessato |
+|---|---|---|
+| **rifiutabile** | le ore aumentano | può dire di no; il turno torna com'era |
+| **avviso** | le ore calano, o il turno si sposta a parità di ore | «ho letto», e basta |
+| **niente** | il resto, o interruttore spento | niente |
+
+I casi che sembrano pignoleria e non lo sono:
+
+- **meno ore restando comunque in straordinario è un avviso**, non una
+  richiesta: conta che questo salvataggio *toglie* del lavoro, non dove la
+  persona si trova rispetto alla soglia;
+- **il turno che passa a un altro è due cose insieme**: per chi lo riceve è un
+  turno nuovo — e le sue ore si guardano come quelle di una nuova assegnazione,
+  non come una modifica del suo — per chi lo perde è un avviso `turno_rimosso`;
+- **un turno cancellato avvisa**, ed è il caso in cui serve di più: sparisce
+  dal tabellone, e con lui l'unica cosa che avrebbe potuto dirlo;
+- **spegnere l'interruttore delle modifiche non spegne quello degli orari
+  preimpostati**: sono due domande diverse, e la seconda ha il suo;
+- **svuotare la settimana non avvisa nessuno**: svuotandola torna bozza, e una
+  settimana in bozza i dipendenti non la vedono proprio.
+
+Gli avvisi stanno in `shift_notices`, che è il verso opposto di
+`shift_messages`. Due tabelle e non una con una colonna «direzione» perché le
+due cose **muoiono in modo diverso**: un rifiuto si chiude quando il
+responsabile ha rimediato, un avviso quando l'interessato preme «ho letto».
+
+## La settimana si accetta intera
+
+Alla **pubblicazione**, chi va oltre le sue ore da contratto non riceve otto
+domande su otto turni: ne riceve **una sola sulla settimana**
+(`conferma_settimana`, spento di suo).
+
+Un turno per volta è il modo giusto di chiedere una modifica in corsa, ed è
+quello sbagliato di chiedere «questa settimana ti va bene?»: la risposta
+dipende dall'insieme, non dal singolo martedì. Chi vede otto richieste non sta
+guardando la cosa che gli si sta chiedendo, e per rispondere dovrebbe rifare a
+mente la somma che l'app ha già fatto.
+
+- I turni **non** cambiano: restano validi e si vedono, come sempre da quando
+  il verso è rovesciato. Cambia che la settimana si presenta in arancione
+  finché la persona non si è espressa.
+- **Il no vuole una motivazione**, obbligatoria — nella funzione del database,
+  che è l'unico posto in cui vale sempre. Un no secco su sette giorni non
+  lascia al responsabile niente di cui possa fare qualcosa, e la settimana va
+  comunque rifatta.
+- **Il sì può portarsi dietro un ritocco**: «va bene, ma il giovedì se
+  possibile smetto prima». È la conversazione che c'è comunque, e che finora
+  avveniva fuori dall'app. **Non sposta niente da solo**: lo legge il
+  responsabile e decide lui. Un sì che cambiasse il tabellone non sarebbe un
+  sì, sarebbe un permesso di scrittura sui propri turni.
+- La riga è unica per `(azienda, persona, lunedì)` e **ripubblicare non
+  richiede a chi ha già risposto**: una risposta data è una posizione presa, e
+  riazzerarla perché il responsabile ha ritoccato il giovedì vorrebbe dire
+  chiedere due volte la stessa cosa.
+- Non la riceve **chi non ha un accesso** (non potrebbe rispondere, e la
+  richiesta resterebbe in attesa per sempre) né **chi è a chiamata** (non ha un
+  monte ore da sfondare).
+- I minuti previsti e quelli da contratto sono **congelati alla nascita**: il
+  tabellone cambia, e una richiesta deve poter raccontare la settimana su cui è
+  nata.
+
+## La fotografia di partenza (`stato_prima`)
 
 Serve solo a poter rimettere il turno com'era. Quale fotografia si tiene,
 quando ce n'era già una:
@@ -460,18 +554,25 @@ d'accordo — `src/app/(app)/layout.tsx` e la guardia dentro ciascuna pagina.
 ha più un motivo, senza Squadra non si aggiunge nessuno, e senza Impostazioni
 non si potrebbe più riaccendere niente.
 
-## Le dieci impostazioni dell'azienda
+## Le undici impostazioni dell'azienda
 
 `company_settings`, tutte facoltative (senza riga valgono i default).
-Raggruppate per pagina, come nella schermata che le mostra.
+
+Nel database sono raggruppate per pagina; **nella schermata dei Turni sono
+raggruppate per gesto** — quando pubblichi, quando cambi un turno già
+pubblicato, quando ne aggiungi uno. Sei levette in fila obbligavano a
+leggerle tutte per capire quale riguardasse la cosa che si stava facendo, e
+quello che cambia non è un'opzione: è cosa succede quando si preme un
+bottone.
 
 | Impostazione | Default | Effetto |
 |---|---|---|
 | `conferma_straordinari` | ❌ | un turno nuovo oltre le ore da contratto è rifiutabile |
-| `conferma_modifiche` | ❌ | modificare una settimana pubblicata è rifiutabile |
+| `conferma_modifiche` | ❌ | modificare una settimana pubblicata coinvolge l'interessato: **rifiutabile se aggiunge ore, un avviso se ne toglie** |
 | `conferma_modifiche_straordinari` | ❌ | come sopra, quando la modifica genera straordinario |
 | `orari_preimpostati` | ❌ | un turno diverso dall'orario del contratto è rifiutabile |
 | `conferma_cambio_reparto` | ❌ | anche il solo cambio di reparto è rifiutabile |
+| `conferma_settimana` | ❌ | alla pubblicazione, chi va in straordinario accetta o rifiuta la settimana intera |
 | `pagina_supervisione` | ✅ | l'azienda usa la Supervisione |
 | `supervisione_dipendenti` | ✅ | la vedono anche i dipendenti |
 | `pagina_permessi` | ✅ | l'azienda usa i Permessi |

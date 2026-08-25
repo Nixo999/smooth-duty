@@ -51,10 +51,18 @@ responsabile cerca), annulla/ripeti, copia turni, importazione, pubblicazione.
 
 **Dipendente → `MyWeek`**: la settimana per giorni, senza griglia. Deve
 rispondere a una domanda sola — quando lavoro — anche da telefono. Mostra
-l'assenza in corso col motivo, la conferma del rientro, e su un turno
-preapprovato i due bottoni di `RispondiTurno` — «va bene» e «non posso», uno
-accanto all'altro perché sono la stessa domanda. Le etichette dei motivi stanno
-in `MOTIVO_CONFERMA`.
+l'assenza in corso col motivo e la conferma del rientro. Sul turno
+preapprovato dice **che cosa ha di particolare**, ma non chiede più niente lì:
+per rispondere si va nella posta, in cima.
+
+**La posta** (`components/turni/posta.tsx`) è il riquadro a comparsa in cima
+alla schermata del dipendente: la settimana in straordinario da accettare o
+rifiutare intera, i turni su cui dire la propria, gli avvisi da leggere. I due
+bottoni stavano dentro il giorno fino al 26 agosto 2026, e sembrava logico:
+ma **una cosa da decidere che sta dentro un giorno si vede solo se si guarda
+quel giorno**, e chi apre l'app il lunedì non scorre fino a sabato. Si può
+chiudere — si accartoccia in una pastiglia che dice quante cose restano — ma
+non sparisce chiudendola: sparisce dopo una decisione, o dopo «ho letto».
 
 In cima al tabellone del responsabile c'è la casella dei **messaggi**
 (`components/turni/messaggi.tsx`): i no dei dipendenti, e cosa ne è seguito.
@@ -69,7 +77,10 @@ metà fa più danni di una dichiaratamente non pronta.
 
 Legge anche i **messaggi aperti**, e non filtrati per settimana: un turno
 rifiutato di sabato non deve sparire perché il responsabile sta guardando
-lunedì.
+lunedì. Stessa cosa per gli **avvisi** del dipendente (`shift_notices`, solo i
+non letti) e per le **risposte sulla settimana** (`week_requests`): al
+dipendente quella della settimana che sta guardando, se è ancora aperta; al
+responsabile quelle decise e non ancora lette, di qualunque settimana.
 
 Se la lettura dei turni o delle persone **fallisce**, la pagina mostra
 `ErroreDati` invece di un tabellone vuoto: vedi
@@ -77,7 +88,9 @@ Se la lettura dei turni o delle persone **fallisce**, la pagina mostra
 
 Azioni: `salvaTurno` · `eliminaTurno` · `eliminaTuttiITurni` ·
 `ripristinaTurni` · `copiaTurni` · `anteprimaCopia` · `pubblicaSettimana` ·
-`accettaTurno` · `rifiutaTurno` · `apriMessaggi` · `chiudiMessaggio`.
+`accettaTurno` · `rifiutaTurno` · `apriMessaggi` · `chiudiMessaggio` ·
+`segnaAvvisoLetto` · `accettaSettimana` · `rifiutaSettimana` ·
+`chiudiRichiestaSettimana`.
 
 ---
 
@@ -180,6 +193,12 @@ Solo capo. Crea persone (una alla volta o **incollando un elenco di nomi**),
 dà o toglie l'accesso, assegna ruolo, reparti, tipo di contratto e ore,
 sospende, reimposta password, rimuove.
 
+**Sospendere e riattivare si fa dalla riga** (`commutaAttiva`), non dentro la
+scheda: è il gesto più frequente qui — chi va via per un periodo, chi torna —
+e stava in fondo a un elenco di campi. Sospeso vuol dire che la persona resta
+in squadra e la sua storia resta nei conti, ma sparisce dai turni; non è la
+rimozione, che cancella anche l'account.
+
 Due protezioni scritte in `modificaPersona`:
 - non ci si toglie il ruolo se si è **l'unico responsabile attivo** — il
   vincolo vero non è «non toccare te stesso», è che l'azienda non resti senza
@@ -196,10 +215,16 @@ Due protezioni scritte in `modificaPersona`:
 
 **File**: `src/app/(app)/impostazioni/` · `src/components/impostazioni/`.
 
-Solo capo. Dieci impostazioni raggruppate **per pagina**, come si vedono nella
-schermata, tutte descritte in [04-regole.md](04-regole.md): cosa è rifiutabile
-sui turni, quali pagine l'azienda usa, chi vede la Supervisione, quali causali
-si possono chiedere.
+Solo capo. Undici impostazioni, tutte descritte in
+[04-regole.md](04-regole.md): quali pagine l'azienda usa, chi vede la
+Supervisione, quali causali si possono chiedere, e quando la squadra viene
+coinvolta sui turni.
+
+Le sei dei Turni sono raggruppate **per gesto** e non per tipo — quando
+pubblichi, quando cambi un turno già pubblicato, quando ne aggiungi uno —
+perché quello che cambia non è un'opzione: è cosa succede quando si preme un
+bottone. Ognuna racconta il procedimento intero: chi riceve cosa, cosa può
+fare, e cosa succede se rifiuta.
 
 Salvando si rivalidano anche `/supervisione`, `/permessi` e `/turni`: queste
 impostazioni cambiano cosa vedono gli altri.
