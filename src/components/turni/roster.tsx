@@ -3,7 +3,9 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   CalendarPlus,
+  Check,
   ChevronDown,
+  Clock3,
   Copy,
   FileUp,
   PencilLine,
@@ -1076,8 +1078,23 @@ function Chip({
       )}
       title={stato ? SPIEGA_CONFERMA[stato] : undefined}
     >
-      <span className="orario block text-[12px] font-semibold tabular-nums">
+      <span className="orario flex items-center gap-1 text-[12px] font-semibold tabular-nums">
         {timeRange(shift.start_time, shift.end_time)}
+        {/* Il colore da solo non basta: arancio e verde sono la coppia che
+            un daltonismo su rosso e verde appiattisce, e su questa griglia
+            non c'e' spazio per scriverci sopra una parola. Un segno lo
+            distingue anche a colori spenti — e il titolo, dove c'e' un
+            mouse, lo dice per esteso. */}
+        {stato === "accettato" ? (
+          <Check className="size-3 shrink-0 text-success" aria-hidden />
+        ) : stato === "rifiutato" ? (
+          <X className="size-3 shrink-0 text-danger" aria-hidden />
+        ) : stato === "in_attesa" ? (
+          <Clock3 className="size-3 shrink-0 text-warning" aria-hidden />
+        ) : null}
+        {stato ? (
+          <span className="sr-only">{ETICHETTA_CONFERMA[stato]}</span>
+        ) : null}
       </span>
       {reparto ? (
         <span className="block truncate text-[11.5px] opacity-80">{reparto}</span>

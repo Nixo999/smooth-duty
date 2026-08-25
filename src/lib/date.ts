@@ -42,6 +42,23 @@ export function isToday(d: Date) {
   return toISODate(d) === toISODate(new Date());
 }
 
+/** Il fuso in cui vive l'azienda. Sta scritto anche nelle funzioni del
+ *  database (`rifiuta_turno`, `accetta_turno`): le due parti devono
+ *  rispondere la stessa cosa alla domanda «che giorno è oggi», o il browser
+ *  mostrerà un bottone che il server rifiuta. */
+export const FUSO = "Europe/Rome";
+
+/** Oggi in Italia, non nel fuso di chi esegue.
+ *
+ *  In produzione il server gira in UTC: fra mezzanotte e le due di notte
+ *  italiane `new Date()` è ancora al giorno prima, e una regola che dipende
+ *  da «è già passato?» darebbe due risposte diverse a seconda di chi la
+ *  applica. Il formato svedese non è un vezzo: è l'unico locale standard
+ *  che scrive le date come YYYY-MM-DD. */
+export function oggiCivile(): ISODate {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: FUSO }).format(new Date());
+}
+
 /** "3 – 9 marzo 2026", oppure con i due mesi se la settimana e' a cavallo. */
 export function weekLabel(start: Date): string {
   const end = addDays(start, 6);

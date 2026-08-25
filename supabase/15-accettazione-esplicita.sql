@@ -73,13 +73,23 @@ begin
      and profile_id = public.current_profile_id()
      and richiede_conferma is not null
      and rifiutato_at is null
+     -- La novita' di questo file: non si rifiuta quello che si e' gia'
+     -- accettato.
      and confermato_at is null
+     -- Non i turni gia' passati. Rifiutare un sabato che si e' lavorato
+     -- vorrebbe dire cancellarlo dal tabellone da cui il Prospetto tira le
+     -- ore, e nessuno restituisce il lavoro fatto. Il confine e' la fine
+     -- del giorno del turno, in ora italiana come tutto il resto dell'app:
+     -- un turno di notte lo si puo' ancora rifiutare la mattina prima.
      and date >= (now() at time zone 'Europe/Rome')::date;
 
   if not found then
     return false;
   end if;
 
+  -- La lunghezza la controlla anche la server action, ma questa funzione si
+  -- puo' chiamare anche da fuori con la propria sessione: il taglio qui e'
+  -- l'unico che vale sempre.
   motivazione := left(nullif(btrim(coalesce(motivazione, '')), ''), 300);
 
   update public.shifts
@@ -98,8 +108,13 @@ begin
     t.date,
     t.stato_prima,
     jsonb_build_object(
+      -- La persona c'e' perche' una modifica puo' averla cambiata: e' il
+      -- turno di chi, non solo di quando.
       'profile_id', t.profile_id,
       'date', t.date,
+      -- I primi cinque caratteri di '09:00:00': l'app gli orari li scrive e
+      -- li legge sempre come HH:MM. Niente to_char, che su una colonna
+      -- `time` ci arriva solo passando per un cast a interval.
       'start_time', left(t.start_time::text, 5),
       'end_time', left(t.end_time::text, 5),
       'department_id', t.department_id,

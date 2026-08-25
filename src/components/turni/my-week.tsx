@@ -16,8 +16,8 @@ import {
   formatDuration,
   fromISODate,
   isToday,
+  oggiCivile,
   timeRange,
-  toISODate,
 } from "@/lib/date";
 import { repartoDelTurno } from "@/lib/reparto";
 import type { Absence, Department, Shift } from "@/lib/types";
@@ -117,9 +117,11 @@ export function MyWeek({
           const d = fromISODate(day);
           const today = isToday(d);
           // Un giorno gia' passato: quello che c'era scritto e' stato fatto,
-          // e non lo si rifiuta piu'. La stessa regola vale nel database,
-          // dove sta la parola definitiva (`rifiuta_turno`).
-          const passato = day < toISODate(new Date());
+          // e non c'e' piu' niente da dirne. In ora italiana come il
+          // database, dove sta la parola definitiva (`rifiuta_turno`,
+          // `accetta_turno`): il server gira in UTC, e fino alle due di
+          // notte i due si darebbero risposte diverse.
+          const passato = day < oggiCivile();
           const assenzaOggi = assenzaDelGiorno(assenze, profileId, day);
           const list = shifts
             .filter((s) => s.date === day)

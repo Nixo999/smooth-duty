@@ -31,10 +31,14 @@ export const ETICHETTA_CONFERMA: Record<StatoConferma, string> = {
   rifiutato: "rifiutato",
 };
 
-/** La frase intera, per il titolo che compare passandoci sopra. */
+/** La frase intera, per il titolo che compare passandoci sopra.
+ *
+ *  «In attesa» non promette che una risposta arriverà: sui giorni ormai
+ *  passati non arriva più — il database non accetta né sì né no su quello
+ *  che è già stato — e un testo che dicesse «può ancora rispondere»
+ *  resterebbe lì a mentire per sempre. */
 export const SPIEGA_CONFERMA: Record<StatoConferma, string> = {
-  in_attesa:
-    "Il turno vale, ma la persona non si è ancora espressa: può ancora rifiutarlo",
+  in_attesa: "Il turno vale, ma la persona non si è espressa né in un senso né nell'altro",
   accettato: "La persona ha guardato e ha detto di sì",
   rifiutato: "Rifiutato dalla persona: apri i messaggi in cima alla pagina",
 };

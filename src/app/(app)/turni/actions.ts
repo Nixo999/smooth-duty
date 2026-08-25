@@ -112,12 +112,13 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     location: string | null;
     notes: string | null;
     stato_prima: unknown;
+    confermato_at: string | null;
   } | null = null;
   if (v.id) {
     const { data: vecchio } = await supabase
       .from("shifts")
       .select(
-        "date, start_time, end_time, profile_id, department_id, title, location, notes, stato_prima",
+        "date, start_time, end_time, profile_id, department_id, title, location, notes, stato_prima, confermato_at",
       )
       .eq("id", v.id)
       .maybeSingle();
@@ -272,14 +273,19 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     // facolta' di rifiuto e c'era gia' un turno: un turno nato adesso non ha
     // un "prima", e infatti rifiutarlo lo toglie invece di riportarlo.
     //
-    // Se una fotografia c'era gia' si tiene quella. Due ritocchi di fila a un
-    // turno pubblicato — 09-17 diventa 10-18, poi 11-19 — non fanno del
-    // 10-18 uno stato buono: e' una versione intermedia che nessuno ha mai
-    // visto ne' accettato, e tornare li' sarebbe tornare in nessun posto.
+    // Quale fotografia si tiene, quando ce n'era gia' una:
+    //
+    // - se la versione di adesso l'interessato l'aveva accettata, e' lei lo
+    //   stato buono, e si scatta una fotografia nuova: c'e' un si' esplicito
+    //   su quegli orari, ed e' li' che deve riportare un rifiuto successivo;
+    // - altrimenti si tiene quella vecchia. Due ritocchi di fila a un turno
+    //   pubblicato — 09-17 diventa 10-18, poi 11-19 — non fanno del 10-18
+    //   uno stato buono: e' una versione intermedia che nessuno ha mai visto
+    //   ne' accettato, e tornare li' sarebbe tornare in nessun posto.
     stato_prima: !richiede
       ? null
-      : (prima?.stato_prima ??
-        (prima
+      : prima
+        ? prima.confermato_at || !prima.stato_prima
           ? {
               profile_id: prima.profile_id,
               date: prima.date,
@@ -290,7 +296,8 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
               location: prima.location,
               notes: prima.notes,
             }
-          : null)),
+          : prima.stato_prima
+        : null,
   };
 
   let id = v.id ?? "";
@@ -382,7 +389,12 @@ export type TurnoRipristinabile = {
   notes: string | null;
   /** Se quel turno era rifiutabile lo resta anche tornando indietro: la
    *  facoltà è del dipendente, e non deve dipendere da uno svuotamento
-   *  fatto per sbaglio dal responsabile. */
+   *  fatto per sbaglio dal responsabile.
+   *
+   *  Le risposte già date non tornano invece indietro: quei turni sono
+   *  stati cancellati per davvero, e questi sono turni nuovi che gli
+   *  somigliano. Chi aveva accettato se lo ritrova «in attesa», e potrà
+   *  ridirlo quando la settimana verrà ripubblicata. */
   richiede_conferma: MotivoRifiuto | null;
   stato_prima: StatoTurno | null;
 };
@@ -717,7 +729,7 @@ export async function accettaTurno(id: string): Promise<ActionResult> {
     return {
       ok: false,
       error:
-        "Su questo turno non c'è più niente da accettare: controlla che sia ancora quello che avevi visto, e che il giorno non sia già passato.",
+        "Su questo turno non c'è più niente da accettare: o hai già risposto, o il responsabile l'ha cambiato, o il giorno è passato.",
     };
   }
 
@@ -764,7 +776,7 @@ export async function rifiutaTurno(
     return {
       ok: false,
       error:
-        "Questo turno non si può più rifiutare: controlla che sia ancora quello che avevi visto, e che il giorno non sia già passato.",
+        "Questo turno non si può più rifiutare: o l'hai già accettato, o il responsabile l'ha cambiato, o il giorno è passato.",
     };
   }
 

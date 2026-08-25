@@ -36,11 +36,15 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
     setNota("");
   };
 
+  // `inCorso` non si azzera qui dentro: il giro non è finito quando l'azione
+  // risponde, ma quando anche il ricaricamento è arrivato — e quello vive
+  // nella transizione. Azzerandolo prima, i bottoni restavano grigi senza
+  // più la rotellina per tutto il viaggio di ritorno. Lo riscrive il gesto
+  // successivo, e `pending` da solo decide quando è finita.
   const accetta = () =>
     start(async () => {
       setInCorso("si");
       const esito = await accettaTurno(turnoId);
-      setInCorso(null);
       if (!esito.ok) {
         toast.error(esito.error);
         router.refresh();
@@ -54,7 +58,6 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
     start(async () => {
       setInCorso("no");
       const esito = await rifiutaTurno(turnoId, nota);
-      setInCorso(null);
       if (!esito.ok) {
         toast.error(esito.error);
         // Il turno non è più quello che aveva davanti: si ricarica, così
@@ -98,7 +101,12 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
           description="Il responsabile riceve un messaggio. Se il turno era una modifica di uno che avevi già, torna com'era."
           footer={
             <>
-              <Button type="button" variant="secondary" onClick={chiudi}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={chiudi}
+                disabled={pending}
+              >
                 Lascia stare
               </Button>
               <Button
@@ -106,6 +114,7 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
                 variant="danger"
                 onClick={rifiuta}
                 loading={pending && inCorso === "no"}
+                disabled={pending}
               >
                 Rifiuta il turno
               </Button>
