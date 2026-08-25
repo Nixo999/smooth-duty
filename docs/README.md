@@ -44,6 +44,7 @@ su un'app che non esiste più.
 5. **Quando una voce di [08-aperto.md](08-aperto.md) viene fatta**, si toglie
    da lì e si scrive nel diario.
 
-> Stato di questo cervello: allineato al commit `e59aa61` (25 agosto 2026).
+> Stato di questo cervello: allineato al 26 agosto 2026. Il database del
+> progetto «swift control» è alla migrazione **15**, come il codice.
 > Se il `git log` ha commit più recenti di quella data e il diario si ferma
 > qui, il diario è indietro: fidati del codice e poi rimetti in pari il diario.

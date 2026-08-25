@@ -9,6 +9,24 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 26 agosto 2026
+
+**Le migrazioni 13, 14 e 15 eseguite sul database «swift control»**
+Il database era fermo alla 12 mentre il codice era alla 15: mancavano
+`shifts.rifiutato_at`, `nota_rifiuto`, `stato_prima`, la tabella
+`shift_messages`, le quattro colonne della 13 e le funzioni `rifiuta_turno` /
+`accetta_turno`. Postgres rifiutava l'intera lettura dei turni e il tabellone
+si presentava vuoto. Dati intatti: **429 turni, 36 persone, 3 aziende** prima e
+dopo. Verificato rieseguendo le sette letture della pagina Turni.
+
+**`verifica-schema.mjs` copre tutte le 15 migrazioni, e dice quale manca**
+Il vecchio script controllava solo fino alla 04 e rispondeva «schema completo»
+mentre ne mancavano tre: uno strumento che mente con la faccia convinta è
+peggio di nessuno strumento. Ora i controlli sono raggruppati per migrazione,
+distinguono «mai eseguita» da «eseguita a metà» e stampano il comando da
+lanciare. Provato anche il percorso negativo, falsificando una colonna: se non
+lo si prova, la prossima volta dice «ok» e nessuno se ne accorge.
+
 ## 25 agosto 2026
 
 **Un errore di lettura non si traveste più da settimana vuota** — `e59aa61`

@@ -33,6 +33,34 @@ Altri comandi:
 | `npm run icone` | rigenera le icone PWA e Android |
 | `npm run apk` | compila l'APK di debug |
 
+## Dopo ogni `git pull`: verifica lo schema
+
+```bash
+node --env-file=.env.local --env-file=.env.db scripts/verifica-schema.mjs
+```
+
+**È il primo comando da lanciare quando si aggiorna il codice**, e non è una
+precauzione teorica: il 25 agosto 2026 il codice chiedeva colonne che nel
+database non c'erano ancora, Postgres rifiutava l'intera interrogazione e
+l'app mostrava un tabellone vuoto al posto di 429 turni.
+
+Lo script controlla le 15 migrazioni una per una e, se qualcosa manca, dice
+**quale file** e stampa il comando per eseguirlo. Distingue una migrazione mai
+eseguita da una passata a metà, che è il caso peggiore.
+
+Le migrazioni si possono eseguire da qui, senza passare dal SQL Editor:
+
+```bash
+node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/14-preapprovazione-e-rifiuti.sql
+```
+
+Sono ri-eseguibili (`if not exists`, `drop ... if exists`) e **nessuna cancella
+turni**: nel dubbio si rilanciano in ordine.
+
+⚠️ Aggiungendo una migrazione va aggiunto il suo gruppo di controlli in
+`verifica-schema.mjs`. Senza, lo script torna a rispondere «tutto a posto»
+mentre manca l'ultima — che è esattamente come è andata.
+
 ## Le prove
 
 **Non c'è un framework di test.** Ci sono script che fanno girare i motori puri
@@ -59,7 +87,7 @@ insegna a Node l'alias `@/` che altrimenti conosce solo TypeScript.
 
 | Script | A cosa serve |
 |---|---|
-| `verifica-schema.mjs` | controlla che lo schema sia davvero come dicono le migrazioni — molte istruzioni sono condizionali e passano in silenzio |
+| `verifica-schema.mjs` | **da lanciare dopo ogni `git pull`**: controlla lo schema migrazione per migrazione e stampa quali file eseguire |
 | `verifica-riservatezza.mjs` | controlla che il motivo di un'assenza lo vedano solo capo e interessato. Assume l'identità dei ruoli via Postgres, senza password |
 | `esegui-sql.mjs` | esegue un file `.sql` sul database (l'API REST di Supabase non sa creare tabelle) |
 | `dati-di-prova.mjs` | riempie un'azienda con reparti, squadra, fasce e due settimane di turni |
