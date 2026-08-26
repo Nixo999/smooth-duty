@@ -26,3 +26,10 @@ alter table public.shifts
   check (richiede_conferma in
     ('straordinario', 'modifica', 'modifica_straordinario', 'orario_diverso',
      'cambio_reparto', 'turno_spostato'));
+
+-- PostgREST tiene in memoria una copia dello schema, e la ricarica da solo
+-- ma non sempre subito. Finche' non lo fa, l'app chiede una colonna che nel
+-- database c'e' gia' e si sente rispondere «Could not find the column ... in
+-- the schema cache» — un errore che sembra una migrazione non eseguita e non
+-- lo e'. Questa riga glielo dice esplicitamente, e costa niente.
+notify pgrst, 'reload schema';

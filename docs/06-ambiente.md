@@ -106,6 +106,13 @@ turni**: nel dubbio si rilanciano in ordine.
 `verifica-schema.mjs`. Senza, lo script torna a rispondere «tutto a posto»
 mentre manca l'ultima — che è esattamente come è andata.
 
+⚠️ E una migrazione che aggiunge o toglie **colonne** finisce con
+`notify pgrst, 'reload schema';`. PostgREST tiene in memoria una copia dello
+schema e la ricarica da sé, ma non sempre subito: nel frattempo l'app chiede
+una colonna che nel database c'è già e si sente rispondere «Could not find the
+column … in the schema cache». È un errore che sembra una migrazione non
+eseguita e non lo è, e ci si perde un pomeriggio.
+
 ## Le prove
 
 **Non c'è un framework di test.** Ci sono script che fanno girare i motori puri
@@ -180,6 +187,18 @@ Manifest, icone e service worker sono a posto (`public/manifest.webmanifest`,
 prudente**: mette in cache solo i file statici, mai le pagine. Un tabellone
 salvato in cache ricomparirebbe al collega che usa lo stesso telefono,
 mostrando turni vecchi come se fossero quelli veri.
+
+## Il database di produzione è un'altra cosa
+
+`denkishift.it` gira su Netlify con un suo progetto Supabase, e **le
+migrazioni lì non si eseguono da sole**: un deploy porta il codice, non lo
+schema. Il codice nuovo che arriva su un database vecchio è il guasto
+raccontato in [05-convenzioni.md](05-convenzioni.md) — le letture falliscono e
+si travestono da elenchi vuoti.
+
+Quindi l'ordine è: **prima la migrazione sul database, poi il deploy**. E dopo
+un deploy che porta migrazioni nuove, `verifica-schema.mjs` puntato a quel
+database, non a quello di sviluppo.
 
 ## Pubblicare
 

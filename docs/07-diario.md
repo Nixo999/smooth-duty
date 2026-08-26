@@ -11,6 +11,16 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**«Could not find the column in the schema cache»: le migrazioni non erano
+state eseguite**
+Salvando le Impostazioni su denkishift.it l'app chiedeva `conferma_settimana`
+e il database non ce l'aveva: la `16` e la `17` erano scritte e mai lanciate.
+Non c'era niente da correggere nel codice. Le due migrazioni ora finiscono con
+`notify pgrst, 'reload schema'`, perché PostgREST tiene una copia dello schema
+in memoria e la ricarica da sé ma non sempre subito — e nel frattempo dà lo
+stesso errore anche a migrazione eseguita, che è il modo migliore per perderci
+un pomeriggio.
+
 **Le impostazioni parlano la lingua di chi le legge**
 Erano scritte con le parole del dominio interno — «preapprovato», «motivo di
 rifiuto», «monte ore», «l'interessato viene coinvolto» — cioè le parole di chi
