@@ -11,6 +11,20 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**«Quel link non vale più» era falso: valeva, ma nel browser sbagliato**
+Il recupero finiva sull'accesso e la pagina dava la colpa alla scadenza. Il
+motivo vero è un altro: lo scambio PKCE cerca un cookie che la richiesta di
+recupero lascia **nel browser da cui parte**, e il client di posta apre i link
+nel browser predefinito. Verificato che il cookie viene scritto correttamente e
+che il giro completo funziona quando il browser è lo stesso — link generato per
+un account di prova, aperto con un barattolo di cookie: sessione creata e
+atterraggio su «Scegli la tua password».
+
+Ora `/conferma` distingue i due casi e dice quello giusto. Un messaggio
+sbagliato qui non è un dettaglio di forma: mandava la persona a chiedere un
+altro link, che sarebbe fallito identico.
+
+
 **Il link del recupero non porta più a localhost**
 Il Site URL del progetto era ancora `http://localhost:3000` e la lista degli
 indirizzi di ritorno era vuota: Supabase ignorava il `redirectTo` dell'app e

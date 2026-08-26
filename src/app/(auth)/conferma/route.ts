@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +37,18 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
+  /** Il pezzo di segreto che lo scambio PKCE si aspetta di ritrovare nel
+   *  browser. Lo scrive la richiesta di recupero, quindi c'e' **solo nel
+   *  browser da cui e' partita**: se il link si apre altrove — ed e' quello
+   *  che fa un client di posta che usa il browser predefinito — non c'e'
+   *  niente da ritrovare. Sapere se c'era o no e' l'unico modo di
+   *  distinguere «link scaduto» da «aperto nel posto sbagliato», che per chi
+   *  legge sono due istruzioni diversissime. */
+  const cookieStore = await cookies();
+  const hoIlVerificatore = cookieStore
+    .getAll()
+    .some((c) => c.name.includes("code-verifier") && c.value);
+
   let riuscito = false;
   if (tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
@@ -51,11 +64,14 @@ export async function GET(request: NextRequest) {
     riuscito = !error;
   }
 
-  // Un link scaduto o gia' usato non e' un errore da nascondere: e' la cosa
-  // che capita piu' spesso, e chi ci casca deve sapere che basta chiederne
-  // un altro. Non si dice quale delle due sia: sono la stessa cosa per chi
-  // deve rimediare.
-  if (!riuscito) return vai("/login?recupero=scaduto");
+  if (!riuscito) {
+    // Due cause diverse, due istruzioni diverse. Dire «scaduto» a chi ha
+    // aperto la posta sul telefono lo manda a chiedere un altro link, che
+    // fallira' identico: e' il modo migliore di far girare qualcuno a vuoto.
+    if (code && !hoIlVerificatore) return vai("/login?recupero=altro-browser");
+    // Scaduto o gia' usato: capita spesso, e basta chiederne un altro.
+    return vai("/login?recupero=scaduto");
+  }
 
   const {
     data: { user },

@@ -40,8 +40,16 @@ del segreto rimasto in quel browser: chiedere il recupero dal computer e aprire
 la posta dal telefono — il caso normale per una squadra — non funziona, e
 finisce sul login con «quel link non vale più».
 
-Quindi, oggi: il recupero **funziona sullo stesso dispositivo**, non fra
-dispositivi diversi. Per chiudere il cerchio serve un SMTP proprio
+Quindi, oggi: il recupero **funziona solo nel browser da cui è partita la
+richiesta**. Non è «stesso dispositivo»: è *stesso browser*. Il caso che
+inganna di più è il client di posta che apre i link nel browser predefinito
+mentre la richiesta era partita da un altro — stesso computer, e non funziona
+lo stesso.
+
+Da qui l'app non dice più «quel link non vale più» a chi ci casca: `/conferma`
+guarda se il cookie verificatore c'era, e se manca manda al login con
+l'istruzione giusta — copia l'indirizzo del link e incollalo in quel browser.
+Dire «scaduto» mandava a chiederne un altro, che falliva identico. Per chiudere il cerchio serve un SMTP proprio
 (*Project Settings › Authentication › SMTP Settings*), e subito dopo il modello
 qui sopra.
 

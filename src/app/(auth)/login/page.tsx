@@ -42,6 +42,15 @@ export default async function LoginPage({
         </p>
       ) : null}
 
+      {recupero === "altro-browser" ? (
+        <p className="mt-4 rounded-lg bg-warning-soft px-3 py-2 text-[13px] text-warning">
+          Il link va aperto <strong>nello stesso browser</strong> da cui hai
+          chiesto il recupero: è lì che l&apos;app ha lasciato la chiave per
+          riconoscerti. Se la posta te l&apos;ha aperto altrove, copia
+          l&apos;indirizzo del link e incollalo in quel browser.
+        </p>
+      ) : null}
+
       {recupero === "amministratore" ? (
         <p className="mt-4 rounded-lg bg-warning-soft px-3 py-2 text-[13px] text-warning">
           Il recupero vale per gli account aziendali. La password
