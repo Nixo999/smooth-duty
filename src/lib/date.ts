@@ -54,9 +54,27 @@ export const FUSO = "Europe/Rome";
  *  italiane `new Date()` è ancora al giorno prima, e una regola che dipende
  *  da «è già passato?» darebbe due risposte diverse a seconda di chi la
  *  applica. Il formato svedese non è un vezzo: è l'unico locale standard
- *  che scrive le date come YYYY-MM-DD. */
+ *  che scrive le date come YYYY-MM-DD.
+ *
+ *  ⚠️ Il `try` non è pessimismo di maniera. `Intl` con un fuso scritto per
+ *  nome ha bisogno dei dati dei fusi orari, che non tutti i runtime portano
+ *  con sé: dove mancano, questa riga non sbaglia il giorno — solleva
+ *  `RangeError`. E siccome viene chiamata dentro il render della pagina del
+ *  dipendente, quel sasso porterebbe giù l'intera pagina, che è il modo
+ *  peggiore di sbagliare: al posto dei turni, un errore del server.
+ *
+ *  Il ripiego è la data UTC. Per due ore a notte può dire ieri invece di
+ *  oggi, e l'unica conseguenza è che su un turno di stanotte i bottoni
+ *  «va bene / non posso» restano visibili qualche ora in più: il database
+ *  li rifiuterebbe comunque, perché la parola definitiva è la sua. Un
+ *  giorno sbagliato per due ore è incomparabilmente meglio di una pagina
+ *  che non si apre. */
 export function oggiCivile(): ISODate {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: FUSO }).format(new Date());
+  try {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: FUSO }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 /** "3 – 9 marzo 2026", oppure con i due mesi se la settimana e' a cavallo. */
