@@ -11,6 +11,23 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Il link del recupero non porta più a localhost**
+Il Site URL del progetto era ancora `http://localhost:3000` e la lista degli
+indirizzi di ritorno era vuota: Supabase ignorava il `redirectTo` dell'app e
+ripiegava sul Site URL, quindi la mail conteneva un link al computer di chi
+l'aveva chiesto. Sistemati tutti e due dal pannello. La misura, prima e dopo,
+si fa senza aprire niente:
+
+```bash
+curl -sI "$SUPABASE_URL/auth/v1/verify?token=finto&type=recovery" -H "apikey: $ANON" | grep -i location
+```
+
+Resta fuori il modello della mail: **non è modificabile finché si usa il
+mittente incluso di Supabase**, e senza la forma `TokenHash` il link vale solo
+sul dispositivo da cui è partita la richiesta. Dettagli in
+[08-aperto.md](08-aperto.md).
+
+
 **Password dimenticata, e un tetto ai tentativi** — migrazione `18`
 L'app è su un dominio pubblico: da lì una password si indovina provando, e
 finora si poteva provare all'infinito. Ora il conto dei tentativi falliti sta

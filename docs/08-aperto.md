@@ -3,40 +3,47 @@
 Il documento delle cose non fatte. Quando una voce viene chiusa, si toglie da
 qui e si scrive nel [diario](07-diario.md).
 
-## ⚠️ Da fare su Supabase perché il recupero password funzioni
+## Recupero password: dov'è arrivato, e cosa manca — 26 agosto 2026
 
-Il codice c'è ed è provato, ma **tre cose stanno nel pannello di Supabase** e
-senza quelle la mail non arriva o il link non funziona.
+**Fatto**, e verificato interrogando Supabase:
 
-1. **SMTP tuo** — *Project Settings › Authentication › SMTP Settings*.
-   Il mittente incluso in Supabase manda **poche email all'ora** ed è
-   dichiaratamente non adatto alla produzione: con trenta persone in squadra
-   si tocca il tetto subito, e chi resta fuori non riceve niente e non capisce
-   perché.
+| | Stato |
+|---|---|
+| **Site URL** = `https://denkishift.it` | ✅ era `http://localhost:3000` |
+| **Redirect URLs** contiene `https://denkishift.it/conferma` | ✅ era vuoto |
 
-2. **L'indirizzo di ritorno fra quelli ammessi** — *Authentication › URL
-   Configuration*. Site URL `https://denkishift.it`, e fra i **Redirect URLs**
-   `https://denkishift.it/conferma`. Senza, Supabase rifiuta il ritorno e il
-   link muore a metà strada.
+Prova: il link che Supabase compone adesso rimanda a
+`https://denkishift.it/conferma`. Prima, qualunque cosa chiedesse l'app,
+ripiegava su `localhost` — ed è per questo che il link della mail apriva una
+pagina che non esisteva.
 
-3. **Il modello della email** — *Authentication › Email Templates › Reset
-   password*. Va messo nella forma con `TokenHash`:
+**Manca una cosa sola, e ne blocca un'altra: l'SMTP.**
 
-   ```
-   {{ .SiteURL }}/conferma?token_hash={{ .TokenHash }}&type=recovery
-   ```
+Oggi le mail partono dal mittente incluso in Supabase. Due conseguenze:
 
-   ⚠️ Questo punto **non è un dettaglio**: il modello predefinito produce un
-   link che funziona solo sullo stesso dispositivo da cui è partita la
-   richiesta, perché lo scambio PKCE ha bisogno di un pezzo di segreto rimasto
-   in quel browser. Chiedere il recupero dal computer e aprire la posta dal
-   telefono è il caso normale, non l'eccezione. La rotta `/conferma` accetta
-   tutte e due le forme, ma solo questa regge il cambio di dispositivo.
+1. **Poche mail all'ora.** Con trenta persone in squadra il tetto si tocca
+   subito, e chi resta fuori non riceve niente e non capisce perché.
+2. **I modelli non si possono modificare.** Il pannello lo dice esplicitamente
+   («Set up custom SMTP to edit templates»): finché si usa il mittente
+   incluso, il corpo della mail resta quello predefinito.
 
-Finché non è fatto: il bottone c'è, la schermata risponde «se quell'indirizzo è
-di un account la mail è partita» — e la mail non parte. È vero che
-[la schermata non può dire altro](05-convenzioni.md) senza rivelare chi ha un
-account, ma vale la pena saperlo.
+Il punto 2 è quello che conta di più, perché tiene fuori la forma
+`{{ .TokenHash }}`:
+
+```
+{{ .SiteURL }}/conferma?token_hash={{ .TokenHash }}&type=recovery
+```
+
+⚠️ **Senza quella forma il link vale solo sul dispositivo da cui è partita la
+richiesta.** Il modello predefinito produce uno scambio PKCE, che ha bisogno
+del segreto rimasto in quel browser: chiedere il recupero dal computer e aprire
+la posta dal telefono — il caso normale per una squadra — non funziona, e
+finisce sul login con «quel link non vale più».
+
+Quindi, oggi: il recupero **funziona sullo stesso dispositivo**, non fra
+dispositivi diversi. Per chiudere il cerchio serve un SMTP proprio
+(*Project Settings › Authentication › SMTP Settings*), e subito dopo il modello
+qui sopra.
 
 ## ⚠️ Scritto ma mai visto a schermo
 
