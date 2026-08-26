@@ -19,6 +19,7 @@ import {
   segnaAvvisoLetto,
 } from "@/app/(app)/turni/actions";
 import { Button } from "@/components/ui/button";
+import { motivoDelTurno } from "@/lib/conferme";
 import { Field, Textarea } from "@/components/ui/field";
 import { dayLong, formatDuration, fromISODate, timeRange, weekLabel } from "@/lib/date";
 import type {
@@ -56,7 +57,6 @@ export function Posta({
   avvisi,
   settimana,
   monday,
-  motivoDelTurno,
 }: {
   /** I turni su cui l'interessato non si è ancora espresso, e che non sono
    *  ancora passati: su un turno lavorato non c'è più niente da dire. */
@@ -66,10 +66,6 @@ export function Posta({
   /** La domanda sulla settimana, se c'è e se è ancora in attesa. */
   settimana: RichiestaSettimana | null;
   monday: string;
-  /** Perché quel turno si può rifiutare, scritto come lo si direbbe. La
-   *  mappa sta in `my-week.tsx`: le etichette sono le stesse, e due elenchi
-   *  divergerebbero al primo motivo nuovo. */
-  motivoDelTurno: (turno: Shift) => string;
 }) {
   const [chiusa, setChiusa] = React.useState(false);
 

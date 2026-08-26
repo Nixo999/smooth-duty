@@ -44,6 +44,33 @@ export const SPIEGA_CONFERMA: Record<StatoConferma, string> = {
   rifiutato: "Rifiutato dalla persona: apri i messaggi in cima alla pagina",
 };
 
+/** Perché questo turno lo si può rifiutare, scritto come lo si direbbe.
+ *  Il turno intanto vale: qui non si chiede un permesso, si segnala una cosa
+ *  fuori dall'ordinario e si lascia la facoltà di dire di no.
+ *
+ *  ⚠️ Sta qui, e non nella schermata che la mostra, per una ragione tecnica
+ *  oltre che di ordine. La leggono due componenti su lati opposti del
+ *  confine: `MyWeek`, che gira sul server, e `Posta`, che gira nel browser.
+ *  Finché `MyWeek` gliela passava come funzione, React sollevava — le
+ *  funzioni non attraversano quel confine — e siccome succedeva nel render,
+ *  la pagina del dipendente non si apriva affatto. Un modulo che importano
+ *  tutti e due non ha quel problema, e resta una copia sola dell'elenco. */
+export const MOTIVO_RIFIUTO: Record<MotivoRifiuto, string> = {
+  straordinario: "Straordinario: va oltre le tue ore da contratto.",
+  modifica: "Turno modificato dopo la pubblicazione della settimana.",
+  modifica_straordinario:
+    "Turno modificato, e ora va oltre le tue ore da contratto.",
+  orario_diverso: "Orario diverso da quello del tuo contratto.",
+  cambio_reparto: "Cambia il reparto: stesso orario, un altro posto.",
+  turno_spostato: "Turno spostato: stesse ore, ma in un altro momento.",
+};
+
+/** Lo stesso, partendo dal turno. Stringa vuota quando non c'è niente da
+ *  segnalare: è un turno come tutti gli altri. */
+export function motivoDelTurno(turno: Pick<Shift, "richiede_conferma">): string {
+  return turno.richiede_conferma ? MOTIVO_RIFIUTO[turno.richiede_conferma] : "";
+}
+
 /* ==================================================================== */
 
 /** Che cosa comporta, per l'interessato, il salvataggio di un turno.

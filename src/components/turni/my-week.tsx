@@ -2,7 +2,7 @@ import { Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
 import { Posta } from "@/components/turni/posta";
 import { WeekNav } from "@/components/turni/week-nav";
-import { statoConferma } from "@/lib/conferme";
+import { MOTIVO_RIFIUTO, statoConferma } from "@/lib/conferme";
 import {
   assenzaAperta,
   assenzaDelGiorno,
@@ -24,24 +24,10 @@ import type {
   Absence,
   Avviso,
   Department,
-  MotivoRifiuto,
   RichiestaSettimana,
   Shift,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-/** Perche' questo turno lo si puo' rifiutare, scritto come lo si direbbe.
- *  Il turno intanto vale: qui non si chiede un permesso, si segnala una
- *  cosa fuori dall'ordinario e si lascia la facolta' di dire di no. */
-const MOTIVO_RIFIUTO: Record<MotivoRifiuto, string> = {
-  straordinario: "Straordinario: va oltre le tue ore da contratto.",
-  modifica: "Turno modificato dopo la pubblicazione della settimana.",
-  modifica_straordinario:
-    "Turno modificato, e ora va oltre le tue ore da contratto.",
-  orario_diverso: "Orario diverso da quello del tuo contratto.",
-  cambio_reparto: "Cambia il reparto: stesso orario, un altro posto.",
-  turno_spostato: "Turno spostato: stesse ore, ma in un altro momento.",
-};
 
 /** Vista del dipendente: la settimana per giorni, senza griglia. Deve
  *  rispondere a una domanda sola — quando lavoro — anche da telefono. */
@@ -105,9 +91,6 @@ export function MyWeek({
         avvisi={avvisi}
         settimana={richiestaSettimana}
         monday={monday}
-        motivoDelTurno={(t) =>
-          t.richiede_conferma ? MOTIVO_RIFIUTO[t.richiede_conferma] : ""
-        }
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
