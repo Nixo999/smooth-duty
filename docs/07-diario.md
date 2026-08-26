@@ -11,6 +11,30 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**La 16 e la 17 eseguite sul database: i dipendenti non entravano più**
+Su denkishift.it il responsabile entrava e i dipendenti prendevano un errore
+del server su `/turni`. Il codice pubblicato era quello nuovo — `shift_notices`
+e `week_requests` — e il database si era fermato alla `15`. La forma del
+guasto era chiara: `shift_notices` la interroga **solo** il ramo del
+dipendente, il responsabile riceve una lista finta e non tocca mai la tabella
+mancante. Eseguite `16` e `17`, riverificate tutte e 17 le migrazioni, e
+ricontrollate dall'API le sei letture della pagina: passano tutte, comprese le
+tabelle nuove. Nessun deploy necessario: mancava solo il database.
+
+⚠️ **Il progetto si lavora da due macchine, e questa lezione è costata due
+ore.** Ero partito ad analizzare codice vecchio di 13 commit e ho cercato la
+causa nel posto sbagliato. Prima di diagnosticare qualunque cosa: `git fetch`,
+poi `verifica-schema.mjs`. In quest'ordine — lo schema si controlla contro il
+codice aggiornato, non contro quello che si ha in mano.
+
+**Una riga che spegne la pagina di tutti i dipendenti** — `c2d0148`
+Cercando quella causa è saltata fuori una fragilità vera, indipendente:
+`oggiCivile()` usa `Intl` con il fuso scritto per nome, e dove i dati dei fusi
+non ci sono quella riga non sbaglia il giorno, solleva. Sta nel render della
+settimana del dipendente e solo lì. Ora ha un ripiego sulla data UTC — per due
+ore a notte può dire ieri, e il database la parola definitiva ce l'ha comunque.
+Provata anche la strada che scatta, con `Intl` costretto a sollevare.
+
 **«Could not find the column in the schema cache»: le migrazioni non erano
 state eseguite**
 Salvando le Impostazioni su denkishift.it l'app chiedeva `conferma_settimana`
