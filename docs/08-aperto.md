@@ -3,28 +3,40 @@
 Il documento delle cose non fatte. Quando una voce viene chiusa, si toglie da
 qui e si scrive nel [diario](07-diario.md).
 
-## ⚠️ Da fare prima di usare l'app — 26 agosto 2026
+## ⚠️ Da fare su Supabase perché il recupero password funzioni
 
-**Le migrazioni `16` e `17` non sono ancora state eseguite su nessun
-database.** Il codice le dà per fatte.
+Il codice c'è ed è provato, ma **tre cose stanno nel pannello di Supabase** e
+senza quelle la mail non arriva o il link non funziona.
 
-```bash
-node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/16-avvisi-e-settimana.sql
-node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/17-turno-spostato.sql
-node --env-file=.env.local --env-file=.env.db scripts/verifica-schema.mjs
-```
+1. **SMTP tuo** — *Project Settings › Authentication › SMTP Settings*.
+   Il mittente incluso in Supabase manda **poche email all'ora** ed è
+   dichiaratamente non adatto alla produzione: con trenta persone in squadra
+   si tocca il tetto subito, e chi resta fuori non riceve niente e non capisce
+   perché.
 
-Senza la `17` un turno spostato non si salva proprio: il vincolo
-`shifts_richiede_conferma_valido` rifiuta il motivo `turno_spostato`, e questa
-volta l'errore si vede.
+2. **L'indirizzo di ritorno fra quelli ammessi** — *Authentication › URL
+   Configuration*. Site URL `https://denkishift.it`, e fra i **Redirect URLs**
+   `https://denkishift.it/conferma`. Senza, Supabase rifiuta il ritorno e il
+   link muore a metà strada.
 
-Finché non gira, l'app **non si rompe ma mente**: le letture di
-`shift_notices` e `week_requests` falliscono e tornano elenchi vuoti (nessun
-avviso, nessuna richiesta di settimana), e `company_settings` fallisce tutta
-insieme perché chiede `conferma_settimana` — quindi le Impostazioni mostrano i
-default e salvarle dà errore. È esattamente il tipo di guasto che il
-[05](05-convenzioni.md) racconta: un errore che si traveste da «non c'è
-niente».
+3. **Il modello della email** — *Authentication › Email Templates › Reset
+   password*. Va messo nella forma con `TokenHash`:
+
+   ```
+   {{ .SiteURL }}/conferma?token_hash={{ .TokenHash }}&type=recovery
+   ```
+
+   ⚠️ Questo punto **non è un dettaglio**: il modello predefinito produce un
+   link che funziona solo sullo stesso dispositivo da cui è partita la
+   richiesta, perché lo scambio PKCE ha bisogno di un pezzo di segreto rimasto
+   in quel browser. Chiedere il recupero dal computer e aprire la posta dal
+   telefono è il caso normale, non l'eccezione. La rotta `/conferma` accetta
+   tutte e due le forme, ma solo questa regge il cambio di dispositivo.
+
+Finché non è fatto: il bottone c'è, la schermata risponde «se quell'indirizzo è
+di un account la mail è partita» — e la mail non parte. È vero che
+[la schermata non può dire altro](05-convenzioni.md) senza rivelare chi ha un
+account, ma vale la pena saperlo.
 
 ## ⚠️ Scritto ma mai visto a schermo
 

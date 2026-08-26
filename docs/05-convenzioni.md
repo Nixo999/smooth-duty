@@ -137,6 +137,58 @@ che quella riga evita. È lo stesso criterio dei messaggi di commit — «Un'ass
 costa le ore da contratto, non i turni che erano scritti», non «modificato
 prospetto.ts».
 
+## Come si difende l'ingresso
+
+L'app sta su internet e protegge le causali di malattia e legge 104: l'ingresso
+è la porta di tutto il resto.
+
+**Quello che c'era già, e non è poco**: il traffico è cifrato (HTTPS, con HSTS
+messo da Netlify), le password non sono in nessuna nostra tabella — le tiene
+Supabase, con hash e sale — e i dati sono cifrati a riposo dal database. Non
+c'è nessuna «cifratura da aggiungere» sopra a questo: scriverne una nostra
+sarebbe più debole di quella che c'è.
+
+**Quello che è stato aggiunto il 26 agosto 2026:**
+
+- **Un tetto ai tentativi.** Una password si indovina provando, e da internet
+  «provando» vuol dire migliaia di tentativi al minuto. Due chiavi insieme:
+  per indirizzo (10 in 15 minuti) contro chi prende di mira una persona, e per
+  provenienza di rete (50 in 15 minuti) contro chi prova la stessa password su
+  tutta l'azienda — quel secondo caso al primo limite sfuggirebbe, perché fa un
+  tentativo solo per indirizzo. Contano solo i falliti; entrare azzera.
+  ⚠️ Quando la provenienza **non si sa**, il limite per rete non si applica
+  affatto invece di valere per tutti insieme: un contatore unico chiuderebbe
+  fuori un'azienda intera per errori di sconosciuti.
+- **Le funzioni del contatore non sono pubbliche.** In Postgres una funzione
+  nuova nasce eseguibile da chiunque: senza la revoca, chi sta provando
+  password potrebbe chiamare da sé `azzera_tentativi` e togliersi il blocco.
+- **Niente elenchi regalati.** L'errore dell'accesso è generico, e il recupero
+  password risponde uguale che l'indirizzo esista o no. Costa una scomodità a
+  chi digita male; l'alternativa è un modo per sapere chi lavora qui.
+- **Password di almeno 10 caratteri**, senza obbligo di maiuscole e simboli:
+  quelli producono `Password1!` su metà delle scrivanie, che è peggio di una
+  frase lunga. La lunghezza è ciò che conta contro chi prova.
+- **Intestazioni di sicurezza** (`next.config.ts`): `X-Frame-Options: DENY` e
+  `frame-ancestors 'none'` — nessuno può incorniciare l'app sul proprio sito e
+  raccogliere i click di chi crede di premere altro; `Referrer-Policy`, perché
+  uscendo non si porta l'indirizzo completo (dentro c'è la settimana che si
+  guardava, e di chi); `Permissions-Policy`, che spegne fotocamera, microfono e
+  posizione — l'app non li usa, e dichiararlo impedisce che una dipendenza li
+  chieda di nascosto. Via anche `X-Powered-By`: la versione del framework serve
+  solo a sapere in fretta quali falle provare.
+
+**Quello che NON c'è, dichiarato invece che sottinteso:**
+
+- **una Content-Security-Policy completa.** Con Next vuol dire firmare ogni
+  script con un nonce a ogni richiesta; una CSP incollata alla leggera o rompe
+  l'app o si riduce a `unsafe-inline`, che è teatro. C'è solo
+  `frame-ancestors`, che si può dare subito e vale da sola;
+- **il secondo fattore.** Supabase lo supporta; è una scelta di prodotto da
+  fare, non una riga da aggiungere;
+- **un tetto ai tentativi per l'amministratore della piattaforma** oltre a
+  quelli di Supabase: passa dalla stessa `accedi`, quindi è coperto, ma il suo
+  recupero password non passa da qui (vedi [08-aperto.md](08-aperto.md)).
+
 ## Sicurezza e segreti
 
 - **Password mai scritte nel codice.** Gli script che creano account di prova

@@ -11,6 +11,34 @@ ricostruite dalla storia dei commit.
 
 ## 26 agosto 2026
 
+**Password dimenticata, e un tetto ai tentativi** — migrazione `18`
+L'app è su un dominio pubblico: da lì una password si indovina provando, e
+finora si poteva provare all'infinito. Ora il conto dei tentativi falliti sta
+nel database — in memoria non conterebbe niente, le funzioni nascono e muoiono
+a ogni richiesta — con due chiavi: per indirizzo e per provenienza di rete,
+perché chi prova la stessa password su tutta l'azienda al primo limite
+sfuggirebbe. Le funzioni del contatore hanno l'esecuzione **revocata** a
+`anon`: nascendo pubbliche, chi stava provando avrebbe potuto azzerarsi il
+blocco da solo.
+
+Il recupero password riusa la pagina che c'era: `/conferma` verifica il codice
+della email e alza `must_change_password`, così chi entra dal link passa dallo
+stesso controllo di chi ha una password provvisoria — nessuna scorciatoia nuova
+da sorvegliare. La risposta è identica che l'indirizzo esista o no.
+
+Aggiunte anche le intestazioni di sicurezza e il minimo di 10 caratteri.
+⚠️ **Perché la mail parta davvero servono tre cose nel pannello Supabase**, che
+dal codice non si possono fare: [08-aperto.md](08-aperto.md).
+
+Provato: il limite blocca all'undicesimo tentativo passando dall'azione vera,
+non solo dal database; `anon` si prende `42501` su tutte e tre le funzioni; il
+recupero su un indirizzo inesistente risponde comunque «ok». Le righe di prova
+ripulite, tabella a zero.
+
+⚠️ **Non provato**: il giro completo della email. Senza SMTP configurato non
+parte niente, quindi il link vero non l'ho mai aperto.
+
+
 **La 16 e la 17 eseguite sul database: i dipendenti non entravano più**
 Su denkishift.it il responsabile entrava e i dipendenti prendevano un errore
 del server su `/turni`. Il codice pubblicato era quello nuovo — `shift_notices`

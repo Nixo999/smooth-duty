@@ -12,13 +12,13 @@ export function ChangePasswordForm() {
 
   return (
     <form action={action} className="mt-6 space-y-4">
-      <Field label="Nuova password" htmlFor="password" hint="Almeno 8 caratteri.">
+      <Field label="Nuova password" htmlFor="password" hint="Almeno 10 caratteri. Una frase che ricordi vale più di simboli a caso.">
         <Input
           id="password"
           name="password"
           type="password"
           autoComplete="new-password"
-          minLength={8}
+          minLength={10}
           required
         />
       </Field>
@@ -29,7 +29,7 @@ export function ChangePasswordForm() {
           name="confirm"
           type="password"
           autoComplete="new-password"
-          minLength={8}
+          minLength={10}
           required
         />
       </Field>

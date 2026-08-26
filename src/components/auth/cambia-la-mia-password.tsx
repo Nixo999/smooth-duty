@@ -68,13 +68,13 @@ function Pannello({ onClose }: { onClose: () => void }) {
           />
         </Field>
 
-        <Field label="Nuova password" htmlFor="nuova" hint="Almeno 8 caratteri.">
+        <Field label="Nuova password" htmlFor="nuova" hint="Almeno 10 caratteri.">
           <Input
             id="nuova"
             name="password"
             type="password"
             autoComplete="new-password"
-            minLength={8}
+            minLength={10}
             required
           />
         </Field>
@@ -85,7 +85,7 @@ function Pannello({ onClose }: { onClose: () => void }) {
             name="confirm"
             type="password"
             autoComplete="new-password"
-            minLength={8}
+            minLength={10}
             required
           />
         </Field>

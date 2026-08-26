@@ -112,6 +112,27 @@ const policy = async (t, nome, { contiene = null, senza = null } = {}) => {
  *  Trovarla ancora li' vuol dire che quella migrazione non e' passata. */
 const assente = async (chi) => !(await chi());
 
+/** Nessuno oltre al proprietario puo' eseguirla.
+ *
+ *  In Postgres una funzione nuova nasce eseguibile da PUBLIC, e su una
+ *  SECURITY DEFINER quella e' la differenza fra una difesa e un regalo: chi
+ *  volesse provare password all'infinito potrebbe chiamare da se' la
+ *  funzione che azzera il conto. Le migrazioni lo revocano, e questo
+ *  controlla che la revoca ci sia ancora. */
+const nonEseguibileDaTutti = async (nome) =>
+  (await uno(
+    `select count(*)::int as n
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = $1
+        and (
+          has_function_privilege('public', p.oid, 'execute')
+          or has_function_privilege('anon', p.oid, 'execute')
+          or has_function_privilege('authenticated', p.oid, 'execute')
+        )`,
+    [nome],
+  )).n === 0;
+
 const nullabile = async (t, c) =>
   (await uno(
     `select is_nullable as n from information_schema.columns
@@ -329,6 +350,24 @@ const MIGRAZIONI = [
         "shifts accetta il motivo turno_spostato",
         () => vincoloContiene("shifts_richiede_conferma_valido", "turno_spostato"),
       ],
+    ],
+  },
+  {
+    file: "18-tentativi-di-accesso.sql",
+    cosa: "provare all'infinito non si puo': il conto dei tentativi falliti",
+    prove: [
+      ["tabella access_attempts", () => tabella("access_attempts")],
+      ["RLS su access_attempts", () => rls("access_attempts")],
+      ["indice per chiave", () => indice("access_attempts_chiave_idx")],
+      ["funzione tentativi_recenti()", () => funzione("tentativi_recenti")],
+      ["funzione segna_tentativo()", () => funzione("segna_tentativo")],
+      ["funzione azzera_tentativi()", () => funzione("azzera_tentativi")],
+      // Il pezzo che conta davvero: se `azzera_tentativi` restasse
+      // eseguibile da chiunque, chi sta provando password si toglierebbe
+      // da solo il blocco appena preso.
+      ["azzera_tentativi non e' pubblica", () => nonEseguibileDaTutti("azzera_tentativi")],
+      ["segna_tentativo non e' pubblica", () => nonEseguibileDaTutti("segna_tentativo")],
+      ["tentativi_recenti non e' pubblica", () => nonEseguibileDaTutti("tentativi_recenti")],
     ],
   },
 ];

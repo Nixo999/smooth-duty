@@ -22,6 +22,21 @@ Dopo l'accesso si va **direttamente** alla destinazione (`destinazioneDi()` in
 `src/lib/auth.ts`), senza rimbalzare su `/`: quel rimbalzo era un giro di rete
 intero, e sull'ingresso si sente tutto.
 
+**Password dimenticata** (`/password-dimenticata` → `chiediRecuperoPassword`):
+si scrive l'indirizzo e parte un link. La risposta è **sempre la stessa**, che
+l'account esista o no — dire «questo indirizzo non risulta» regalerebbe a
+chiunque l'elenco di chi lavora qui, provando indirizzi finché uno non risponde
+diverso. È la stessa regola dell'errore generico sull'accesso.
+
+**`/conferma`** è un **Route Handler**, non una pagina, e non è un dettaglio di
+gusto: lì va *scritto* un cookie di sessione, e un Server Component i cookie non
+li può scrivere. È l'unico punto dell'app in cui un codice arrivato per posta
+diventa una sessione — un posto solo da guardare quando si ragiona su come si
+entra. Accetta due forme (`token_hash` da verificare qui, oppure `code` PKCE) e
+poi alza `must_change_password` sul profilo, così chi entra dal link finisce
+sulla stessa pagina — e sotto lo stesso controllo — di chi ha una password
+provvisoria. Nessuna scorciatoia nuova da sorvegliare.
+
 Tre cambi password diversi, da non confondere:
 - `cambiaPassword` — quello **obbligatorio** al primo accesso; finisce con
   `mark_password_changed()`;
@@ -32,6 +47,11 @@ Tre cambi password diversi, da non confondere:
   potrebbe prendersi l'account in tre secondi;
 - `reimpostaPassword` (in Squadra e in Admin) — il responsabile ne assegna una
   provvisoria a qualcun altro, e rialza `must_change_password`.
+
+L'accesso ha un **limite di tentativi** (`src/lib/limite-tentativi.ts`): dieci
+errori per indirizzo in un quarto d'ora, cinquanta per provenienza di rete.
+Contano solo i tentativi andati male, ed entrare azzera il conto. Le regole e
+il perché dei due limiti stanno in [05-convenzioni.md](05-convenzioni.md).
 
 ---
 

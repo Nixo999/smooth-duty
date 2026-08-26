@@ -26,6 +26,7 @@ migrazioni sono file da incollare, e i tipi TypeScript sono scritti a mano in
 | `15-accettazione-esplicita.sql` | torna il sì accanto al no: `accetta_turno()`, e non si rifiuta ciò che si è accettato |
 | `16-avvisi-e-settimana.sql` | il verso della modifica conta: `shift_notices` (avvisi), `week_requests` (la settimana intera), `conferma_settimana` |
 | `17-turno-spostato.sql` | spostare un turno si chiede, non si comunica: `turno_spostato` fra i motivi di rifiuto |
+| `18-tentativi-di-accesso.sql` | `access_attempts`: quante volte si può sbagliare password prima che la porta si chiuda |
 
 > ⚠️ La `14` definisce `rifiuta_turno()` e la `15` **la ridefinisce**. Chi
 > deve cambiarla guardi la `15`: è quella l'ultima parola. Vale in generale —
@@ -182,6 +183,23 @@ schermata che li mostra:
 [04-regole.md](04-regole.md) per il perché del verso.
 La tabella `draft_weeks` è esistita per un giorno solo ed è stata ritirata
 nella `12`: se la trovi nominata in un documento, quel documento è vecchio.
+
+### `access_attempts`
+`chiave · creato_at`. Il conto dei tentativi andati male, per chiudere la porta
+a chi prova password all'infinito. La chiave dice **cosa** si sta limitando —
+`accesso:<email>`, `ip:<indirizzo>`, `recupero:<email>` — e la forma la decide
+il codice (`src/lib/limite-tentativi.ts`): il database conta e basta.
+
+Sta nel database e non nella memoria del server perché le pagine girano in
+funzioni che nascono e muoiono a ogni richiesta: un contatore in memoria
+ripartirebbe da zero di continuo, cioè non conterebbe niente.
+
+RLS acceso e **nessuna policy**: per l'app questa tabella è vuota e non
+scrivibile. Ci parlano solo `tentativi_recenti()`, `segna_tentativo()` e
+`azzera_tentativi()`, a cui la migrazione **revoca l'esecuzione a
+`public`/`anon`/`authenticated`** — senza quella revoca chi sta provando
+password potrebbe chiamare da sé la funzione che azzera il conto, cioè proprio
+la difesa. `verifica-schema.mjs` controlla che la revoca ci sia ancora.
 
 ### `platform_admins`
 `user_id · email`. Chi amministra la piattaforma **non appartiene a nessuna
