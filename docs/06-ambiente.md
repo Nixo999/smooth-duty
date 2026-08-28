@@ -140,6 +140,12 @@ In `scripts/`, tutti Node puro. Quelli che toccano il database vogliono
 quelli che importano dai sorgenti vogliono `--import ./scripts/alias.mjs`, che
 insegna a Node l'alias `@/` che altrimenti conosce solo TypeScript.
 
+`esegui-sql.mjs` e `lib-db.mjs` parlano con Postgres tramite **`pg`**, che sta
+in `devDependencies`: dopo `npm install` c'è, e non va installato a parte. Fino
+al 28 agosto 2026 non era dichiarato e su una macchina appena installata quei
+due script si fermavano con `Cannot find package 'pg'` — l'errore che sembra un
+problema di credenziali e non lo è.
+
 | Script | A cosa serve |
 |---|---|
 | `verifica-schema.mjs` | **da lanciare dopo ogni `git pull`**: controlla lo schema migrazione per migrazione e stampa quali file eseguire |

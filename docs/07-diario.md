@@ -102,6 +102,20 @@ rapporto fra lei e chi la chiama, e basta.
 
 ---
 
+## 28 agosto 2026
+
+**`pg` non era dichiarato, e fermava proprio chi tocca il database**
+`esegui-sql.mjs` e `lib-db.mjs` importano `pg`, ma il pacchetto stava in
+`node_modules` solo perché qualcuno lo aveva installato a mano con `--no-save`:
+`npm ls` lo dava `extraneous`. Bastava rifare `node_modules` per perderlo. Su
+una macchina appena installata — il Mac di Patrick è il caso vero — il comando
+per applicare una modifica allo schema rispondeva `Cannot find package 'pg'`,
+che sembra un problema di credenziali e manda a cercare nel posto sbagliato.
+Adesso sta in `devDependencies`, e non fra le dipendenze vere perché l'app non
+lo importa mai: lo usano solo gli script.
+
+---
+
 ## 26 agosto 2026
 
 **«Quel link non vale più» era falso: valeva, ma nel browser sbagliato**
