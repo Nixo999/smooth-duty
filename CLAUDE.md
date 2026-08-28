@@ -43,7 +43,10 @@ Partenza a freddo, tre file: [docs/01-mappa.md](docs/01-mappa.md) →
    sicurezza inventata.
 6. **Dopo ogni pezzo finito: voce nel [diario](docs/07-diario.md), commit,
    push.** Il messaggio dice cosa non tornava e perché la soluzione è quella,
-   non l'elenco dei file toccati.
+   non l'elenco dei file toccati. **E una riga nel registro del brain**
+   (`01-Coding/registro-interventi.md` del vault): chi, quando, che progetto,
+   che repository e **se la migrazione è stata eseguita o no**. Il push porta
+   il codice e non lo schema, e quel debito non si vede da nessun'altra parte.
 7. **Se cambia lo schema**, la migrazione e
    [docs/02-modello-dati.md](docs/02-modello-dati.md) stanno nello stesso
    commit.
