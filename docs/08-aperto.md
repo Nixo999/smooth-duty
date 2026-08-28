@@ -68,7 +68,7 @@ fallisce tutta insieme perché il codice chiede `regime_chiamata` — quindi le
 Impostazioni mostrano i default e salvarle dà errore — la pagina Disponibilità
 non trova la tabella, e il motivo `chiamata` lo rifiuta il vincolo.
 
-> ⚠️ **Sul Mac di Patrick il `SUPABASE_DB_PASSWORD` non è quello giusto**: il
+> ⚠️ **Sul Mac il `SUPABASE_DB_PASSWORD` non è quello giusto**: il
 > 28 agosto 2026 `verifica-schema.mjs` rispondeva *«Host aws-1-eu-west-1…
 > raggiunto, ma la password non va»*. Da lì la `19` non si è potuta lanciare,
 > e infatti **non è mai stata provata contro un database vero**: si incolla nel
