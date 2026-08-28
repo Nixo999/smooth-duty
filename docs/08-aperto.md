@@ -87,10 +87,16 @@ Da provare nel browser, in quest'ordine:
 0. **Le regole di ingaggio di chi è a chiamata**, che sono la cosa più nuova e
    la meno guardata (28 agosto 2026, migrazione `19`). Nell'ordine:
    - in Impostazioni, che la scelta fra i tre modi si salvi e resti;
-   - con **«segnala quando non può»**: una persona a chiamata segna un giorno
-     da Disponibilità, e sul tabellone quella casella si vede rossa *prima* di
-     cliccarci; salvando un turno lì l'app deve rifiutare con la frase che
-     nomina il giorno e le ore;
+   - l'**interruttore Turni / Disponibilità** sopra il tabellone: che compaia
+     solo con qualcuno a chiamata in elenco, che cambiando vista resti la
+     stessa settimana e lo stesso giorno scelto, e che nella vista delle
+     disponibilità spariscano filtri, annulla, pubblica e «nuovi turni»;
+   - con **«segnala quando non può»**: si segna un giorno dalla vista
+     Disponibilità del tabellone, e tornando ai Turni quella casella si vede
+     rossa *prima* di cliccarci; salvando un turno lì l'app deve rifiutare con
+     la frase che nomina il giorno e le ore;
+   - la **selezione che attraversa le persone**: prendere lo stesso weekend su
+     tre righe diverse e segnarlo in un colpo solo;
    - con **«segnala quando può»**: le caselle senza dichiarazione devono
      comparire grigie e dire «nessuna disp.»; un turno che esce di un'ora
      dalla fascia dichiarata dev'essere rifiutato, uno dentro no;
@@ -101,9 +107,12 @@ Da provare nel browser, in quest'ordine:
      singola, che dice «finché non rispondi questo turno non è tuo»;
    - la **copia** di una settimana verso giorni in cui qualcuno non è
      disponibile: deve copiare il resto e dire quanti ne ha lasciati indietro;
-   - il calendario **da telefono**: la selezione di più giorni e la barra in
-     fondo sono la parte che a schermo grande sembra sempre a posto;
-   - il responsabile che segna al posto di qualcuno, scegliendo il nome;
+   - il calendario **da telefono**, in tutt'e due i posti: la selezione di più
+     giorni e la barra in fondo sono la parte che a schermo grande sembra
+     sempre a posto;
+   - la pagina `/disponibilita`: che al responsabile rimandi ai Turni, e al
+     dipendente con un contratto a ore pure — anche scrivendo l'indirizzo a
+     mano;
    - un turno di notte, 22:00–06:00, con il **giorno dopo** dichiarato: il
      rifiuto deve nominare il sabato, non il venerdì.
 1. **La posta del dipendente** (`components/turni/posta.tsx`, mai renderizzata):

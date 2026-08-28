@@ -35,15 +35,21 @@ export default async function AppLayout({
     impostazioni.pagina_supervisione &&
     (capo || impostazioni.supervisione_dipendenti);
 
-  // Il calendario di chi e' a chiamata. Sparisce in due casi, e sono due
-  // ragioni diverse: sotto il regime `on_demand` non esiste per nessuno —
-  // li' i turni si propongono e si accettano uno per uno — e al dipendente
-  // che ha un contratto a ore non direbbe niente, anzi gli farebbe dubitare
-  // del suo. Come per le pagine spegnibili il controllo sta in due posti,
-  // qui e nella pagina: l'indirizzo se lo ricorda il browser.
+  // Il calendario di chi e' a chiamata, ed e' **solo del dipendente**: il
+  // responsabile le stesse dichiarazioni le vede e le scrive dentro il
+  // tabellone, accanto ai turni su cui deve decidere. Una voce di menu in
+  // piu' lo manderebbe a guardare altrove una cosa che ha gia' sotto gli
+  // occhi.
+  //
+  // Sparisce anche al dipendente in due casi: sotto il regime `on_demand`
+  // non c'e' niente da segnare, e chi ha un contratto a ore non ha un
+  // calendario da riempire — anzi, trovarlo nel menu gli farebbe dubitare
+  // del suo contratto. Come per le pagine spegnibili il controllo sta in due
+  // posti, qui e nella pagina: l'indirizzo se lo ricorda il browser.
   const disponibilitaVisibile =
-    Boolean(versoDelRegime(impostazioni.regime_chiamata)) &&
-    (capo || profile.on_call);
+    !capo &&
+    profile.on_call &&
+    Boolean(versoDelRegime(impostazioni.regime_chiamata));
 
   const sections: Section[] = [
     { href: "/turni", label: capo ? "Turni" : "I miei turni", icon: "calendar" },

@@ -69,13 +69,30 @@ non spostando un turno. Il controllo viene prima di quello sugli impegni,
 altrimenti «sono tutti occupati» si sarebbe detto anche di chi quel giorno non
 c'è proprio.
 
+**Le disponibilità del responsabile stanno nel tabellone, non in una pagina
+sua**
+La prima versione dava una pagina «Disponibilità» anche a lui, con l'elenco
+delle persone e un calendario per ciascuna. Sbagliato, e il motivo è il
+mestiere: per il responsabile la disponibilità e il turno sono la stessa
+domanda guardata da due parti — «chi posso mettere sabato» — e su due schermate
+dovrebbe tenere a mente l'una mentre guarda l'altra. Adesso è una **seconda
+vista** del tabellone: stesso interruttore accanto alla settimana, stessi sette
+giorni, stessa ricerca, cambia solo cosa c'è scritto nelle caselle. E in quella
+dei turni le dichiarazioni restano comunque visibili in ogni casella — leggerle
+non deve costare nemmeno un clic.
+
+Ne è uscita anche una cosa che il calendario per persona non sapeva fare: la
+selezione attraversa le **persone**, non solo i giorni. Il ponte in cui non c'è
+nessuno dei tre si segna in una passata sola. La pagina `/disponibilita` resta,
+ed è solo del dipendente: lui il tabellone non lo guarda, guarda i suoi giorni.
+
 **Il calendario si tocca a più giorni per volta**
 Il tocco seleziona e non scrive; una barra in fondo offre «tutto il giorno»,
 «solo alcune ore», «togli». Un weekend o un mese si segnano in un gesto, e le
 fasce orarie restano visibili invece di nascondersi dietro un tocco lungo che
-nessuno scoprirebbe. Il responsabile può segnare al posto di qualcuno: la
-telefonata è il modo in cui queste cose si dicono davvero, e senza quella
-strada la dichiarazione non verrebbe scritta mai.
+nessuno scoprirebbe. Il responsabile può segnare al posto di
+qualcuno, dal tabellone: la telefonata è il modo in cui queste cose si dicono
+davvero, e senza quella strada la dichiarazione non verrebbe scritta mai.
 
 **La disponibilità non la vedono i colleghi**
 Solo l'interessato e il responsabile. Le ferie di un collega le vede tutta

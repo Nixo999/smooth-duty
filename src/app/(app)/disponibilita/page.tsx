@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Disponibilita } from "@/components/disponibilita/disponibilita";
 import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireMember } from "@/lib/auth";
-import { COLONNE_DISPONIBILITA, COLONNE_PROFILO } from "@/lib/colonne";
+import { COLONNE_DISPONIBILITA } from "@/lib/colonne";
 import { toISODate } from "@/lib/date";
 import { versoDelRegime } from "@/lib/disponibilita";
 import {
@@ -10,17 +10,22 @@ import {
   normalizzaImpostazioni,
 } from "@/lib/impostazioni";
 import { createClient } from "@/lib/supabase/server";
-import type { Disponibilita as Riga, Profile } from "@/lib/types";
+import type { Disponibilita as Riga } from "@/lib/types";
 import { addDays, mondayOf } from "@/lib/week";
 
-/** Il calendario di chi è a chiamata: quando può, o quando non può.
+/** Il calendario di chi è a chiamata — **la sua**, e di nessun altro.
  *
- *  La pagina esiste solo se l'azienda usa un calendario — sotto il regime
- *  `on_demand` non c'è niente da segnare — e solo per chi c'entra: al
- *  dipendente a ore non direbbe niente, e trovarsela nel menu lo farebbe
- *  dubitare del suo contratto. Come per le altre pagine spegnibili, il
- *  controllo sta in due posti: il menu che nasconde la voce e questa
- *  guardia, perché l'indirizzo se lo ricorda il browser. */
+ *  Questa pagina è del dipendente. Il responsabile le disponibilità le vede e
+ *  le scrive dal tabellone, insieme ai turni: sono la stessa domanda guardata
+ *  da due parti — «chi posso mettere sabato» — e tenerle in due schermate
+ *  diverse lo obbligherebbe a ricordarsi l'una mentre guarda l'altra. Chi
+ *  arriva qui da responsabile viene rimandato ai Turni.
+ *
+ *  Non esiste nemmeno per il dipendente, in due casi: sotto il regime
+ *  `on_demand` non c'è niente da segnare, e a chi ha un contratto a ore
+ *  questo calendario non direbbe niente — anzi, gli farebbe dubitare di
+ *  averlo. Come per le pagine spegnibili il controllo sta in due posti,
+ *  qui e nel menu: l'indirizzo se lo ricorda il browser. */
 export default async function DisponibilitaPage({
   searchParams,
 }: {
@@ -28,6 +33,11 @@ export default async function DisponibilitaPage({
 }) {
   const user = await requireMember();
   const { m } = await searchParams;
+
+  // Il responsabile ha la stessa cosa nel tabellone, e migliore: lì la vede
+  // accanto ai turni su cui deve decidere.
+  if (user.role === "capo") redirect("/turni");
+  if (!user.on_call) redirect("/turni");
 
   const mese =
     m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : toISODate(new Date()).slice(0, 7);
@@ -51,44 +61,24 @@ export default async function DisponibilitaPage({
     .eq("company_id", user.company_id)
     .maybeSingle();
   const imp = normalizzaImpostazioni(impRiga as never);
-  const verso = versoDelRegime(imp.regime_chiamata);
-  if (!verso) redirect("/turni");
+  if (!versoDelRegime(imp.regime_chiamata)) redirect("/turni");
 
-  // Chi ha un contratto a ore non ha niente da dichiarare qui.
-  if (user.role !== "capo" && !user.on_call) redirect("/turni");
-
-  const [personeRes, righeRes, turniRes] = await Promise.all([
+  const [righeRes, turniRes] = await Promise.all([
     supabase
-      .from("profiles")
-      .select(COLONNE_PROFILO)
+      .from("availability_days")
+      .select(COLONNE_DISPONIBILITA)
       .eq("company_id", user.company_id)
-      .eq("active", true)
-      .eq("on_call", true)
-      .order("full_name"),
-    // Il filtro sulla persona è esplicito e non decorativo: RLS lascia
-    // leggere al responsabile anche quelle degli altri, ed è giusto che sia
-    // così — ma la rete non è il filtro della schermata.
-    (user.role === "capo"
-      ? supabase
-          .from("availability_days")
-          .select(COLONNE_DISPONIBILITA)
-          .eq("company_id", user.company_id)
-      : supabase
-          .from("availability_days")
-          .select(COLONNE_DISPONIBILITA)
-          .eq("company_id", user.company_id)
-          .eq("profile_id", user.id)
-    )
+      .eq("profile_id", user.id)
       .gte("giorno", da)
       .lte("giorno", a)
       .order("giorno"),
     // I turni già scritti nel mese: si dichiara la disponibilità guardando
     // dove si è già impegnati, non a memoria.
-    (user.role === "capo"
-      ? supabase.from("shifts").select("profile_id, date")
-      : supabase.from("shifts").select("profile_id, date").eq("profile_id", user.id)
-    )
+    supabase
+      .from("shifts")
+      .select("date")
       .eq("company_id", user.company_id)
+      .eq("profile_id", user.id)
       .gte("date", da)
       .lte("date", a),
   ]);
@@ -98,11 +88,9 @@ export default async function DisponibilitaPage({
   // differenza fra lavorare e non lavorare.
   if (righeRes.error) {
     return (
-      <ErroreDati cosa="le disponibilità" dettaglio={righeRes.error.message} />
+      <ErroreDati cosa="le tue disponibilità" dettaglio={righeRes.error.message} />
     );
   }
-
-  const persone = (personeRes.data ?? []) as Profile[];
 
   return (
     <Disponibilita
@@ -112,14 +100,9 @@ export default async function DisponibilitaPage({
       da={da}
       a={a}
       regime={imp.regime_chiamata}
-      persone={persone}
       righe={(righeRes.data ?? []) as Riga[]}
-      giorniConTurno={(turniRes.data ?? []).map(
-        (t: { profile_id: string | null; date: string }) =>
-          `${t.profile_id ?? ""}|${t.date}`,
-      )}
+      giorniConTurno={(turniRes.data ?? []).map((t: { date: string }) => t.date)}
       mioId={user.id}
-      capo={user.role === "capo"}
     />
   );
 }

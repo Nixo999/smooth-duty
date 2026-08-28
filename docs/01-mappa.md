@@ -41,7 +41,7 @@ trenta nomi da un elenco senza pretendere trenta indirizzi email.
 /turni/importa        lettura di un foglio Excel/CSV con anteprima (solo capo)
 /supervisione         la giornata ora per ora, e cosa è scoperto
 /permessi             richieste di assenza: il dipendente chiede, il capo decide
-/disponibilita        il calendario di chi e' a chiamata: quando puo', o quando non puo'
+/disponibilita        il calendario di chi e' a chiamata (solo dipendente: il capo le vede nei Turni)
 /prospetto            ore lavorate, perse e per quale causale (solo capo)
 /squadra              le persone, i ruoli, gli accessi (solo capo)
 /impostazioni         gli interruttori dell'azienda (solo capo)
@@ -60,10 +60,12 @@ spariscono dal menu e il loro indirizzo riporta ai Turni. Turni, Squadra e
 Impostazioni no — senza il tabellone l'app non ha un motivo, e senza
 Impostazioni non si riaccenderebbe più niente.
 
-**Disponibilità non si spegne con una levetta**: c'è o non c'è secondo il
-regime scelto per chi lavora a chiamata (`regime_chiamata`). Con «chiedi ogni
-volta» il calendario non esiste per nessuno, e a un dipendente con un contratto
-a ore non compare comunque — non avrebbe niente da scriverci.
+**Disponibilità è una pagina del solo dipendente**, e non si spegne con una
+levetta: c'è o non c'è secondo il regime scelto per chi lavora a chiamata
+(`regime_chiamata`). Con «chiedi ogni volta» il calendario non esiste per
+nessuno, e a chi ha un contratto a ore non compare comunque — non avrebbe
+niente da scriverci. **Il responsabile non ce l'ha**: le stesse dichiarazioni
+le legge e le scrive dentro i Turni, che è dove deve decidere.
 
 ## Lo stack
 

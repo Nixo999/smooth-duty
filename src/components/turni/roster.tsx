@@ -28,6 +28,8 @@ import {
   salvaTurno,
 } from "@/app/(app)/turni/actions";
 import { CopiaDialog } from "@/components/turni/copia-dialog";
+import { DisponibilitaGriglia } from "@/components/turni/disponibilita-griglia";
+import { StrisciaGiorni } from "@/components/turni/striscia-giorni";
 import { Messaggi } from "@/components/turni/messaggi";
 import {
   ShiftDialog,
@@ -602,6 +604,18 @@ export function Roster({
   });
   const selectedDay = days[indiceGiorno] ?? days[0];
 
+  /** Che cosa si sta scrivendo nelle caselle: i turni, o le disponibilità di
+   *  chi è a chiamata.
+   *
+   *  Due viste e non due pagine. La disponibilità e il turno sono la stessa
+   *  domanda guardata da due parti — «chi posso mettere sabato» — e tenerle
+   *  in due schermate diverse obbligherebbe il responsabile a ricordarsi il
+   *  tabellone mentre guarda il calendario. Stessa griglia, stessi sette
+   *  giorni, stessa settimana: cambia solo cosa c'è scritto dentro. E nella
+   *  vista dei turni le disponibilità restano comunque visibili in ogni
+   *  casella, perché leggerle non deve costare nemmeno un clic. */
+  const [vista, setVista] = React.useState<"turni" | "disponibilita">("turni");
+
   /** Indice turni[persona][giorno]: la griglia lo consulta 7 volte per riga,
    *  filtrare l'array ogni volta sarebbe quadratico. */
   const byCell = (() => {
@@ -759,6 +773,25 @@ export function Roster({
       passaOre(r),
   );
 
+  /** Chi e' a chiamata, per la vista delle disponibilita'.
+   *
+   *  Passa dalla ricerca e dal reparto — chi cerca un nome nei turni si
+   *  aspetta di ritrovarlo cercandolo qui — ma **non** dai filtri sul
+   *  contratto e sul monte ore. Quei due, applicati qui, svuoterebbero la
+   *  vista: «a chiamata» e' gia' la condizione di questo elenco, e chi e' a
+   *  chiamata un monte ore non ce l'ha, quindi «sotto le ore» lo escluderebbe
+   *  sempre. E le due tendine in questa vista sono nascoste: chi ci fosse
+   *  finito dentro si troverebbe una schermata vuota e niente da spegnere. */
+  const aChiamata = rows
+    .filter(
+      (r) =>
+        r.aChiamata &&
+        !r.unassigned &&
+        (!cerca.trim() || corrisponde(r.name, cerca)) &&
+        (!filtroReparto || r.reparti.includes(filtroReparto)),
+    )
+    .map((r) => ({ id: r.id, name: r.name }));
+
   /** Su una settimana pubblicata si interviene solo da modalita'
    *  Modifica: senza, il click spiega invece di agire. */
   const modificabile = inBozza || sospese.attivo;
@@ -823,12 +856,51 @@ export function Roster({
               filtri e la creazione. Da telefono la riga va a capo da sola. */}
           <div className="flex flex-wrap items-center gap-2">
             <WeekNav monday={monday} />
+            {/* Compare solo dove serve: un'azienda senza nessuno a chiamata,
+                o che le chiamate le fa una per volta, non ha un calendario
+                da guardare e questo bottone le direbbe solo che le manca
+                qualcosa. */}
+            {versoInVigore && aChiamata.length > 0 ? (
+              <div
+                role="radiogroup"
+                aria-label="Cosa stai guardando"
+                className="flex items-center gap-0.5 rounded-full bg-surface-3 p-0.5"
+              >
+                {(
+                  [
+                    ["turni", "Turni"],
+                    ["disponibilita", "Disponibilità"],
+                  ] as const
+                ).map(([quale, testo]) => (
+                  <button
+                    key={quale}
+                    type="button"
+                    role="radio"
+                    aria-checked={vista === quale}
+                    onClick={() => setVista(quale)}
+                    className={cn(
+                      "tap h-8 rounded-full px-3 text-[13px] font-medium",
+                      vista === quale
+                        ? "bg-surface text-text shadow-soft"
+                        : "text-muted hover:text-text",
+                    )}
+                  >
+                    {testo}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <Ricerca
               valore={cerca}
               onChange={setCerca}
               id="cerca-turni"
               className="w-full sm:w-48"
             />
+            {/* I filtri e i comandi che cambiano i turni valgono per i
+                turni. Nella vista delle disponibilità sarebbero bottoni che
+                agiscono su quello che non si sta guardando. */}
+            {vista === "turni" ? (
+            <>
             {departments.length > 0 ? (
               <Select
                 aria-label="Filtra per reparto"
@@ -1018,14 +1090,16 @@ export function Roster({
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
+            </>
+            ) : null}
           </div>
 
-          {inBozza ? (
+          {vista === "turni" && inBozza ? (
             <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
               Settimana in bozza, come ogni settimana nuova: i dipendenti la
               vedranno solo quando premi «Pubblica».
             </p>
-          ) : sospese.attivo ? (
+          ) : vista === "turni" && sospese.attivo ? (
             <p className="rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] font-medium text-accent">
               Stai modificando una settimana pubblicata: i dipendenti vedono
               ancora la versione di prima, finché non premi «Conferma
@@ -1033,7 +1107,7 @@ export function Roster({
             </p>
           ) : null}
 
-          {righe.length === 0 ? (
+          {vista === "turni" && righe.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
               {cerca.trim()
                 ? "Nessuno con questo nome."
@@ -1043,8 +1117,23 @@ export function Roster({
             </p>
           ) : null}
 
+          {vista === "disponibilita" ? (
+            <DisponibilitaGriglia
+              days={days}
+              regime={regimeChiamata}
+              persone={aChiamata}
+              dichiarazioni={disponibilita}
+              indiceGiorno={indiceGiorno}
+              onSceglieGiorno={setIndiceGiorno}
+              conTurno={(id, day) => cell(id, day).length > 0}
+            />
+          ) : null}
+
           {/* ---------------- schermo grande: tabellone ---------------- */}
-          <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-card lg:block">
+          <div className={cn(
+            "hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-card",
+            vista === "turni" && "lg:block",
+          )}>
             <div className="overflow-x-auto">
               <div
                 className="grid min-w-[64rem]"
@@ -1160,45 +1249,13 @@ export function Roster({
           </div>
 
           {/* ---------------- telefono: un giorno alla volta ---------------- */}
-          <div className="lg:hidden">
-            <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
-              {days.map((day, i) => {
-                const d = fromISODate(day);
-                const active = i === indiceGiorno;
-                const count = shifts.filter((s) => s.date === day).length;
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => setIndiceGiorno(i)}
-                    aria-pressed={active}
-                    className={cn(
-                      "tap flex min-w-[3.25rem] flex-col items-center gap-0.5 rounded-xl border px-2 py-2",
-                      active
-                        ? "border-accent bg-accent text-accent-fg"
-                        : "border-border bg-surface text-muted",
-                    )}
-                  >
-                    <span className="text-[11px] font-medium capitalize">
-                      {dayShort(d)}
-                    </span>
-                    <span className="text-[16px] font-semibold tabular-nums">
-                      {d.getDate()}
-                    </span>
-                    <span
-                      className={cn(
-                        "h-1 w-1 rounded-full",
-                        count > 0
-                          ? active
-                            ? "bg-accent-fg"
-                            : "bg-accent"
-                          : "bg-transparent",
-                      )}
-                    />
-                  </button>
-                );
-              })}
-            </div>
+          <div className={cn("lg:hidden", vista !== "turni" && "hidden")}>
+            <StrisciaGiorni
+              days={days}
+              indice={indiceGiorno}
+              onSceglie={setIndiceGiorno}
+              segnati={(day) => shifts.some((s) => s.date === day)}
+            />
 
             {righe.length > 0 ? (
               <DayList

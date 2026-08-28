@@ -97,6 +97,31 @@ scrivi, salva, leggi il rifiuto, riprova — è esattamente il lavoro che questa
 app dovrebbe togliere. Da telefono la stessa pastiglia sta accanto al nome, e
 chi ha dichiarato qualcosa compare nell'elenco del giorno anche senza turni.
 
+### Le due viste: Turni e Disponibilità
+
+**File**: `src/components/turni/disponibilita-griglia.tsx` ·
+`src/components/turni/striscia-giorni.tsx`.
+
+Un interruttore accanto alla settimana passa dai turni alle **disponibilità**,
+e resta la stessa griglia: stessi sette giorni, stessa navigazione, stessa
+ricerca. Compare solo se l'azienda usa un calendario (`regime_chiamata` diverso
+da `on_demand`) e c'è almeno una persona a chiamata fra quelle mostrate.
+
+Due viste e **non due pagine**: la disponibilità e il turno sono la stessa
+domanda guardata da due parti — «chi posso mettere sabato» — e in due schermate
+diverse il responsabile dovrebbe ricordarsi il tabellone mentre guarda il
+calendario. Per la stessa ragione nella vista dei turni le disponibilità
+restano visibili in ogni casella: leggerle non deve costare nemmeno un clic.
+
+Il gesto è **tocca le caselle, poi dici cosa farne** — «non è disponibile» /
+«è disponibile», «solo alcune ore», «togli». La selezione attraversa le
+persone, non solo i giorni: il ponte in cui non c'è nessuno dei tre si segna in
+una passata sola, cosa che un calendario per persona non saprebbe fare.
+
+Nella vista delle disponibilità spariscono i filtri e i comandi che cambiano i
+turni — annulla, pubblica, svuota, nuovi turni: sarebbero bottoni che agiscono
+su quello che non si sta guardando.
+
 Legge: `profiles` (attivi) · `shifts` della settimana · `departments` ·
 `absences` che toccano la settimana · `reparto_piu_frequente` ·
 `published_weeks` per quel lunedì. **Al dipendente i turni di una settimana in
@@ -198,15 +223,17 @@ solo le ferie. Si spegne con `pagina_permessi`.
 
 ---
 
-## `/disponibilita` — quando chi è a chiamata può, o non può
+## `/disponibilita` — il calendario del dipendente a chiamata
 
 **File**: `src/app/(app)/disponibilita/page.tsx` · `actions.ts` ·
 `src/components/disponibilita/disponibilita.tsx` ·
 **motore**: `src/lib/disponibilita.ts`.
 
-Calendario mensile (`?m=YYYY-MM`, come i Permessi). **Riguarda solo chi è a
-chiamata**: chi ha un monte ore ha già il suo contratto, e questo calendario
-gli farebbe dubitare di averlo.
+Calendario mensile (`?m=YYYY-MM`, come i Permessi). **È del dipendente, e
+solo suo.** Il responsabile qui non entra — viene rimandato ai Turni, dove le
+stesse dichiarazioni le vede accanto ai turni su cui deve decidere. E riguarda
+solo chi è a chiamata: chi ha un monte ore ha già il suo contratto, e questo
+calendario gli farebbe dubitare di averlo.
 
 Che cosa significhi una casella segnata lo decide `regime_chiamata`, e la
 schermata lo scrive in chiaro invece di lasciarlo indovinare — è l'unico posto
@@ -219,25 +246,24 @@ scrive; una barra in fondo offre «tutto il giorno», «solo alcune ore» e
 fasce orarie restano visibili invece di nascondersi dietro un tocco lungo che
 nessuno scoprirebbe.
 
-Due viste:
-- **il dipendente** vede solo il suo, ed è modificabile;
-- **il responsabile** parte da «Tutti», in sola lettura — la prima domanda
-  aprendo questa pagina è chi c'è questa settimana — e scegliendo un nome
-  passa al calendario di quella persona, che può scrivere al posto suo. Non è
-  una scorciatoia: la telefonata al responsabile è il modo in cui queste cose
-  si dicono davvero, e senza questa strada quella dichiarazione non verrebbe
-  scritta mai.
-
 Un puntino accanto al numero del giorno dice che lì c'è già un turno: la
 disponibilità si dichiara guardando dove si è impegnati, non a memoria.
 
-Sotto il regime `on_demand` la pagina **non esiste**: sparisce dal menu e
-l'indirizzo riporta ai Turni. Come per le pagine spegnibili sono due posti da
-tenere d'accordo — `src/app/(app)/layout.tsx` e la guardia dentro la pagina —
-perché l'indirizzo se lo ricorda il browser.
+La pagina **non esiste** in tre casi, e sono tre ragioni diverse: al
+responsabile (ce l'ha nei Turni), sotto il regime `on_demand` (non c'è niente
+da segnare) e a chi ha un contratto a ore (non ha un calendario da riempire).
+Come per le pagine spegnibili sono due posti da tenere d'accordo —
+`src/app/(app)/layout.tsx` e la guardia dentro la pagina — perché l'indirizzo
+se lo ricorda il browser.
 
-Azioni: `segnaDisponibilita` · `togliDisponibilita`. Si cancella **per
-giorno** e non per riga: chi ripensa a un giovedì lo pensa intero, e fargli
+⚠️ **La telefonata resta.** «Sabato non posso» il dipendente lo dice al
+telefono più spesso di quanto apra l'app: per questo il responsabile deve
+poterlo scrivere lui, e lo fa dal tabellone. Senza quella strada quella
+dichiarazione non verrebbe scritta mai.
+
+Azioni: `segnaDisponibilita` · `togliDisponibilita` — le stesse che chiama il
+tabellone del responsabile, e il verso lo decidono loro leggendo il regime, non
+chi le chiama. Si cancella **per giorno** e non per riga: chi ripensa a un giovedì lo pensa intero, e fargli
 togliere una fascia per volta sarebbe fargli rifare a mano un conto che ha già
 in testa.
 

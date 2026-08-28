@@ -360,6 +360,15 @@ lavoratore**, non tre livelli di severità della stessa cosa:
 Motore: `esitoAssegnazione()` (`src/lib/disponibilita.ts`), puro e provato da
 `npm run prove`.
 
+**Dove si scrive quel calendario**, ed è una scelta di forma che conta: il
+dipendente ce l'ha in una pagina sua (`/disponibilita`), il responsabile
+**dentro il tabellone**, come seconda vista della stessa settimana. Non sono
+due schermate della stessa cosa per pigrizia: per il responsabile la
+disponibilità e il turno sono la stessa domanda guardata da due parti — «chi
+posso mettere sabato» — e in una pagina separata dovrebbe ricordarsi il
+tabellone mentre guarda il calendario. Per il dipendente invece il tabellone
+non c'entra: lui guarda i suoi giorni, non la copertura del negozio.
+
 **Vale solo per chi è a chiamata.** Chi ha un monte ore ha già il suo
 contratto, e mettergli addosso anche questo sarebbe una seconda disciplina
 sulla stessa persona.
