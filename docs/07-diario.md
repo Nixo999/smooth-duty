@@ -108,7 +108,7 @@ rapporto fra lei e chi la chiama, e basta.
 `esegui-sql.mjs` e `lib-db.mjs` importano `pg`, ma il pacchetto stava in
 `node_modules` solo perché qualcuno lo aveva installato a mano con `--no-save`:
 `npm ls` lo dava `extraneous`. Bastava rifare `node_modules` per perderlo. Su
-una macchina appena installata — il Mac di Patrick è il caso vero — il comando
+una macchina appena installata il comando
 per applicare una modifica allo schema rispondeva `Cannot find package 'pg'`,
 che sembra un problema di credenziali e manda a cercare nel posto sbagliato.
 Adesso sta in `devDependencies`, e non fra le dipendenze vere perché l'app non
