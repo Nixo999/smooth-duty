@@ -3,6 +3,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Building2,
+  CalendarClock,
   CalendarDays,
   ClipboardList,
   Eye,
@@ -29,6 +30,7 @@ const ICONS = {
   eye: Eye,
   prospetto: ClipboardList,
   sun: Sun,
+  disponibilita: CalendarClock,
   settings: Settings2,
 } as const;
 

@@ -128,6 +128,7 @@ ordine di precedenza:
 | Caso | Condizione | Impostazione |
 |---|---|---|
 | `cambio_reparto` | è cambiato **solo** il reparto: stessa persona, stesso giorno, stessi orari | `conferma_cambio_reparto` (spento di suo) |
+| `chiamata` | la persona è **a chiamata**, la settimana è pubblicata e il turno è nuovo o è cambiato | `regime_chiamata = on_demand` |
 | `modifica_straordinario` | turno esistente, settimana **pubblicata**, e va oltre le ore da contratto | `conferma_modifiche_straordinari` |
 | `modifica` | turno esistente, settimana pubblicata, senza straordinario | `conferma_modifiche` |
 | `straordinario` | turno **nuovo** che porta oltre le ore da contratto | `conferma_straordinari` |
@@ -140,6 +141,13 @@ cui si disturba una persona.
 
 Lo straordinario si misura sulla **settimana**: le ore degli altri turni,
 senza quello che si sta salvando, più il turno nuovo.
+
+La `chiamata` sta subito dopo il cambio di reparto e **prima di tutte le
+regole sulle ore**, perché quelle parlano a chi un monte ore ce l'ha: a
+chiamata non c'è né straordinario da sfondare né orario da contratto da
+rispettare, e sono proprio i due interruttori che lì non hanno niente da dire.
+Il verso della modifica lì non conta: anche accorciando il turno la proposta è
+un'altra, e il sì di prima era su quella di prima.
 
 **Ogni salvataggio ricalcola da capo e cancella il no precedente**: un no dato a
 una versione non vale per quella dopo, che l'interessato non ha ancora visto.
@@ -244,9 +252,13 @@ settimana magari a posto.
 
 ## La settimana si accetta intera
 
-Alla **pubblicazione**, chi va oltre le sue ore da contratto non riceve otto
-domande su otto turni: ne riceve **una sola sulla settimana**
-(`conferma_settimana`, spento di suo).
+Alla **pubblicazione**, chi deve rispondere non riceve otto domande su otto
+turni: ne riceve **una sola sulla settimana**. Due ragioni, e sono due
+conversazioni diverse — `straordinario` («questa settimana ti porta oltre il
+contratto, ti va bene?», con `conferma_settimana`, spento di suo) e `chiamata`
+(«questa settimana ci sei?», a chi è a chiamata sotto `on_demand`). Le due non
+si incontrano mai sulla stessa persona: chi è a chiamata un monte ore non ce
+l'ha.
 
 Un turno per volta è il modo giusto di chiedere una modifica in corsa, ed è
 quello sbagliato di chiedere «questa settimana ti va bene?»: la risposta
@@ -326,6 +338,135 @@ Dettagli che sembrano pignoleria e non lo sono:
 - il buco lasciato da un `da_rifare` **si chiude da solo** quando nasce un
   turno nuovo per quella persona in quel giorno. Uno per volta: chi fa mattina
   e sera ha due turni e può averne rifiutato uno solo.
+
+## Le regole di ingaggio di chi è a chiamata
+
+Fino al 28 agosto 2026 chi era a chiamata era definito da ciò che **non** ha:
+nessun monte ore, nessun orario preimpostato, nessuna settimana da accettare.
+Il responsabile gli scriveva un turno come a chiunque altro, e l'accordo vero —
+«il giovedì no», «i weekend sì» — viveva in una telefonata di cui l'app non
+sapeva niente.
+
+Da qui quell'accordo si scrive, e l'azienda sceglie in che forma
+(`regime_chiamata`). **Tre modi, e sono tre contratti diversi fra datore e
+lavoratore**, non tre livelli di severità della stessa cosa:
+
+| Regime | Chi scrive il calendario | Cosa fa l'app quando si assegna |
+|---|---|---|
+| `indisponibilita` | il lavoratore, sui giorni in cui **non** può | rifiuta il turno su quei giorni; negli altri lascia fare |
+| `disponibilita` | il lavoratore, sui giorni in cui **può** | rifiuta il turno fuori da quei giorni: qui il vincolo è del datore |
+| `on_demand` | nessuno | assegna, e chiede al lavoratore di accettare la chiamata |
+
+Motore: `esitoAssegnazione()` (`src/lib/disponibilita.ts`), puro e provato da
+`npm run prove`.
+
+**Vale solo per chi è a chiamata.** Chi ha un monte ore ha già il suo
+contratto, e mettergli addosso anche questo sarebbe una seconda disciplina
+sulla stessa persona.
+
+**Il default è `indisponibilita`, e non è una preferenza**: è l'unico dei tre
+che a chi aggiorna senza sapere che questa colonna esiste non cambia niente —
+nessuno ha dichiarato nulla, quindi nulla si blocca. Con `disponibilita` come
+default, la mattina dopo l'aggiornamento nessuna azienda avrebbe più potuto
+mettere in turno un lavoratore a chiamata.
+
+### Lista nera e lista bianca non si controllano allo stesso modo
+
+- **`indisponibilita`**: basta **un minuto in comune** e il turno si rifiuta.
+  Chi ha detto «il giovedì pomeriggio non ci sono» non c'è nemmeno per
+  l'ultima mezz'ora.
+- **`disponibilita`**: non basta toccarsi, il turno dev'essere coperto **per
+  intero**. Assegnare 17–24 a chi ha detto «dalle 18 posso» vorrebbe dire dare
+  per buona un'ora che non ha mai concesso. Per questo le fasce si uniscono
+  prima di guardarle: 08–12 e 12–18 coprono insieme un turno 08–18 che nessuna
+  delle due copre da sola.
+
+Un turno che **scavalca la mezzanotte** si guarda su tutt'e due i giorni, con
+la convenzione di sempre (`alle <= dalle`): un 22:00–06:00 del venerdì può
+essere fermato dal sabato, e il messaggio dice il giorno che l'ha fermato —
+dire «venerdì» manderebbe a cercare nel posto sbagliato. Un turno che finisce
+a mezzanotte esatta il giorno dopo non lo tocca.
+
+### Dove sta il controllo, e dove non sta
+
+Sta in `salvaTurno`, accanto a quello delle assenze, e **non in un trigger**.
+È una scelta, e segue il precedente più vicino che c'è: «a chi è già assente
+un turno nuovo non si assegna» vive lì da sempre, per due ragioni che valgono
+identiche qui.
+
+1. Non è un vincolo di **integrità**: un turno che scavalca una disponibilità
+   non è un dato corrotto, è una regola che l'azienda ha scelto e che domani
+   può cambiare. I trigger di questa app tengono i confini fra aziende, che
+   non si negoziano.
+2. Chi ha premuto Salva legge una frase italiana che dice **cosa fare** — un
+   altro giorno, un'altra persona, un turno più corto — invece di un errore di
+   Postgres.
+
+Copre anche `copiaTurni`, e lì il controllo si fa **prima** di cancellare la
+destinazione: con «sovrascrivi» acceso, scoprirlo dopo vorrebbe dire aver
+svuotato una settimana per riempirla a metà. I turni che non si possono
+scrivere si saltano e **si dicono**: una copia che scrive meno di quello che ha
+letto e tace fa credere che la settimana sia completa.
+
+Non copre l'importazione da foglio e il ripristino di uno svuotamento. Il
+primo è un buco dichiarato — è lo stesso che ha oggi la regola delle assenze —
+e sta in [08-aperto.md](08-aperto.md). Il secondo è voluto: quei turni erano
+validi quando sono stati scritti, e far fallire un ripristino perché nel
+frattempo qualcuno ha segnato un giorno vorrebbe dire perdere una settimana
+intera per rispettare una regola che nel frattempo è cambiata.
+
+### `on_demand` rovescia di nuovo il verso, ma solo per chi è a chiamata
+
+Dalla `14` il turno vale subito e chi tace ha accettato. È giusto per chi ha un
+contratto: quel turno gli spetta comunque. **Per chi è a chiamata sotto
+`on_demand` no** — il senso di quel regime è che ogni singola chiamata va
+accettata — e «chi tace ha accettato» vorrebbe dire dare per presente lunedì
+mattina qualcuno che l'app non l'ha nemmeno aperta.
+
+È l'unico posto in tutta l'app in cui il silenzio non vale come un sì, e
+l'interfaccia lo dice in chiaro: sulla chiamata non scrive «il turno è già
+valido» ma «finché non rispondi questo turno non è tuo».
+
+Due domande, e la differenza è **quando**:
+
+- **la singola chiamata** — si aggiunge o si cambia un turno di una settimana
+  già pubblicata. Motivo `chiamata`, e usa la macchina che c'è già:
+  `accetta_turno`, `rifiuta_turno`, `shift_messages`, `stato_prima`. Un
+  rifiuto su un turno nato adesso lo toglie e lascia un buco da coprire, che è
+  esattamente quello che serve: quella chiamata va fatta a qualcun altro;
+- **la settimana intera** — alla pubblicazione, a chi è a chiamata e ha almeno
+  un turno in quella settimana. Una riga in `week_requests` con motivo
+  `chiamata`, che si accetta o si rifiuta **intera**, con la nota per dire cosa
+  andrebbe cambiato. Vale la stessa ragione dello straordinario: chi riceve sei
+  domande su sei turni non sta guardando la cosa che gli si sta chiedendo.
+
+In **bozza** non si chiede niente, come per tutto il resto: la domanda sulla
+settimana si fa una volta sola, ed è la pubblicazione a farla.
+
+Non la riceve chi **non ha un accesso**: non potrebbe rispondere, e la
+richiesta resterebbe in attesa per sempre. Per chi è a chiamata questo vale
+doppio — la chiamata gli è arrivata comunque, per telefono, e l'app non deve
+fingere di avere una risposta che non avrà mai.
+
+> **Quello che `on_demand` non cambia**: la copertura. Un turno proposto e non
+> ancora accettato continua a contare come presenza nella Supervisione. È una
+> scelta: il responsabile quella persona ce l'ha messa, e finché non arriva un
+> no il piano è che venga. Mostrare la giornata come scoperta sarebbe
+> pessimistico, e conterebbe il buco due volte nel momento in cui il rifiuto
+> arriva davvero — perché quello lascia già il suo messaggio e il suo
+> `da_rifare`.
+
+### Il verso sta sulla riga, non solo nell'impostazione
+
+Sarebbe bastata una tabella di giorni, letta come «non posso» o come «posso»
+secondo il regime in vigore. Ma il regime si cambia da una schermata, e quel
+giorno tutte le dichiarazioni già date si rovescerebbero in silenzio: «il 12
+non posso» diventerebbe «il 12 posso», e il responsabile lo scoprirebbe
+mandando qualcuno a lavorare in un giorno in cui aveva detto di non esserci.
+
+Scritto sulla riga, il verso è quello con cui la persona ha parlato. Cambiando
+regime le dichiarazioni vecchie **restano scritte e smettono di contare**, che
+è l'unica cosa onesta da farne.
 
 ## Assenze
 
@@ -507,16 +648,22 @@ nessuno il posto va fra gli **scoperti**.
 - **Non assegna niente a chi è assente**, e i turni di chi è assente non li
   conta come copertura: sono il buco che stiamo cercando.
 
-### I tre modi di restare scoperti
+### I quattro modi di restare scoperti
 
-Sembrano la stessa cosa e chiedono tre rimedi diversi, per questo il motivo si
-porta dietro fino alla schermata:
+Sembrano la stessa cosa e chiedono quattro rimedi diversi, per questo il motivo
+si porta dietro fino alla schermata:
 
 | Motivo | Vuol dire | Si rimedia |
 |---|---|---|
 | `nessuno_nel_reparto` | in quel reparto non c'è nessuno che possa lavorarci | assegnare il reparto a qualcuno, o assumere |
+| `non_disponibile` | chi è a chiamata quel giorno ha detto che non c'è, o non ha detto niente | chiederle una disponibilità, e farla segnare |
 | `tutti_occupati` | ci sono, ma quel giorno hanno già il loro | spostare un turno, o chiamare qualcuno |
 | `oltre_contratto` | ci sono e sono liberi, ma andrebbero in straordinario | è una firma del responsabile, non una scelta del motore |
+
+Il controllo sulle disponibilità viene **prima** di quello sugli impegni, e non
+è un dettaglio di ordine: al contrario, «sono tutti occupati» finirebbe per
+dirsi anche di chi quel giorno non c'è proprio, e i due rimedi non si
+somigliano.
 
 ## Copia dei turni
 
@@ -611,7 +758,7 @@ d'accordo — `src/app/(app)/layout.tsx` e la guardia dentro ciascuna pagina.
 ha più un motivo, senza Squadra non si aggiunge nessuno, e senza Impostazioni
 non si potrebbe più riaccendere niente.
 
-## Le dieci impostazioni dell'azienda
+## Le undici impostazioni dell'azienda
 
 `company_settings`, tutte facoltative (senza riga valgono i default).
 
@@ -634,6 +781,7 @@ momento in cui l'app dice di no sarebbe peggio.
 | `orari_preimpostati` | ❌ | un turno diverso dall'orario del contratto è rifiutabile |
 | `conferma_cambio_reparto` | ❌ | anche il solo cambio di reparto è rifiutabile |
 | `conferma_settimana` | ❌ | alla pubblicazione, chi va in straordinario accetta o rifiuta la settimana intera |
+| `regime_chiamata` | `indisponibilita` | come si ingaggia chi è a chiamata. **Non è una levetta**: è una scelta fra tre, vedi qui sotto |
 | `pagina_supervisione` | ✅ | l'azienda usa la Supervisione |
 | `supervisione_dipendenti` | ✅ | la vedono anche i dipendenti |
 | `pagina_permessi` | ✅ | l'azienda usa i Permessi |

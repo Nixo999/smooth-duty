@@ -370,6 +370,53 @@ const MIGRAZIONI = [
       ["tentativi_recenti non e' pubblica", () => nonEseguibileDaTutti("tentativi_recenti")],
     ],
   },
+  {
+    file: "19-lavoratori-a-chiamata.sql",
+    cosa: "le regole di ingaggio di chi e' a chiamata",
+    prove: [
+      ["colonna company_settings.regime_chiamata", () => colonna("company_settings", "regime_chiamata")],
+      // I tre valori ammessi sono l'unica copia fuori da REGIMI_CHIAMATA
+      // (src/lib/disponibilita.ts): il vincolo dice quali sono, e trovarne
+      // uno solo vorrebbe dire che la migrazione e' passata a meta'.
+      [
+        "il regime ammette tutti e tre i modi",
+        async () =>
+          (await vincoloContiene("company_settings_regime_chiamata_valido", "indisponibilita")) &&
+          (await vincoloContiene("company_settings_regime_chiamata_valido", "disponibilita")) &&
+          (await vincoloContiene("company_settings_regime_chiamata_valido", "on_demand")),
+      ],
+      ["tabella availability_days", () => tabella("availability_days")],
+      ["RLS su availability_days", () => rls("availability_days")],
+      ["colonna availability_days.verso", () => colonna("availability_days", "verso")],
+      ["vincolo orario coerente", () => vincolo("availability_days_orario_coerente")],
+      ["indice del giorno intero", () => indice("availability_days_giorno_intero")],
+      ["indice della fascia", () => indice("availability_days_fascia")],
+      [
+        "trigger availability_company_check",
+        () => trigger("availability_days", "availability_company_check"),
+      ],
+      // La disponibilita' di un collega non la vede tutta l'azienda: la
+      // policy nomina il profilo di chi chiede, e senza quel pezzo sarebbe
+      // rimasta quella larga.
+      [
+        "la lettura e' dell'interessato e del responsabile",
+        () =>
+          policy("availability_days", "availability_days_select", {
+            contiene: "current_profile_id",
+          }),
+      ],
+      // La 19 riscrive due vincoli che c'erano gia': la loro presenza non
+      // prova niente, conta cosa ammettono adesso.
+      [
+        "shifts accetta il motivo chiamata",
+        () => vincoloContiene("shifts_richiede_conferma_valido", "chiamata"),
+      ],
+      [
+        "week_requests accetta il motivo chiamata",
+        () => vincoloContiene("week_requests_motivo_valido", "chiamata"),
+      ],
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------- il giro */

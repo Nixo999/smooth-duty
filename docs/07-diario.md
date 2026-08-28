@@ -9,6 +9,82 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 28 agosto 2026
+
+**Chi è a chiamata smette di essere «quello senza contratto»** — migrazione `19`
+Era definito da ciò che non ha: nessun monte ore, nessun orario preimpostato,
+nessuna settimana da accettare. L'accordo vero — «il giovedì no», «i weekend
+sì» — viveva in una telefonata di cui l'app non sapeva niente, e il
+responsabile se lo ricordava a memoria. Adesso si scrive, e l'azienda sceglie
+in che forma: `indisponibilita` (segna quando non può), `disponibilita` (segna
+quando può, e il vincolo passa al datore), `on_demand` (nessun calendario: si
+propone e lui risponde). Tre contratti diversi fra datore e lavoratore, non
+tre livelli della stessa cosa — per questo nelle Impostazioni è una scelta fra
+tre e non tre levette: due accese non vorrebbero dire niente.
+
+**Il default è quello che non cambia niente**
+`indisponibilita`, e non per gusto: senza dichiarazioni non blocca nessuno, e
+chi aggiorna senza sapere che questa colonna esiste continua a lavorare come
+ieri. Con `disponibilita` come default, la mattina dopo nessuna azienda
+avrebbe più potuto mettere in turno un lavoratore a chiamata.
+
+**Il verso sta sulla riga, non solo nell'impostazione**
+`availability_days.verso` esiste per una ragione sola: il regime si cambia da
+una schermata, e senza quella colonna tutte le dichiarazioni già date si
+rovescerebbero di senso in silenzio — «il 12 non posso» diventerebbe «il 12
+posso», e lo si scoprirebbe mandando qualcuno a lavorare in un giorno in cui
+aveva detto di non esserci. Cambiando regime, quelle vecchie restano scritte e
+smettono di contare.
+
+**Il controllo sta nella Server Action, non in un trigger**
+Segue il precedente più vicino — «a chi è già assente un turno nuovo non si
+assegna» — e per le stesse due ragioni: non è un vincolo di integrità ma una
+regola che l'azienda può cambiare, e chi preme Salva legge una frase italiana
+che dice cosa fare invece di un errore di Postgres. Nella copia il controllo
+sta **prima** della cancellazione della destinazione: con «sovrascrivi» acceso,
+scoprirlo dopo vorrebbe dire aver svuotato una settimana per riempirla a metà.
+
+**`on_demand` rovescia di nuovo il verso, ma solo per chi è a chiamata**
+Dalla `14` il turno vale subito e chi tace ha accettato. Lì è giusto: quel
+turno gli spetta comunque. Per chi è a chiamata no — il senso di quel regime è
+che ogni chiamata va accettata — e «chi tace ha accettato» vorrebbe dire dare
+per presente lunedì mattina qualcuno che l'app non l'ha nemmeno aperta. È
+l'unico posto in cui il silenzio non vale come un sì, e la posta lo scrive:
+«finché non rispondi questo turno non è tuo». La singola chiamata usa la
+macchina che c'era già (`accetta_turno`, `rifiuta_turno`, `stato_prima`); la
+settimana intera usa `week_requests`, che dalla `16` aveva lasciato la porta
+aperta con la colonna `motivo`.
+
+**Il tabellone dice quali caselle sono chiuse prima del clic**
+Sulle righe di chi è a chiamata compare quello che ha dichiarato, e sotto la
+lista bianca i giorni senza dichiarazione si vedono in grigio. Senza,
+costruire una settimana sarebbe stato un giro di tentativi — scrivi, salva,
+leggi il rifiuto, riprova — cioè esattamente il lavoro che questa app dovrebbe
+togliere.
+
+**La proposta automatica non propone quello che il salvataggio poi rifiuta**
+`generaTurni` conosce le disponibilità, e chi non c'è finisce fra gli scoperti
+con un motivo suo, `non_disponibile`: si rimedia chiedendo una disponibilità,
+non spostando un turno. Il controllo viene prima di quello sugli impegni,
+altrimenti «sono tutti occupati» si sarebbe detto anche di chi quel giorno non
+c'è proprio.
+
+**Il calendario si tocca a più giorni per volta**
+Il tocco seleziona e non scrive; una barra in fondo offre «tutto il giorno»,
+«solo alcune ore», «togli». Un weekend o un mese si segnano in un gesto, e le
+fasce orarie restano visibili invece di nascondersi dietro un tocco lungo che
+nessuno scoprirebbe. Il responsabile può segnare al posto di qualcuno: la
+telefonata è il modo in cui queste cose si dicono davvero, e senza quella
+strada la dichiarazione non verrebbe scritta mai.
+
+**La disponibilità non la vedono i colleghi**
+Solo l'interessato e il responsabile. Le ferie di un collega le vede tutta
+l'azienda perché sono un fatto d'agenda; questa dice quando una persona ha
+l'altro lavoro, l'università, il figlio da prendere a scuola — riguarda il
+rapporto fra lei e chi la chiama, e basta.
+
+---
+
 ## 26 agosto 2026
 
 **«Quel link non vale più» era falso: valeva, ma nel browser sbagliato**

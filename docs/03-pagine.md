@@ -89,6 +89,14 @@ In cima al tabellone del responsabile c'è la casella dei **messaggi**
 Aprirli è ciò che fa scattare l'effetto del rifiuto — vedi
 [04-regole.md](04-regole.md).
 
+Sulle caselle di chi è a chiamata il tabellone disegna quello che la persona
+ha dichiarato — «non c'è», «disponibile», o le ore — e sotto la lista bianca
+segna in grigio i giorni **senza** dichiarazione, dove il salvataggio dirà di
+no. Serve prima del clic, non dopo: costruire una settimana a tentativi —
+scrivi, salva, leggi il rifiuto, riprova — è esattamente il lavoro che questa
+app dovrebbe togliere. Da telefono la stessa pastiglia sta accanto al nome, e
+chi ha dichiarato qualcosa compare nell'elenco del giorno anche senza turni.
+
 Legge: `profiles` (attivi) · `shifts` della settimana · `departments` ·
 `absences` che toccano la settimana · `reparto_piu_frequente` ·
 `published_weeks` per quel lunedì. **Al dipendente i turni di una settimana in
@@ -190,6 +198,51 @@ solo le ferie. Si spegne con `pagina_permessi`.
 
 ---
 
+## `/disponibilita` — quando chi è a chiamata può, o non può
+
+**File**: `src/app/(app)/disponibilita/page.tsx` · `actions.ts` ·
+`src/components/disponibilita/disponibilita.tsx` ·
+**motore**: `src/lib/disponibilita.ts`.
+
+Calendario mensile (`?m=YYYY-MM`, come i Permessi). **Riguarda solo chi è a
+chiamata**: chi ha un monte ore ha già il suo contratto, e questo calendario
+gli farebbe dubitare di averlo.
+
+Che cosa significhi una casella segnata lo decide `regime_chiamata`, e la
+schermata lo scrive in chiaro invece di lasciarlo indovinare — è l'unico posto
+in cui l'ambiguità costerebbe una persona mandata a lavorare in un giorno in
+cui aveva detto di non esserci.
+
+**Il gesto è: tocca i giorni, poi dici cosa farne.** Il tocco seleziona, non
+scrive; una barra in fondo offre «tutto il giorno», «solo alcune ore» e
+«togli». Così un weekend intero o un mese si segnano in un gesto solo, e le
+fasce orarie restano visibili invece di nascondersi dietro un tocco lungo che
+nessuno scoprirebbe.
+
+Due viste:
+- **il dipendente** vede solo il suo, ed è modificabile;
+- **il responsabile** parte da «Tutti», in sola lettura — la prima domanda
+  aprendo questa pagina è chi c'è questa settimana — e scegliendo un nome
+  passa al calendario di quella persona, che può scrivere al posto suo. Non è
+  una scorciatoia: la telefonata al responsabile è il modo in cui queste cose
+  si dicono davvero, e senza questa strada quella dichiarazione non verrebbe
+  scritta mai.
+
+Un puntino accanto al numero del giorno dice che lì c'è già un turno: la
+disponibilità si dichiara guardando dove si è impegnati, non a memoria.
+
+Sotto il regime `on_demand` la pagina **non esiste**: sparisce dal menu e
+l'indirizzo riporta ai Turni. Come per le pagine spegnibili sono due posti da
+tenere d'accordo — `src/app/(app)/layout.tsx` e la guardia dentro la pagina —
+perché l'indirizzo se lo ricorda il browser.
+
+Azioni: `segnaDisponibilita` · `togliDisponibilita`. Si cancella **per
+giorno** e non per riga: chi ripensa a un giovedì lo pensa intero, e fargli
+togliere una fascia per volta sarebbe fargli rifare a mano un conto che ha già
+in testa.
+
+---
+
 ## `/prospetto` — i conti
 
 **File**: `src/app/(app)/prospetto/page.tsx` ·
@@ -240,10 +293,15 @@ Due protezioni scritte in `modificaPersona`:
 
 **File**: `src/app/(app)/impostazioni/` · `src/components/impostazioni/`.
 
-Solo capo. Dieci impostazioni, tutte descritte in
+Solo capo. Undici impostazioni, tutte descritte in
 [04-regole.md](04-regole.md): quali pagine l'azienda usa, chi vede la
-Supervisione, quali causali si possono chiedere, e quando la squadra viene
-coinvolta sui turni.
+Supervisione, quali causali si possono chiedere, quando la squadra viene
+coinvolta sui turni, e come si ingaggia chi lavora a chiamata.
+
+L'undicesima non è una levetta ed è l'unica scelta fra tre: le regole di
+ingaggio non sono un'opzione da accendere, sono tre accordi diversi fra datore
+e lavoratore, e il secondo non è «il primo di più». Tre levette in fila
+lascerebbero accenderne due, che non vuol dire niente.
 
 Le cinque dei Turni sono raggruppate **per gesto** e non per tipo — quando
 pubblichi, quando cambi un turno già pubblicato, quando ne aggiungi uno —

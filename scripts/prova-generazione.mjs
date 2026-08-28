@@ -43,7 +43,10 @@ const persona = (nome, o = {}) => ({
   reparti: o.reparti ?? (o.reparto ? [o.reparto] : [SALA]),
   contract_hours: o.ore === undefined ? 40 : o.ore,
   on_call: o.chiamata ?? false,
+  dichiarazioni: o.dichiarazioni ?? [],
 });
+/** Tutto il giorno, nel verso indicato. */
+const dice = (giorno, verso) => ({ giorno, dalle: null, alle: null, verso });
 const turno = (o) => ({
   id: o.id ?? "t1",
   profile_id: o.chi ?? null,
@@ -68,6 +71,7 @@ const genera = (o) =>
     fasce: o.fasce ?? [],
     turni: o.turni ?? [],
     assenze: o.assenze ?? [],
+    regime: o.regime,
   });
 
 /** Le proposte in forma leggibile: giorno, orario, chi. */
@@ -364,6 +368,79 @@ uguale(
       fasce: [
         fascia({ id: "f1", da: "09:00:00", a: "13:00:00" }),
         fascia({ id: "f2", da: "18:00:00", a: "22:00:00" }),
+      ],
+    }),
+  ),
+);
+
+/* -------------------------------------------------- chi e' a chiamata */
+
+// Il motore non deve proporre quello che il salvataggio poi rifiuta: un
+// generatore che riempie il tabellone di turni impossibili e' peggio di
+// nessun generatore, perche' il responsabile lo guarda pieno e smette di
+// controllare.
+uguale(
+  "chi ha segnato che quel giorno non c'e' non viene proposto",
+  ["2026-08-24 09:00-17:00 non_disponibile"],
+  buchi(
+    genera({
+      regime: "indisponibilita",
+      persone: [
+        persona("Anna", { chiamata: true, ore: null, dichiarazioni: [dice(LUNEDI, "non_posso")] }),
+      ],
+      fasce: [fascia()],
+    }),
+  ),
+);
+
+uguale(
+  "e chi non ha dato disponibilita', sotto la lista bianca, nemmeno",
+  ["2026-08-24 09:00-17:00 non_disponibile"],
+  buchi(
+    genera({
+      regime: "disponibilita",
+      persone: [persona("Anna", { chiamata: true, ore: null })],
+      fasce: [fascia()],
+    }),
+  ),
+);
+
+uguale(
+  "chi invece si e' reso disponibile viene proposto come chiunque",
+  ["2026-08-24 09:00-17:00 anna"],
+  righe(
+    genera({
+      regime: "disponibilita",
+      persone: [
+        persona("Anna", { chiamata: true, ore: null, dichiarazioni: [dice(LUNEDI, "posso")] }),
+      ],
+      fasce: [fascia()],
+    }),
+  ),
+);
+
+// Il motivo distingue «non c'e' nessuno che possa venire» da «ci sono ma
+// hanno gia' il loro»: i due rimedi non si somigliano.
+uguale(
+  "«non disponibile» e «tutti occupati» restano due cose diverse",
+  ["2026-08-24 09:00-17:00 tutti_occupati"],
+  buchi(
+    genera({
+      regime: "indisponibilita",
+      // In sala manca una persona, e l'unica che saprebbe farlo quel giorno
+      // sta in cassa: e' disponibile, ma non e' libera.
+      persone: [
+        persona("Anna", { chiamata: true, ore: null, reparto: SALA, reparti: [SALA, CASSA] }),
+      ],
+      fasce: [fascia()],
+      turni: [
+        turno({
+          chi: "anna",
+          giorno: LUNEDI,
+          da: "09:00:00",
+          a: "17:00:00",
+          reparto: CASSA,
+        }),
       ],
     }),
   ),

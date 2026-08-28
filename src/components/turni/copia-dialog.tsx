@@ -110,11 +110,17 @@ export function CopiaDialog({
         toast.error(r.error);
         return;
       }
-      toast.success(
-        r.sostituiti > 0
-          ? `${r.copiati} turni copiati, ${r.sostituiti} sostituiti.`
-          : `${r.copiati} turni copiati.`,
-      );
+      const copiati = `${r.copiati} turni copiati${r.sostituiti > 0 ? `, ${r.sostituiti} sostituiti` : ""}`;
+      // I saltati si dicono, e si dicono forte: sono turni che il
+      // responsabile crede di avere e non ha, perche' chi e' a chiamata quel
+      // giorno non e' disponibile.
+      if (r.saltati > 0) {
+        toast.warning(
+          `${copiati}. ${r.saltati} ${r.saltati === 1 ? "turno lasciato" : "turni lasciati"} indietro: chi e' a chiamata in quei giorni non e' disponibile.`,
+        );
+      } else {
+        toast.success(`${copiati}.`);
+      }
       onCopiato();
       router.push(`/turni?s=${mondayOf(r.vaiA)}`, { scroll: false });
       router.refresh();

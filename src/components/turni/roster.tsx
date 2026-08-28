@@ -46,6 +46,14 @@ import {
   statoConferma,
   type StatoConferma,
 } from "@/lib/conferme";
+import {
+  descriviStato,
+  statoDelGiorno,
+  versoDelRegime,
+  type Dichiarazione,
+  type RegimeChiamata,
+  type StatoGiorno,
+} from "@/lib/disponibilita";
 import { repartoDelTurno } from "@/lib/reparto";
 import {
   compatta,
@@ -70,6 +78,7 @@ import { Modal } from "@/components/ui/modal";
 import type { SottoContratto } from "@/lib/pubblicazione";
 import type {
   Absence,
+  Disponibilita,
   Department,
   MessaggioTurno,
   RichiestaSettimana,
@@ -143,6 +152,8 @@ export function Roster({
   inBozza,
   messaggi,
   risposteSettimana,
+  regimeChiamata,
+  disponibilita,
 }: {
   monday: string;
   days: string[];
@@ -158,6 +169,11 @@ export function Roster({
   messaggi: MessaggioTurno[];
   /** Le risposte alla domanda sulla settimana intera, non ancora lette. */
   risposteSettimana: RichiestaSettimana[];
+  /** Come l'azienda ingaggia chi è a chiamata. */
+  regimeChiamata: RegimeChiamata;
+  /** Quello che le persone a chiamata hanno dichiarato per questa settimana.
+   *  Vuoto sotto `on_demand`, dove il calendario non esiste. */
+  disponibilita: Disponibilita[];
 }) {
   const router = useRouter();
   const [inLavoro, startLavoro] = React.useTransition();
@@ -605,6 +621,50 @@ export function Roster({
   const cell = (profileId: string, day: string) =>
     byCell.get(`${profileId}|${day}`) ?? [];
 
+  /* ------------------------- le disponibilita' di chi e' a chiamata
+   *
+   *  Non e' un promemoria: sotto la lista bianca una casella non dichiarata
+   *  e' una casella in cui il salvataggio dira' di no. Il responsabile deve
+   *  vederlo **prima** di cliccare — scoprirlo dopo, un turno alla volta,
+   *  vorrebbe dire costruire la settimana a tentativi. */
+  const versoInVigore = versoDelRegime(regimeChiamata);
+
+  const dichiarazioniDi = (() => {
+    const map = new Map<string, Dichiarazione[]>();
+    for (const d of disponibilita) {
+      const lista = map.get(d.profile_id);
+      const riga: Dichiarazione = {
+        giorno: d.giorno,
+        dalle: d.dalle,
+        alle: d.alle,
+        verso: d.verso,
+      };
+      if (lista) lista.push(riga);
+      else map.set(d.profile_id, [riga]);
+    }
+    return map;
+  })();
+
+  /** null quando non c'e' niente da disegnare: la persona non e' a chiamata,
+   *  o il regime il calendario non lo usa. */
+  const dispDelGiorno = (riga: Riga, day: string): StatoGiorno | null => {
+    if (!versoInVigore || !riga.aChiamata || riga.unassigned) return null;
+    return statoDelGiorno({
+      regime: regimeChiamata,
+      dichiarazioni: dichiarazioniDi.get(riga.id) ?? [],
+      giorno: day,
+    });
+  };
+
+  /** Sotto la lista bianca il silenzio e' un no: quel giorno la persona non
+   *  si e' resa disponibile, e li' non si puo' scrivere niente. Sotto la
+   *  lista nera invece il silenzio e' un si', ed e' il caso normale. */
+  const chiusoPerSilenzio = (riga: Riga, day: string) =>
+    versoInVigore === "posso" &&
+    riga.aChiamata &&
+    !riga.unassigned &&
+    !dispDelGiorno(riga, day);
+
   /** Il turno c'e', ma quel giorno la persona e' assente: resta in elenco e
    *  non si conta. Cancellarlo farebbe sparire dallo schermo proprio il buco
    *  che il responsabile deve coprire. */
@@ -1051,18 +1111,31 @@ export function Roster({
 
                     {days.map((day) => {
                       const list = cell(row.id, day);
+                      const disp = dispDelGiorno(row, day);
+                      const chiuso = chiusoPerSilenzio(row, day);
                       return (
                         <button
                           key={day}
                           type="button"
                           onClick={() => openNew(day, row.id)}
-                          aria-label={`Aggiungi turno per ${row.name}, ${dayLong(fromISODate(day))}`}
+                          aria-label={`Aggiungi turno per ${row.name}, ${dayLong(fromISODate(day))}${disp ? ` — ${descriviStato(disp)}` : chiuso ? " — nessuna disponibilità" : ""}`}
+                          title={
+                            disp
+                              ? descriviStato(disp)
+                              : chiuso
+                                ? "Non ha dato disponibilità per questo giorno: qui non gli si possono dare turni."
+                                : undefined
+                          }
                           className={cn(
                             "group/cell relative flex min-h-[4.75rem] flex-col gap-1 border-b border-l border-border p-1.5 text-left transition-colors",
                             "hover:bg-surface-2",
                             isToday(fromISODate(day)) && "bg-accent-soft/30",
+                            // Il giorno in cui non si puo' scrivere si vede
+                            // che non e' una casella come le altre.
+                            chiuso && "bg-surface-2/70",
                           )}
                         >
+                          <SegnoDisponibilita stato={disp} chiuso={chiuso} />
                           {list.map((s) => (
                             <Chip
                               key={s.id}
@@ -1072,7 +1145,7 @@ export function Roster({
                               onOpen={() => apriTurno(s)}
                             />
                           ))}
-                          {list.length === 0 ? (
+                          {list.length === 0 && !chiuso ? (
                             <span className="m-auto text-faint opacity-0 transition-opacity group-hover/cell:opacity-100">
                               <Plus className="size-4" />
                             </span>
@@ -1133,6 +1206,10 @@ export function Roster({
                 rows={righe}
                 cell={cell}
                 assente={assente}
+                disponibilita={(r) => ({
+                  stato: dispDelGiorno(r, selectedDay),
+                  chiuso: chiusoPerSilenzio(r, selectedDay),
+                })}
                 reparto={(s) => repartoDi(s)?.name ?? null}
                 soloConTurni={!cerca.trim()}
                 onOpen={(s) => apriTurno(s)}
@@ -1287,6 +1364,7 @@ function DayList({
   rows,
   cell,
   assente,
+  disponibilita,
   reparto,
   soloConTurni = true,
   onOpen,
@@ -1296,6 +1374,10 @@ function DayList({
   rows: Riga[];
   cell: (profileId: string, day: string) => Shift[];
   assente: (s: Shift) => boolean;
+  /** Cosa ha detto di questo giorno, per chi è a chiamata. Da telefono
+   *  questa è l'unica vista del tabellone: senza, il responsabile che
+   *  costruisce la settimana in negozio non vedrebbe mai le disponibilità. */
+  disponibilita: (riga: Riga) => { stato: StatoGiorno | null; chiuso: boolean };
   /** Il reparto del turno, già risolto: sta al posto della mansione. */
   reparto: (s: Shift) => string | null;
   /** Normalmente si mostra solo chi ha turni quel giorno. Quando si sta
@@ -1308,7 +1390,15 @@ function DayList({
 }) {
   const withShifts = rows
     .map((row) => ({ row, list: cell(row.id, day) }))
-    .filter((r) => !soloConTurni || r.list.length > 0);
+    // Chi è a chiamata e ha detto qualcosa su questo giorno si vede anche
+    // senza turni: è un'informazione su cui si decide chi chiamare, e
+    // nasconderla finché non c'è già un turno la renderebbe inutile.
+    .filter(
+      (r) =>
+        !soloConTurni ||
+        r.list.length > 0 ||
+        Boolean(disponibilita(r.row).stato),
+    );
 
   return (
     <div className="mt-3 space-y-3">
@@ -1334,11 +1424,15 @@ function DayList({
               <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-2 px-3.5 py-2">
                 <p
                   className={cn(
-                    "truncate text-[13.5px] font-medium",
+                    "flex min-w-0 items-center gap-1.5 truncate text-[13.5px] font-medium",
                     row.unassigned && "text-warning",
                   )}
                 >
-                  {row.name}
+                  <span className="truncate">{row.name}</span>
+                  <SegnoDisponibilita
+                    stato={disponibilita(row).stato}
+                    chiuso={disponibilita(row).chiuso}
+                  />
                 </p>
                 <button
                   type="button"
@@ -1391,6 +1485,49 @@ function DayList({
         </ul>
       )}
     </div>
+  );
+}
+
+/** Quello che una persona a chiamata ha detto di questo giorno, in una
+ *  pastiglia piccola.
+ *
+ *  Serve al responsabile prima del clic, non dopo: sotto la lista bianca una
+ *  casella senza dichiarazione e' una casella in cui il salvataggio dira' di
+ *  no, e costruire una settimana a tentativi — scrivi, salva, leggi il
+ *  rifiuto, riprova — e' esattamente il lavoro che questa app dovrebbe
+ *  togliere. */
+function SegnoDisponibilita({
+  stato,
+  chiuso,
+}: {
+  stato: StatoGiorno | null;
+  /** Lista bianca, e per questo giorno non ha dichiarato niente. */
+  chiuso: boolean;
+}) {
+  if (!stato) {
+    if (!chiuso) return null;
+    return (
+      <span className="truncate rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">
+        nessuna disp.
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        "truncate rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+        stato.verso === "non_posso"
+          ? "bg-danger-soft text-danger"
+          : "bg-success-soft text-success",
+      )}
+    >
+      {stato.intero
+        ? stato.verso === "non_posso"
+          ? "non c'è"
+          : "disponibile"
+        : stato.fasce.map((f) => `${f.dalle}–${f.alle}`).join(" ")}
+    </span>
   );
 }
 

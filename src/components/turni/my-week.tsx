@@ -285,11 +285,19 @@ function Risposta({ turno, passato }: { turno: Shift; passato: boolean }) {
   // logico: ma una cosa da decidere che sta dentro un giorno si vede solo se
   // si guarda quel giorno, e chi apre l'app il lunedì non scorre fino a
   // sabato.
+  // La chiamata è l'unico caso in cui il turno **non** vale già. Dirle la
+  // stessa frase degli altri sarebbe la bugia più comoda che questa app
+  // possa raccontare: chi non risponde crederebbe di essere a posto, e il
+  // lunedì mattina in negozio non ci sarebbe nessuno.
+  const daAccettare = turno.richiede_conferma === "chiamata";
+
   return (
     <p className="mt-2 rounded-xl bg-warning-soft px-3 py-2.5 text-[13px] font-medium text-warning">
       {MOTIVO_RIFIUTO[turno.richiede_conferma]}{" "}
       <span className="font-normal">
-        Il turno è già valido. Per rispondere, il riquadro in cima alla pagina.
+        {daAccettare
+          ? "Vale solo se rispondi di sì: senza la tua risposta questo turno non è tuo. Il riquadro in cima alla pagina."
+          : "Il turno è già valido. Per rispondere, il riquadro in cima alla pagina."}
       </span>
     </p>
   );

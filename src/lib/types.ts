@@ -1,3 +1,5 @@
+import type { VersoDichiarazione } from "@/lib/disponibilita";
+
 export type Role = "capo" | "dipendente";
 
 export type Company = {
@@ -149,7 +151,14 @@ export type Shift = {
  *  `turno_spostato` — stesse ore, altro giorno o altro orario — era un avviso
  *  fino al 26 agosto 2026: contare le ore e concludere che non è cambiato
  *  niente è un ragionamento da contabile, il mattino e il pomeriggio non sono
- *  la stessa giornata. */
+ *  la stessa giornata.
+ *
+ *  `chiamata` è l'unico che **non** è una facoltà. Sotto il regime
+ *  `on_demand` chi è a chiamata deve rispondere, e il silenzio non vale come
+ *  un sì: quel turno è una proposta finché la risposta non arriva. Sta qui
+ *  in mezzo agli altri perché la macchina è la stessa — `accetta_turno`,
+ *  `rifiuta_turno`, `stato_prima` — e a cambiare è soltanto come lo racconta
+ *  l'interfaccia. Le regole in `lib/disponibilita.ts`. */
 export const MOTIVI_RIFIUTO = [
   "straordinario",
   "modifica",
@@ -157,6 +166,7 @@ export const MOTIVI_RIFIUTO = [
   "orario_diverso",
   "cambio_reparto",
   "turno_spostato",
+  "chiamata",
 ] as const;
 
 export type MotivoRifiuto = (typeof MOTIVI_RIFIUTO)[number];
@@ -221,8 +231,15 @@ export type Avviso = {
  *  vincolo riscritto per non dire niente di più. */
 export type MotivoAvviso = "ore_tolte" | "turno_rimosso";
 
-/** La domanda che nasce alla pubblicazione per chi va in straordinario: non
- *  otto domande su otto turni, una sola sulla settimana.
+/** La domanda che nasce alla pubblicazione: non otto domande su otto turni,
+ *  una sola sulla settimana.
+ *
+ *  Due ragioni, e sono due conversazioni diverse: `straordinario` chiede
+ *  «questa settimana ti porta oltre il contratto, ti va bene?»; `chiamata`
+ *  chiede «questa settimana ci sei?» a chi è a chiamata, sotto il regime
+ *  `on_demand`. Per la seconda `minuti_contratto` vale zero, che non è un
+ *  dato mancante travestito da numero: è esattamente quello che dice il
+ *  contratto di chi lavora quando serve.
  *
  *  I due totali di minuti sono congelati alla nascita: il tabellone cambia, e
  *  una richiesta deve poter raccontare la settimana su cui è nata. */
@@ -230,7 +247,7 @@ export type RichiestaSettimana = {
   id: string;
   profile_id: string;
   monday: string;
-  motivo: "straordinario";
+  motivo: "straordinario" | "chiamata";
   minuti_previsti: number;
   minuti_contratto: number;
   stato: "in_attesa" | "accettata" | "rifiutata";
@@ -240,6 +257,29 @@ export type RichiestaSettimana = {
   creato_at: string;
   deciso_at: string | null;
   visto_at: string | null;
+};
+
+/** Una dichiarazione di chi è a chiamata: questo giorno, e in quale verso.
+ *
+ *  `dalle` e `alle` nulli tutt'e due vogliono dire il giorno intero; con gli
+ *  orari, `alle <= dalle` scavalca la mezzanotte come ovunque nell'app.
+ *
+ *  Il verso sta sulla riga e non solo nell'impostazione dell'azienda:
+ *  cambiando regime, un elenco di soli giorni si rovescerebbe di senso in
+ *  silenzio. Le regole in `lib/disponibilita.ts`. */
+export type Disponibilita = {
+  id: string;
+  company_id: string;
+  profile_id: string;
+  giorno: string; // YYYY-MM-DD
+  dalle: string | null; // HH:MM:SS
+  alle: string | null;
+  verso: VersoDichiarazione;
+  nota: string | null;
+  /** Chi l'ha scritta: quasi sempre l'interessato, ma il responsabile può
+   *  registrare quello che gli è stato detto al telefono. */
+  creato_da: string | null;
+  creato_at: string;
 };
 
 /** Il profilo di chi sta usando l'app, con l'azienda gia' risolta. */

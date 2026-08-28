@@ -76,6 +76,7 @@ producono bug che sembrano fantasmi.
 | `lib/supervisione/trascina.ts` | dove finisce una barra trascinata? |
 | `lib/generazione.ts` | chi mettere sui buchi di una settimana? |
 | `lib/pubblicazione.ts` | chi sta sotto le sue ore da contratto? |
+| `lib/disponibilita.ts` | a chi è a chiamata, questo turno si può dare? |
 
 ## RLS, e perché non basta
 

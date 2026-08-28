@@ -27,6 +27,7 @@ migrazioni sono file da incollare, e i tipi TypeScript sono scritti a mano in
 | `16-avvisi-e-settimana.sql` | il verso della modifica conta: `shift_notices` (avvisi), `week_requests` (la settimana intera), `conferma_settimana` |
 | `17-turno-spostato.sql` | spostare un turno si chiede, non si comunica: `turno_spostato` fra i motivi di rifiuto |
 | `18-tentativi-di-accesso.sql` | `access_attempts`: quante volte si può sbagliare password prima che la porta si chiuda |
+| `19-lavoratori-a-chiamata.sql` | le **regole di ingaggio** di chi è a chiamata: `regime_chiamata`, `availability_days`, il motivo `chiamata` |
 
 > ⚠️ La `14` definisce `rifiuta_turno()` e la `15` **la ridefinisce**. Chi
 > deve cambiarla guardi la `15`: è quella l'ultima parola. Vale in generale —
@@ -68,7 +69,7 @@ Vincoli che contano:
 Poi i campi della **preapprovazione**, che si leggono insieme:
 - `richiede_conferma` — perché su questo turno l'interessato può dire la sua:
   `straordinario` | `modifica` | `modifica_straordinario` | `orario_diverso` |
-  `cambio_reparto` | `turno_spostato` | null. Vincolo
+  `cambio_reparto` | `turno_spostato` | `chiamata` | null. Vincolo
   `shifts_richiede_conferma_valido`, ed è **l'unica copia** dell'elenco fuori
   da `MOTIVI_RIFIUTO` (`src/lib/types.ts`), da cui si derivano sia il tipo sia
   la validazione delle Server Action. `verifica-schema.mjs` controlla che le
@@ -115,9 +116,11 @@ Scrittura: solo il responsabile. Il «ho letto» dell'interessato passa da
 riscrivere anche il motivo.
 
 ### `week_requests`
-La domanda che nasce **alla pubblicazione** per chi va in straordinario: non
-otto domande su otto turni, una sola sulla settimana. `profile_id` · `monday` ·
-`motivo` (per ora solo `straordinario`) · `minuti_previsti` /
+La domanda che nasce **alla pubblicazione**: non otto domande su otto turni,
+una sola sulla settimana. `profile_id` · `monday` ·
+`motivo` (`straordinario` | `chiamata` — per chi è a chiamata sotto
+`on_demand`, e allora `minuti_contratto` vale 0, che non è un dato mancante ma
+esattamente quello che dice il suo contratto) · `minuti_previsti` /
 `minuti_contratto` (**congelati alla nascita**: il tabellone cambia, e una
 richiesta deve poter raccontare la settimana su cui è nata) · `stato`
 (`in_attesa` | `accettata` | `rifiutata`) · `nota` · `creato_at` ·
@@ -127,6 +130,45 @@ ripubblicare non fa una seconda domanda, e una già decisa resta decisa.
 `nota` è **una sola colonna per due usi**: il perché del no, o il ritocco
 chiesto insieme al sì («va bene, ma il giovedì se possibile smetto prima»).
 Due colonne di cui una sempre vuota non direbbero di più.
+
+### `availability_days`
+Il calendario di chi è a chiamata: **una riga = una dichiarazione**.
+`company_id · profile_id · giorno` (data civile) · `dalle` / `alle` (nullabili
+tutt'e due insieme: **null = tutto il giorno**) · `verso` (`non_posso` |
+`posso`) · `nota` · `creato_da` (→ `profiles`, nullabile) · `creato_at`.
+
+Come per i turni, `alle <= dalle` **scavalca la mezzanotte**: è la convenzione
+di tutta l'app, e una seconda solo qui sarebbe il modo migliore di sbagliare i
+conti proprio sui turni di notte, che sono quelli per cui si chiama qualcuno.
+
+> **Perché il verso sta sulla riga e non solo nell'impostazione.** Sarebbe
+> bastata una tabella di giorni, letta come «non posso» o come «posso» secondo
+> `regime_chiamata`. Ma il regime si cambia da una schermata, e quel giorno
+> tutte le dichiarazioni già date si rovescerebbero di senso in silenzio: «il
+> 12 non posso» diventerebbe «il 12 posso». Scritto sulla riga, il verso è
+> quello con cui la persona ha parlato; cambiando regime le dichiarazioni
+> vecchie restano e **smettono di contare**.
+
+Una tabella e non due — al contrario di `shift_messages` / `shift_notices` —
+perché là erano due cose che *muoiono in modo diverso*, qui è la stessa cosa
+detta in due versi: nascono e si cancellano uguali.
+
+Doppioni: due indici unici parziali e non un vincolo solo, perché in SQL due
+`NULL` non sono uguali fra loro — `availability_days_giorno_intero`
+(`dalle is null`) e `availability_days_fascia`.
+
+Lettura: **l'interessato e il responsabile, non i colleghi.** Le ferie di un
+collega le vede tutta l'azienda perché sono un fatto d'agenda; questa no —
+dice quando una persona ha l'altro lavoro, l'università, il figlio da prendere
+a scuola. Scrittura: l'interessato sulla propria, il responsabile su quella di
+chiunque in azienda (la telefonata al responsabile è il modo in cui queste cose
+si dicono davvero), e **mai nel passato**: le policy di insert, update e delete
+hanno tutte `giorno >= (now() at time zone 'Europe/Rome')::date`.
+
+Quello che le policy **non** controllano è il regime: sotto `on_demand` nessuno
+dovrebbe scrivere niente, ma per saperlo dovrebbero leggere `company_settings`,
+che è a sua volta protetta da RLS — ricorsione infinita, `42P17`. Lo controlla
+la Server Action, che è l'unica strada che l'interfaccia offre.
 
 ### `departments`
 `company_id · name · hue` (tinta 0–360, **non** un colore finito: chiaro e
@@ -158,11 +200,11 @@ dall'approvazione, per poterla revocare) · `decided_by`.
 Una riga per azienda, **facoltativa**: se manca valgono i default, che stanno
 scritti due volte — nel `default` della colonna e in `IMPOSTAZIONI_DEFAULT`
 (`src/lib/impostazioni.ts`). Chi legge passa sempre da
-`normalizzaImpostazioni()`. Dieci campi letti, raggruppati **per pagina** come nella
+`normalizzaImpostazioni()`. Undici campi letti, raggruppati **per pagina** come nella
 schermata che li mostra:
 
 - turni: `conferma_straordinari · conferma_modifiche · orari_preimpostati ·
-  conferma_cambio_reparto · conferma_settimana`
+  conferma_cambio_reparto · conferma_settimana · regime_chiamata`
 - supervisione: `pagina_supervisione · supervisione_dipendenti`
 - permessi: `pagina_permessi · causali_richiedibili[]`
 - prospetto: `pagina_prospetto`
@@ -214,6 +256,9 @@ rispondere «sono admin?», non a farsi dare l'elenco.
 | `absence_days` | i **giorni** di assenza senza il motivo, per i colleghi. `security_invoker = false`: gira coi privilegi del proprietario e il confine fra aziende lo tiene la `where` |
 | `reparto_piu_frequente` | il reparto in cui ciascuno lavora più spesso, dedotto dai turni già fatti. `security_invoker = true`: eredita le policy |
 
+> `absence_days` è una **vista**, `availability_days` è una **tabella**: i nomi
+> si somigliano e non sono la stessa specie di cosa.
+
 ## Le funzioni SECURITY DEFINER
 
 Esistono per una ragione tecnica precisa: **una policy RLS non deve leggere una
@@ -263,6 +308,8 @@ orari, o l'assenza di un collega. La funzione tocca un campo e basta.
   segreta da una parte e pubblica dall'altra.
 - **`departments`, `coverage_bands`, `company_settings`, `published_weeks`**:
   lettura a tutta l'azienda, scrittura al `capo`.
+- **`availability_days`**: lettura all'interessato e al responsabile, non ai
+  colleghi. Scrittura a tutt'e due, e mai su un giorno già passato.
 - L'amministratore della piattaforma vede `companies` e `profiles` di tutte le
   aziende. **Per questo le pagine filtrano comunque per `company_id` a mano**:
   senza, un admin che entra in un'azienda si ritroverebbe in squadra le
@@ -277,3 +324,4 @@ scrive — interfaccia, importazione, script, o qualunque cosa venga dopo:
 - `shift_department_matches_company()` — il reparto del turno, stessa azienda
 - `band_department_matches_company()` — il reparto della fascia
 - `profile_department_same_company()` — persona e reparto
+- `availability_profile_matches_company()` — persona e dichiarazione

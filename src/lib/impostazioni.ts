@@ -1,4 +1,5 @@
 import { CODICI_CAUSALE } from "@/lib/assenze";
+import type { RegimeChiamata } from "@/lib/disponibilita";
 
 /** Le impostazioni dell'azienda: una riga in `company_settings`, o niente.
  *
@@ -41,6 +42,21 @@ export type Impostazioni = {
    *  che riguarda un gesto e non un turno: si accende quando l'azienda
    *  vuole il sì della persona *prima* che la settimana cominci. */
   conferma_settimana: boolean;
+  /** Come l'azienda ingaggia chi è a chiamata. Non è una levetta perché non
+   *  è un'opzione da accendere: sono tre accordi diversi fra datore e
+   *  lavoratore, e se ne sceglie uno.
+   *
+   *  - `indisponibilita` — il lavoratore segna quando **non** può, e in
+   *     quei giorni non gli si assegna niente;
+   *  - `disponibilita` — segna quando **può**, e fuori da lì il vincolo è
+   *     del datore, non suo;
+   *  - `on_demand` — nessun calendario: si propone e lui risponde, alla
+   *     singola chiamata o alla settimana intera quando la si pubblica.
+   *
+   *  Il default è `indisponibilita` e non è una preferenza: è l'unico dei
+   *  tre che a chi aggiorna senza saperlo non cambia niente. Le regole in
+   *  `lib/disponibilita.ts`. */
+  regime_chiamata: RegimeChiamata;
 
   /* ----------------------------------------------------- supervisione */
   /** L'azienda usa la Supervisione? Spenta, sparisce a tutti. */
@@ -63,6 +79,7 @@ export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
   orari_preimpostati: false,
   conferma_cambio_reparto: false,
   conferma_settimana: false,
+  regime_chiamata: "indisponibilita",
   pagina_supervisione: true,
   supervisione_dipendenti: true,
   pagina_permessi: true,
@@ -79,8 +96,9 @@ export function normalizzaImpostazioni(
 
 export const COLONNE_IMPOSTAZIONI =
   "conferma_straordinari, conferma_modifiche, orari_preimpostati, " +
-  "conferma_cambio_reparto, conferma_settimana, pagina_supervisione, " +
-  "supervisione_dipendenti, pagina_permessi, causali_richiedibili, pagina_prospetto";
+  "conferma_cambio_reparto, conferma_settimana, regime_chiamata, " +
+  "pagina_supervisione, supervisione_dipendenti, pagina_permessi, " +
+  "causali_richiedibili, pagina_prospetto";
 
 /* Le tre `pagina_*` valgono in due posti, e vanno tenuti d'accordo: il menu
    (src/app/(app)/layout.tsx) che nasconde la voce, e la pagina stessa che

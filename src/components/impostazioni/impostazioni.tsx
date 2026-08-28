@@ -153,6 +153,56 @@ export function Impostazioni({
             esito="il turno viene tolto e resta un buco da coprire, come sopra"
           />
         </Gruppo>
+
+        <Gruppo
+          titolo="Chi lavora a chiamata"
+          spiega="Vale solo per chi ha «a chiamata» nella sua scheda, in Squadra. Chi ha un contratto a ore segue le regole qui sopra."
+        >
+          <Scelta
+            valore={v.regime_chiamata}
+            onCambia={(x) => cambia({ regime_chiamata: x })}
+            opzioni={[
+              {
+                valore: "indisponibilita",
+                titolo: "Segnala quando non può",
+                descrizione:
+                  "Il dipendente segna sul calendario i giorni in cui non c'è. Tutti gli altri sono liberi e lo chiami senza chiedere niente.",
+                quando: "provi a dargli un turno in un giorno che ha segnato",
+                esito: "l'app non ti lascia salvare, e ti dice quali ore aveva escluso",
+              },
+              {
+                valore: "disponibilita",
+                titolo: "Segnala quando può",
+                descrizione:
+                  "Il dipendente segna i giorni in cui è disponibile, e i turni glieli puoi dare solo lì. Finché non segna niente non gli puoi dare turni: qui il vincolo è tuo, non suo.",
+                quando: "provi a dargli un turno fuori dai giorni e dalle ore che ha segnato",
+                esito: "l'app non ti lascia salvare: o stringi il turno, o gli chiedi di allargare la disponibilità",
+              },
+              {
+                valore: "on_demand",
+                titolo: "Chiedi ogni volta",
+                descrizione:
+                  "Niente calendario, né in un verso né nell'altro: il dipendente non segna niente. Gli dai il turno e lui risponde, una chiamata per volta. Quando pubblichi la settimana riceve una domanda sola su tutta la settimana, e la accetta o la rifiuta intera scrivendoti cosa vorrebbe cambiare.",
+                quando: "gli dai o gli cambi un turno di una settimana già pubblicata",
+                esito: "il turno viene tolto e resta un buco da coprire: quella chiamata devi farla a qualcun altro",
+              },
+            ]}
+          />
+          {v.regime_chiamata === "on_demand" ? (
+            <p className="pb-3.5 text-[12.5px] leading-relaxed text-warning">
+              Attenzione: con questa scelta il turno di chi è a chiamata{" "}
+              <strong className="font-medium">vale solo se lui accetta</strong>.
+              È l&apos;unico caso in tutta l&apos;app in cui il silenzio non
+              vuol dire sì — fino alla risposta, quel posto non è coperto.
+            </p>
+          ) : (
+            <p className="pb-3.5 text-[12.5px] leading-relaxed text-muted">
+              Il calendario si riempie da «Disponibilità», nel menu. Lo vedono
+              i tuoi dipendenti a chiamata, e lo vedi tu per tutti: se uno ti
+              telefona, la sua disponibilità puoi segnarla al posto suo.
+            </p>
+          )}
+        </Gruppo>
       </Sezione>
 
       {/* ------------------------------------------------ supervisione --- */}
@@ -361,6 +411,89 @@ function Interruttore({
         etichetta={titolo}
         disabilitato={spento}
       />
+    </div>
+  );
+}
+
+/** Una scelta fra tre, dove una levetta non basta.
+ *
+ *  Le regole di ingaggio di chi è a chiamata non sono un interruttore acceso
+ *  o spento: sono tre accordi diversi, e il secondo non è «il primo di più».
+ *  Un elenco di tre levette lascerebbe accenderne due, che non vuol dire
+ *  niente, o nessuna, che vuol dire ancora meno.
+ *
+ *  Ogni voce dice le stesse due cose delle levette — *quando* scatta e *cosa
+ *  succede* — perché sono le due domande che uno si fa scegliendo, e dentro
+ *  un paragrafo bisogna trovarle leggendo. */
+function Scelta<T extends string>({
+  valore,
+  onCambia,
+  opzioni,
+}: {
+  valore: T;
+  onCambia: (v: T) => void;
+  opzioni: {
+    valore: T;
+    titolo: string;
+    descrizione: string;
+    quando: string;
+    esito: string;
+  }[];
+}) {
+  return (
+    <div role="radiogroup" className="space-y-2 py-3.5">
+      {opzioni.map((o) => {
+        const scelta = o.valore === valore;
+        return (
+          <button
+            key={o.valore}
+            type="button"
+            role="radio"
+            aria-checked={scelta}
+            onClick={() => onCambia(o.valore)}
+            className={cn(
+              "tap flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors",
+              scelta
+                ? "border-accent bg-accent-soft"
+                : "border-border bg-surface-2 hover:border-border-strong",
+            )}
+          >
+            <span
+              className={cn(
+                "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border-2",
+                scelta ? "border-accent" : "border-border-strong",
+              )}
+            >
+              {scelta ? (
+                <span className="size-2 rounded-full bg-accent" />
+              ) : null}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "block text-[14px] font-medium",
+                  scelta && "text-accent",
+                )}
+              >
+                {o.titolo}
+              </span>
+              <span className="mt-0.5 block text-[12.5px] text-muted">
+                {o.descrizione}
+              </span>
+              <span className="mt-1.5 block space-y-0.5 text-[12.5px]">
+                <span className="flex gap-1.5">
+                  <span className="shrink-0 text-faint">Quando</span>
+                  <span className="min-w-0 text-muted">{o.quando}</span>
+                </span>
+                <span className="flex gap-1.5">
+                  <span className="shrink-0 text-faint">Se dice no</span>
+                  <span className="min-w-0 text-muted">{o.esito}</span>
+                </span>
+              </span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

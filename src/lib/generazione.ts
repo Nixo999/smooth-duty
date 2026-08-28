@@ -21,6 +21,11 @@
 
 import { assenzaDelGiorno, type AssenzaInput } from "@/lib/assenze";
 import {
+  esitoAssegnazione,
+  type Dichiarazione,
+  type RegimeChiamata,
+} from "@/lib/disponibilita";
+import {
   MINUTI_GIORNO,
   copertura,
   fasceDelGiorno,
@@ -75,6 +80,10 @@ export type PersonaGenerazione = PersonaInput & {
   /** Ore settimanali da contratto. null = a chiamata, nessun tetto. */
   contract_hours: number | null;
   on_call: boolean;
+  /** Quello che ha dichiarato, se è a chiamata. Facoltativo perché
+   *  l'assenza di dichiarazioni sotto il regime di default non blocca
+   *  niente, ed è lo stesso non-cambiamento che ha il database. */
+  dichiarazioni?: Dichiarazione[];
 };
 
 export type Proposta = {
@@ -88,10 +97,14 @@ export type Proposta = {
   fascia: string;
 };
 
-/** Perché un posto è rimasto vuoto. Sono tre situazioni diverse e chiedono
- *  tre rimedi diversi: assumere, spostare qualcuno, o pagare straordinari. */
+/** Perché un posto è rimasto vuoto. Sono quattro situazioni diverse e
+ *  chiedono quattro rimedi diversi: assumere, chiedere una disponibilità,
+ *  spostare qualcuno, o firmare uno straordinario. Il motivo si porta
+ *  dietro fino alla schermata proprio per questo — «scoperto» e basta
+ *  lascerebbe al responsabile il lavoro di capire quale dei quattro. */
 export type MotivoScoperto =
   | "nessuno_nel_reparto"
+  | "non_disponibile"
   | "tutti_occupati"
   | "oltre_contratto";
 
@@ -271,8 +284,12 @@ export function generaTurni(input: {
    *  22:00–06:00 di domenica occupa il lunedì mattina di chi lo fa. */
   turni: TurnoInput[];
   assenze: AssenzaInput[];
+  /** Come l'azienda ingaggia chi è a chiamata. Il default è quello che non
+   *  cambia niente: senza dichiarazioni la lista nera non blocca nessuno. */
+  regime?: RegimeChiamata;
 }): Generazione {
   const { lunedi, persone, fasce, turni, assenze } = input;
+  const regime = input.regime ?? "indisponibilita";
   const giorni = weekDaysISO(lunedi);
   const primaDelLunedi = addDays(lunedi, -1);
 
@@ -372,7 +389,25 @@ export function generaTurni(input: {
     const durata = posto.a - posto.da;
 
     const nelReparto = inOrdine.filter((p) => sapeFare(p, posto.departmentId));
-    const liberi = nelReparto.filter((p) => {
+    // Chi è a chiamata ci va solo dove ha detto di poterci andare. Il
+    // controllo sta **prima** di quello sugli impegni, non dopo, perché
+    // altrimenti «sono tutti occupati» finirebbe per dirsi anche di chi
+    // quel giorno non c'è proprio — e i due rimedi sono diversi: uno si
+    // risolve spostando un turno, l'altro chiedendo una disponibilità.
+    const disponibili = nelReparto.filter(
+      (p) =>
+        esitoAssegnazione({
+          regime,
+          aChiamata: p.on_call,
+          turno: {
+            date: giorno,
+            start_time: orario(posto.da),
+            end_time: orario(posto.a),
+          },
+          dichiarazioni: p.dichiarazioni ?? [],
+        }).ok,
+    );
+    const liberi = disponibili.filter((p) => {
       if (assenzaDelGiorno(assenze, p.id, giorno)) return false;
       const presi = impegni.get(p.id) ?? [];
       return !presi.some((i) => sovrapposti(i, quando) || !riposoRispettato(i, quando));
@@ -397,9 +432,11 @@ export function generaTurni(input: {
         motivo:
           nelReparto.length === 0
             ? "nessuno_nel_reparto"
-            : nellaGiornata.length === 0
-              ? "tutti_occupati"
-              : "oltre_contratto",
+            : disponibili.length === 0
+              ? "non_disponibile"
+              : nellaGiornata.length === 0
+                ? "tutti_occupati"
+                : "oltre_contratto",
       });
       continue;
     }

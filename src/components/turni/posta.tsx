@@ -143,6 +143,11 @@ function VoceSettimana({
   const [pending, start] = React.useTransition();
 
   const oltre = richiesta.minuti_previsti - richiesta.minuti_contratto;
+  // Due domande diverse sotto la stessa forma: allo straordinario si chiede
+  // «ti va bene sforare?», alla chiamata si chiede «ci sei?». Chi è a
+  // chiamata un contratto da sfondare non ce l'ha, e un numero «oltre il
+  // contratto» accanto al suo nome sarebbe inventato.
+  const chiamata = richiesta.motivo === "chiamata";
 
   const manda = () =>
     start(async () => {
@@ -174,21 +179,44 @@ function VoceSettimana({
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[14.5px] font-semibold tracking-tight">
-            La settimana del {weekLabel(fromISODate(monday))} è in straordinario
+            {chiamata
+              ? `Sei chiamato per la settimana del ${weekLabel(fromISODate(monday))}`
+              : `La settimana del ${weekLabel(fromISODate(monday))} è in straordinario`}
           </p>
           <p className="mt-1 text-[13px] text-muted">
-            Sono previste <strong className="text-text">{formatDuration(richiesta.minuti_previsti)}</strong>{" "}
-            contro le {formatDuration(richiesta.minuti_contratto)} del tuo contratto:{" "}
-            <strong className="text-warning">{formatDuration(oltre)} in più</strong>. La
-            settimana si accetta o si rifiuta intera — è l&apos;insieme che fa la
-            differenza, non il singolo giorno.
+            {chiamata ? (
+              <>
+                Ti sono state proposte{" "}
+                <strong className="text-text">
+                  {formatDuration(richiesta.minuti_previsti)}
+                </strong>{" "}
+                di lavoro. Finché non rispondi{" "}
+                <strong className="text-warning">quei turni non sono tuoi</strong>:
+                si accettano o si rifiutano tutti insieme. Se qualche giorno non
+                ti va bene, scrivilo — il responsabile la rifà.
+              </>
+            ) : (
+              <>
+                Sono previste{" "}
+                <strong className="text-text">
+                  {formatDuration(richiesta.minuti_previsti)}
+                </strong>{" "}
+                contro le {formatDuration(richiesta.minuti_contratto)} del tuo
+                contratto:{" "}
+                <strong className="text-warning">
+                  {formatDuration(oltre)} in più
+                </strong>
+                . La settimana si accetta o si rifiuta intera — è l&apos;insieme
+                che fa la differenza, non il singolo giorno.
+              </>
+            )}
           </p>
 
           {scelta === null ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setScelta("si")}>
                 <Check className="size-3.5" />
-                Accetto la settimana
+                {chiamata ? "Ci sono" : "Accetto la settimana"}
               </Button>
               <Button size="sm" variant="secondary" onClick={() => setScelta("no")}>
                 <X className="size-3.5" />
@@ -226,7 +254,13 @@ function VoceSettimana({
                   loading={pending}
                   disabled={pending || (scelta === "no" && !nota.trim())}
                 >
-                  {scelta === "si" ? "Accetta la settimana" : "Rifiuta la settimana"}
+                  {scelta === "si"
+                    ? chiamata
+                      ? "Accetta le chiamate"
+                      : "Accetta la settimana"
+                    : chiamata
+                      ? "Rifiuta le chiamate"
+                      : "Rifiuta la settimana"}
                 </Button>
                 <Button
                   size="sm"
@@ -251,6 +285,11 @@ function VoceSettimana({
 /* ----------------------------------------------------------------- turno */
 
 function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
+  // La chiamata è l'unico turno che **non** vale già. In tutti gli altri
+  // casi rispondere è una cortesia; qui è la condizione perché quel turno
+  // esista, e la differenza va detta prima dei due bottoni — non dopo,
+  // quando uno ha già deciso di non toccare niente.
+  const daAccettare = turno.richiede_conferma === "chiamata";
   const router = useRouter();
   const [scriveNo, setScriveNo] = React.useState(false);
   const [nota, setNota] = React.useState("");
@@ -293,8 +332,10 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
           </p>
           <p className="mt-1 text-[13px] text-muted">
             {motivo}{" "}
-            <span className="text-muted">
-              Il turno è già valido: rispondi solo se vuoi — o se non puoi.
+            <span className={cn(daAccettare && "font-medium text-warning")}>
+              {daAccettare
+                ? "Finché non rispondi questo turno non è tuo: chi tace non ha accettato."
+                : "Il turno è già valido: rispondi solo se vuoi — o se non puoi."}
             </span>
           </p>
 
@@ -303,7 +344,11 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
               <Field
                 label="Perché non puoi"
                 htmlFor={`nota-${turno.id}`}
-                hint="Facoltativo, ma aiuta il responsabile a rimediare."
+                hint={
+                  daAccettare
+                    ? "Facoltativo. Il responsabile deve chiamare qualcun altro: sapere il perché lo aiuta a non richiamare te nello stesso giorno."
+                    : "Facoltativo, ma aiuta il responsabile a rimediare."
+                }
               >
                 <Textarea
                   id={`nota-${turno.id}`}
@@ -321,7 +366,7 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
                   loading={pending && inCorso === "no"}
                   disabled={pending}
                 >
-                  Rifiuta il turno
+                  {daAccettare ? "Rifiuta la chiamata" : "Rifiuta il turno"}
                 </Button>
                 <Button
                   size="sm"
@@ -345,7 +390,7 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
                 disabled={pending}
               >
                 <Check className="size-3.5" />
-                Va bene
+                {daAccettare ? "Accetto" : "Va bene"}
               </Button>
               <Button
                 size="sm"

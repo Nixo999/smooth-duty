@@ -41,6 +41,7 @@ trenta nomi da un elenco senza pretendere trenta indirizzi email.
 /turni/importa        lettura di un foglio Excel/CSV con anteprima (solo capo)
 /supervisione         la giornata ora per ora, e cosa è scoperto
 /permessi             richieste di assenza: il dipendente chiede, il capo decide
+/disponibilita        il calendario di chi e' a chiamata: quando puo', o quando non puo'
 /prospetto            ore lavorate, perse e per quale causale (solo capo)
 /squadra              le persone, i ruoli, gli accessi (solo capo)
 /impostazioni         gli interruttori dell'azienda (solo capo)
@@ -58,6 +59,11 @@ confine server→client come chiavi di stringa, non come componenti.
 spariscono dal menu e il loro indirizzo riporta ai Turni. Turni, Squadra e
 Impostazioni no — senza il tabellone l'app non ha un motivo, e senza
 Impostazioni non si riaccenderebbe più niente.
+
+**Disponibilità non si spegne con una levetta**: c'è o non c'è secondo il
+regime scelto per chi lavora a chiamata (`regime_chiamata`). Con «chiedi ogni
+volta» il calendario non esiste per nessuno, e a un dipendente con un contratto
+a ore non compare comunque — non avrebbe niente da scriverci.
 
 ## Lo stack
 
@@ -100,3 +106,4 @@ Sono il cuore, e stanno tutti fuori dai componenti apposta: si provano con
 | `src/lib/supervisione/trascina.ts` | dove finisce una barra trascinata |
 | `src/lib/generazione.ts` | chi ci metteresti, in questa settimana vuota? |
 | `src/lib/pubblicazione.ts` | questa settimana si può pubblicare? |
+| `src/lib/disponibilita.ts` | a chi è a chiamata, questo turno si può dare? |

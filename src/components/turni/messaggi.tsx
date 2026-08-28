@@ -26,6 +26,7 @@ const COSA: Record<MotivoRifiuto, string> = {
   orario_diverso: "il turno con orario diverso dal contratto",
   cambio_reparto: "il cambio di reparto",
   turno_spostato: "il turno spostato",
+  chiamata: "la chiamata",
 };
 
 /** I no dei dipendenti, e cosa ne e' seguito.
@@ -345,6 +346,10 @@ function RigaSettimana({
 }) {
   const rifiutata = richiesta.stato === "rifiutata";
   const oltre = richiesta.minuti_previsti - richiesta.minuti_contratto;
+  // A chi e' a chiamata non si e' chiesto di sfondare un contratto che non
+  // ha: gli si e' chiesto se c'e'. Scrivere «tot oltre il contratto» accanto
+  // al suo nome sarebbe un numero inventato, e per giunta uguale al totale.
+  const chiamata = richiesta.motivo === "chiamata";
 
   return (
     <li className="flex flex-wrap items-start gap-3 px-4 py-3">
@@ -364,8 +369,8 @@ function RigaSettimana({
           {weekLabel(fromISODate(richiesta.monday))}
           <span className="text-muted">
             {" "}
-            ({formatDuration(richiesta.minuti_previsti)}, {formatDuration(oltre)} oltre
-            il contratto)
+            ({formatDuration(richiesta.minuti_previsti)}
+            {chiamata ? " di chiamate" : `, ${formatDuration(oltre)} oltre il contratto`})
           </span>
         </p>
         {richiesta.nota ? (
@@ -381,7 +386,9 @@ function RigaSettimana({
         ) : null}
         {rifiutata ? (
           <p className="mt-1.5 text-[12.5px] text-muted">
-            I turni non sono cambiati: la settimana va rifatta a mano.
+            {chiamata
+              ? "I turni sono ancora lì, ma su quella settimana non ci conta: vanno dati a qualcun altro."
+              : "I turni non sono cambiati: la settimana va rifatta a mano."}
           </p>
         ) : null}
       </div>

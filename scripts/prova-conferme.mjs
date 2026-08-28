@@ -36,6 +36,7 @@ const esito = (o) =>
     pubblicata: o.pubblicata ?? false,
     straordinario: o.straordinario ?? false,
     fuoriPreset: o.fuoriPreset ?? false,
+    aChiamata: o.aChiamata ?? false,
     imp: o.imp ?? imp(),
   });
 
@@ -237,6 +238,98 @@ uguale(
     pubblicata: true,
     fuoriPreset: true,
     imp: imp({ conferma_modifiche: true, orari_preimpostati: true }),
+  }),
+);
+
+/* ------------------------------------------------ la chiamata --- */
+
+// Sotto `on_demand` chi e' a chiamata deve rispondere a ogni proposta: e'
+// l'unico caso in tutta l'app in cui il silenzio non vale come un si'.
+const onDemand = (o = {}) => imp({ regime_chiamata: "on_demand", ...o });
+
+uguale(
+  "a chiamata, settimana pubblicata: il turno nuovo e' una chiamata",
+  rifiutabile("chiamata"),
+  esito({
+    dopo: turno("18:00", "23:00"),
+    pubblicata: true,
+    aChiamata: true,
+    imp: onDemand(),
+  }),
+);
+
+uguale(
+  "in bozza no: la domanda si fa una volta sola, pubblicando",
+  niente,
+  esito({
+    dopo: turno("18:00", "23:00"),
+    pubblicata: false,
+    aChiamata: true,
+    imp: onDemand(),
+  }),
+);
+
+uguale(
+  "e non riguarda chi ha un contratto a ore",
+  niente,
+  esito({
+    dopo: turno("18:00", "23:00"),
+    pubblicata: true,
+    aChiamata: false,
+    imp: onDemand(),
+  }),
+);
+
+// Anche accorciando: sotto `on_demand` la proposta e' un'altra, e il si' di
+// prima era su quella di prima. Con un contratto sarebbe stato un avviso.
+uguale(
+  "anche togliendo ore si richiede: e' una chiamata diversa, non un avviso",
+  rifiutabile("chiamata"),
+  esito({
+    prima: turno("18:00", "23:00"),
+    dopo: turno("20:00", "23:00"),
+    pubblicata: true,
+    aChiamata: true,
+    imp: onDemand({ conferma_modifiche: true }),
+  }),
+);
+
+uguale(
+  "salvare senza spostare niente non richiama nessuno",
+  niente,
+  esito({
+    prima: turno("18:00", "23:00"),
+    dopo: turno("18:00", "23:00"),
+    pubblicata: true,
+    aChiamata: true,
+    imp: onDemand(),
+  }),
+);
+
+// Il cambio di solo reparto decide prima di tutto, anche qui: la persona ha
+// gia' accettato di venire quel giorno a quell'ora, e spostarla dalla cassa
+// alla sala non e' una chiamata nuova.
+uguale(
+  "il cambio di solo reparto resta quello che era, anche a chiamata",
+  niente,
+  esito({
+    prima: turno("18:00", "23:00"),
+    dopo: turno("18:00", "23:00"),
+    soloReparto: true,
+    pubblicata: true,
+    aChiamata: true,
+    imp: onDemand(),
+  }),
+);
+
+uguale(
+  "con gli altri due regimi il turno di chi e' a chiamata non chiede niente",
+  niente,
+  esito({
+    dopo: turno("18:00", "23:00"),
+    pubblicata: true,
+    aChiamata: true,
+    imp: imp({ regime_chiamata: "disponibilita", conferma_modifiche: true }),
   }),
 );
 

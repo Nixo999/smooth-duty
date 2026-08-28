@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CODICI_CAUSALE } from "@/lib/assenze";
 import { requireCapo } from "@/lib/auth";
+import { REGIMI_CHIAMATA } from "@/lib/disponibilita";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -14,6 +15,10 @@ const schema = z.object({
   orari_preimpostati: z.boolean(),
   conferma_cambio_reparto: z.boolean(),
   conferma_settimana: z.boolean(),
+  // I tre valori arrivano dall'elenco che definisce anche il tipo: una
+  // seconda copia scritta qui a mano si sarebbe scollata al primo regime
+  // nuovo, e l'unica altra copia che resta e' il vincolo del database.
+  regime_chiamata: z.enum(REGIMI_CHIAMATA),
   pagina_supervisione: z.boolean(),
   supervisione_dipendenti: z.boolean(),
   pagina_permessi: z.boolean(),

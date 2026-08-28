@@ -37,6 +37,10 @@ export const COLONNE_AVVISO =
 export const COLONNE_RICHIESTA_SETTIMANA =
   "id, profile_id, monday, motivo, minuti_previsti, minuti_contratto, stato, nota, creato_at, deciso_at, visto_at";
 
+/** Le dichiarazioni di chi è a chiamata: quando può, o quando non può. */
+export const COLONNE_DISPONIBILITA =
+  "id, company_id, profile_id, giorno, dalle, alle, verso, nota, creato_da, creato_at";
+
 export const COLONNE_REPARTO = "id, company_id, name, hue, position";
 
 export const COLONNE_ASSENZA =

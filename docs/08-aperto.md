@@ -53,15 +53,59 @@ Dire «scaduto» mandava a chiederne un altro, che falliva identico. Per chiuder
 (*Project Settings › Authentication › SMTP Settings*), e subito dopo il modello
 qui sopra.
 
+## ⚠️ Da eseguire sul database — 28 agosto 2026
+
+**La migrazione `19` non è ancora stata eseguita da nessuna parte.** Il codice
+la dà per fatta. Dalla `16` alla `18` sono già sul database di sviluppo.
+
+```bash
+node --env-file=.env.local --env-file=.env.db scripts/esegui-sql.mjs supabase/19-lavoratori-a-chiamata.sql
+node --env-file=.env.local --env-file=.env.db scripts/verifica-schema.mjs
+```
+
+Senza la `19` l'app **non si rompe ma mente**, in tre punti: `company_settings`
+fallisce tutta insieme perché il codice chiede `regime_chiamata` — quindi le
+Impostazioni mostrano i default e salvarle dà errore — la pagina Disponibilità
+non trova la tabella, e il motivo `chiamata` lo rifiuta il vincolo.
+
+> ⚠️ **Sul Mac di Patrick il `SUPABASE_DB_PASSWORD` non è quello giusto**: il
+> 28 agosto 2026 `verifica-schema.mjs` rispondeva *«Host aws-1-eu-west-1…
+> raggiunto, ma la password non va»*. Da lì la `19` non si è potuta lanciare,
+> e infatti **non è mai stata provata contro un database vero**: si incolla nel
+> SQL Editor di Supabase, oppure si rimette la password in `.env.db`.
+
 ## ⚠️ Scritto ma mai visto a schermo
 
-Tutto quello che segue è stato fatto sul Mac, dove **non ci sono
-`.env.local` né `.env.db`**: non si è potuto aprire una schermata e guardarla.
-Passano `npm run prove` (132 controlli), `npx tsc --noEmit`, `npx eslint src
-scripts` e `npm run build` — che non è la stessa cosa.
+Tutto quello che segue è stato scritto senza poterlo guardare a schermo: sul
+Mac `.env.db` non ha la password giusta, quindi niente migrazioni e niente
+dati veri da cui partire. Passano `npm run prove` (168 controlli), `npx tsc
+--noEmit`, `npx eslint src scripts` e `npm run build` — che non è la stessa
+cosa.
 
 Da provare nel browser, in quest'ordine:
 
+0. **Le regole di ingaggio di chi è a chiamata**, che sono la cosa più nuova e
+   la meno guardata (28 agosto 2026, migrazione `19`). Nell'ordine:
+   - in Impostazioni, che la scelta fra i tre modi si salvi e resti;
+   - con **«segnala quando non può»**: una persona a chiamata segna un giorno
+     da Disponibilità, e sul tabellone quella casella si vede rossa *prima* di
+     cliccarci; salvando un turno lì l'app deve rifiutare con la frase che
+     nomina il giorno e le ore;
+   - con **«segnala quando può»**: le caselle senza dichiarazione devono
+     comparire grigie e dire «nessuna disp.»; un turno che esce di un'ora
+     dalla fascia dichiarata dev'essere rifiutato, uno dentro no;
+   - con **«chiedi ogni volta»**: la voce Disponibilità sparisce dal menu *e*
+     dal suo indirizzo; pubblicando una settimana con turni a una persona a
+     chiamata deve arrivarle **una** richiesta sulla settimana, non una per
+     turno; e un turno aggiunto dopo la pubblicazione dev'essere una chiamata
+     singola, che dice «finché non rispondi questo turno non è tuo»;
+   - la **copia** di una settimana verso giorni in cui qualcuno non è
+     disponibile: deve copiare il resto e dire quanti ne ha lasciati indietro;
+   - il calendario **da telefono**: la selezione di più giorni e la barra in
+     fondo sono la parte che a schermo grande sembra sempre a posto;
+   - il responsabile che segna al posto di qualcuno, scegliendo il nome;
+   - un turno di notte, 22:00–06:00, con il **giorno dopo** dichiarato: il
+     rifiuto deve nominare il sabato, non il venerdì.
 1. **La posta del dipendente** (`components/turni/posta.tsx`, mai renderizzata):
    che compaia in cima, che il bottone la accartocci nella pastiglia, che
    riaprendola torni tutto, e che una voce sparisca **solo** dopo la
@@ -90,6 +134,17 @@ Da provare nel browser, in quest'ordine:
 
 ## Non c'è ancora
 
+- **Il controllo delle disponibilità sull'importazione da foglio.** `salvaTurno`
+  e `copiaTurni` lo fanno, `turni/importa` no: un foglio Excel può scrivere
+  turni a chi quel giorno ha detto di non esserci. È lo stesso buco che ha già
+  la regola delle assenze, e si chiude nello stesso punto — `parse.ts` sa già
+  chi è ogni persona, manca il giro che chiede a `esitoAssegnazione`.
+- **Il buco lasciato da una chiamata rifiutata si chiude solo riassegnando la
+  stessa persona.** È la regola generale dei `da_rifare`, e sotto `on_demand`
+  si sente di più: lì rifiutare è normale — chiami, ti dicono di no, chiami un
+  altro — e il messaggio resta aperto finché il responsabile non lo chiude a
+  mano. Va deciso se un turno nuovo *per chiunque* in quel giorno debba
+  chiuderlo.
 - **Lettura dei turni da una foto.** L'importazione legge Excel e CSV; una foto
   del tabellone appeso in bacheca no.
 - **Notifiche fuori dall'app**, né email né push. Dentro l'app ora qualcosa

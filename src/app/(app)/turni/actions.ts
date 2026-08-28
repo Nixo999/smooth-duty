@@ -4,14 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
-import { durationMinutes, formatDuration, hhmm } from "@/lib/date";
+import { dayLong, durationMinutes, formatDuration, fromISODate, hhmm } from "@/lib/date";
+import { esitoAssegnazione, spiegaBlocco, versoDelRegime } from "@/lib/disponibilita";
+import type { Dichiarazione } from "@/lib/disponibilita";
 import { chiStaSottoContratto } from "@/lib/pubblicazione";
 import type { SottoContratto } from "@/lib/pubblicazione";
 import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
 } from "@/lib/impostazioni";
-import { giorniCoinvolti, mondayOf, weekDaysISO } from "@/lib/week";
+import { addDays, giorniCoinvolti, mondayOf, weekDaysISO } from "@/lib/week";
 import { createClient } from "@/lib/supabase/server";
 import { conseguenzaDelSalvataggio } from "@/lib/conferme";
 import { MOTIVI_RIFIUTO } from "@/lib/types";
@@ -169,6 +171,48 @@ async function avvisaChiPerdeIlTurno(
   });
 }
 
+/** Le dichiarazioni di disponibilità delle persone indicate, sui giorni
+ *  indicati, raccolte per persona.
+ *
+ *  Si legge un giorno in più della coda: un turno 22:00–06:00 occupa anche
+ *  la mattina dopo, e chi ha detto «sabato non posso» non è disponibile
+ *  nemmeno per le sei ore di sabato che nascono dal venerdì.
+ *
+ *  Restituisce una mappa vuota quando non c'è niente da chiedere — nessuna
+ *  persona a chiamata, o un regime che il calendario non lo usa — perché la
+ *  domanda giusta da non fare è quella che non serve. */
+async function dichiarazioniDi(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  profileIds: string[],
+  giorni: string[],
+): Promise<Map<string, Dichiarazione[]>> {
+  const per = new Map<string, Dichiarazione[]>();
+  if (profileIds.length === 0 || giorni.length === 0) return per;
+
+  const ordinati = [...giorni].sort();
+  const { data } = await supabase
+    .from("availability_days")
+    .select("profile_id, giorno, dalle, alle, verso")
+    .eq("company_id", companyId)
+    .in("profile_id", profileIds)
+    .gte("giorno", ordinati[0])
+    .lte("giorno", addDays(ordinati[ordinati.length - 1], 1));
+
+  for (const r of data ?? []) {
+    const lista = per.get(r.profile_id);
+    const riga = {
+      giorno: r.giorno,
+      dalle: r.dalle,
+      alle: r.alle,
+      verso: r.verso,
+    } as Dichiarazione;
+    if (lista) lista.push(riga);
+    else per.set(r.profile_id, [riga]);
+  }
+  return per;
+}
+
 export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   const user = await requireCapo();
 
@@ -284,7 +328,7 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
           .maybeSingle(),
         supabase
           .from("profiles")
-          .select("contract_hours, on_call, preset_start, preset_end")
+          .select("full_name, contract_hours, on_call, preset_start, preset_end")
           .eq("id", v.profile_id)
           .maybeSingle(),
         supabase
@@ -304,6 +348,46 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     const imp = normalizzaImpostazioni(impostazioniRes.data as never);
     const persona = personaRes.data;
     const pubblicata = Boolean(bozzaRes.data);
+
+    /* --------------------------- chi e' a chiamata ha detto quando puo'
+     *
+     *  Sotto `indisponibilita` e `disponibilita` il calendario del
+     *  lavoratore non e' un promemoria: e' l'accordo, e un turno che lo
+     *  scavalca non si scrive. Il controllo sta qui e non in un trigger
+     *  per la stessa ragione per cui ci sta quello delle assenze poco
+     *  sopra — non e' un vincolo di integrita' dei dati, e' una regola che
+     *  l'azienda ha scelto e puo' cambiare — e perche' cosi' chi ha premuto
+     *  Salva legge una frase italiana invece di un errore di Postgres.
+     *
+     *  Sotto `on_demand` non c'e' niente da controllare: li' il calendario
+     *  non esiste, e la domanda si fa dopo, al lavoratore. */
+    if (persona?.on_call && versoDelRegime(imp.regime_chiamata)) {
+      const dichiarazioni = await dichiarazioniDi(
+        supabase,
+        user.company_id,
+        [v.profile_id],
+        [v.date],
+      );
+      const esito = esitoAssegnazione({
+        regime: imp.regime_chiamata,
+        aChiamata: true,
+        turno: { date: v.date, start_time: v.start_time, end_time: v.end_time },
+        dichiarazioni: dichiarazioni.get(v.profile_id) ?? [],
+      });
+      if (!esito.ok) {
+        return {
+          ok: false,
+          error: spiegaBlocco(
+            esito,
+            persona.full_name,
+            // Il giorno che ha fermato l'assegnazione, non quello scritto
+            // sul turno: su un 22:00–06:00 sono due giorni diversi, e
+            // scrivere quello sbagliato manda a cercare nel posto sbagliato.
+            dayLong(fromISODate(esito.giorno)),
+          ),
+        };
+      }
+    }
 
     // Le ore della settimana com'era prima, senza il turno che si sta
     // salvando, piu' il turno nuovo: e' il totale che varra' dopo.
@@ -348,6 +432,7 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
       pubblicata,
       straordinario,
       fuoriPreset,
+      aChiamata: Boolean(persona?.on_call),
       imp,
     });
 
@@ -760,7 +845,17 @@ export async function anteprimaCopia(
 }
 
 export type CopiaResult =
-  | { ok: true; copiati: number; sostituiti: number; vaiA: string }
+  | {
+      ok: true;
+      copiati: number;
+      sostituiti: number;
+      /** Quanti sono rimasti indietro perché la persona a chiamata quel
+       *  giorno non è disponibile. Si dice, non si tace: una copia che
+       *  scrive meno turni di quelli che ha letto e non lo racconta fa
+       *  credere che la settimana sia completa. */
+      saltati: number;
+      vaiA: string;
+    }
   | { ok: false; error: string };
 
 /** Copia i turni da una settimana (o da un giorno) a un'altra.
@@ -801,6 +896,70 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
     };
   }
 
+  /* --------------------- i turni che nella destinazione non si possono
+   *  scrivere.
+   *
+   *  Le date cambiano, e con loro le disponibilità: chi era libero il
+   *  giovedì della settimana copiata può aver segnato che il giovedì dopo
+   *  non c'è. Si controlla **prima** di cancellare la destinazione, non
+   *  dopo: con `sovrascrivi` acceso, scoprirlo dopo vorrebbe dire aver
+   *  svuotato una settimana per riempirla a metà. */
+  const perPosizione = (iso: string) =>
+    destinazione[origine.indexOf(iso)] ?? destinazione[0];
+
+  let saltati = 0;
+  let daScrivere = turni;
+
+  const { data: impRiga } = await supabase
+    .from("company_settings")
+    .select(COLONNE_IMPOSTAZIONI)
+    .eq("company_id", user.company_id)
+    .maybeSingle();
+  const imp = normalizzaImpostazioni(impRiga as never);
+
+  if (versoDelRegime(imp.regime_chiamata)) {
+    const conPersona = [...new Set(turni.map((t) => t.profile_id).filter(Boolean))] as string[];
+    const { data: persone } = conPersona.length
+      ? await supabase.from("profiles").select("id, on_call").in("id", conPersona)
+      : { data: [] };
+    const aChiamata = new Set(
+      (persone ?? []).filter((p) => p.on_call).map((p) => p.id),
+    );
+
+    if (aChiamata.size > 0) {
+      const dichiarazioni = await dichiarazioniDi(
+        supabase,
+        user.company_id,
+        [...aChiamata],
+        destinazione,
+      );
+      daScrivere = turni.filter((t) => {
+        if (!t.profile_id || !aChiamata.has(t.profile_id)) return true;
+        const esito = esitoAssegnazione({
+          regime: imp.regime_chiamata,
+          aChiamata: true,
+          turno: {
+            date: perPosizione(t.date),
+            start_time: hhmm(t.start_time),
+            end_time: hhmm(t.end_time),
+          },
+          dichiarazioni: dichiarazioni.get(t.profile_id) ?? [],
+        });
+        if (!esito.ok) saltati++;
+        return esito.ok;
+      });
+    }
+  }
+
+  if (daScrivere.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Nessuno di questi turni si può copiare lì: le persone a chiamata " +
+        "non sono disponibili in quei giorni. Non ho toccato niente.",
+    };
+  }
+
   let sostituiti = 0;
   if (sovrascrivi) {
     const { count, error: deleteError } = await supabase
@@ -813,15 +972,12 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
     sostituiti = count ?? 0;
   }
 
-  const righe = turni.map((t) => {
-    const posizione = origine.indexOf(t.date);
-    return {
-      ...t,
-      company_id: user.company_id,
-      created_by: user.id,
-      date: destinazione[posizione] ?? destinazione[0],
-    };
-  });
+  const righe = daScrivere.map((t) => ({
+    ...t,
+    company_id: user.company_id,
+    created_by: user.id,
+    date: perPosizione(t.date),
+  }));
 
   const { error: insertError } = await supabase.from("shifts").insert(righe);
   if (insertError) return { ok: false, error: insertError.message };
@@ -832,6 +988,7 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
     ok: true,
     copiati: righe.length,
     sostituiti,
+    saltati,
     vaiA: destinazione[0],
   };
 }
@@ -880,7 +1037,7 @@ export async function pubblicaSettimana(
     .upsert({ company_id: user.company_id, monday: lunedi });
   if (error) return { ok: false, error: error.message };
 
-  await chiediLaSettimanaAChiVaInStraordinario(supabase, user.company_id, lunedi);
+  await chiediLaSettimanaAChiDeveRispondere(supabase, user.company_id, lunedi);
 
   revalidatePath("/turni");
   revalidatePath("/supervisione");
@@ -951,8 +1108,8 @@ function riassuntoSottoContratto(sotto: SottoContratto[]): string {
   );
 }
 
-/** Alla pubblicazione, chi va in straordinario riceve **una domanda sola
- *  sulla settimana**, non una per turno.
+/** Alla pubblicazione, chi deve rispondere riceve **una domanda sola sulla
+ *  settimana**, non una per turno.
  *
  *  Un turno per volta è il modo giusto di chiedere una modifica in corsa, ed
  *  è il modo sbagliato di chiedere «questa settimana ti va bene?»: la
@@ -960,13 +1117,23 @@ function riassuntoSottoContratto(sotto: SottoContratto[]): string {
  *  sta guardando la stessa cosa che gli si sta chiedendo, e per rispondere
  *  dovrebbe rifare a mente la somma che l'app ha già fatto.
  *
+ *  Due ragioni, e sono due conversazioni diverse:
+ *
+ *  - **straordinario** — chi ha un monte ore e questa settimana lo sfonda.
+ *    Nasce solo con `conferma_settimana` acceso;
+ *  - **chiamata** — chi è a chiamata, sotto il regime `on_demand`, e in
+ *    questa settimana ha almeno un turno. Qui non c'è una soglia da
+ *    superare: la domanda è «ci sei», e si fa sempre.
+ *
+ *  Le due non si incontrano mai sulla stessa persona — chi è a chiamata un
+ *  monte ore non ce l'ha — e stanno nella stessa funzione perché leggono le
+ *  stesse tre cose: pubblicare una settimana non deve costare sei
+ *  interrogazioni per farne due domande.
+ *
  *  Non tocca i turni: restano validi e si vedono, come sempre da quando il
  *  verso è rovesciato. Quello che cambia è che la settimana si presenta in
- *  arancione finché la persona non si è espressa.
- *
- *  Silenziosa se l'interruttore è spento, e su chi non ha un monte ore da
- *  sfondare: a chiamata non esiste uno straordinario. */
-async function chiediLaSettimanaAChiVaInStraordinario(
+ *  arancione finché la persona non si è espressa. */
+async function chiediLaSettimanaAChiDeveRispondere(
   supabase: Awaited<ReturnType<typeof createClient>>,
   companyId: string,
   lunedi: string,
@@ -976,7 +1143,9 @@ async function chiediLaSettimanaAChiVaInStraordinario(
     .select(COLONNE_IMPOSTAZIONI)
     .eq("company_id", companyId)
     .maybeSingle();
-  if (!normalizzaImpostazioni(impRiga as never).conferma_settimana) return;
+  const imp = normalizzaImpostazioni(impRiga as never);
+  const aChiamataRispondono = imp.regime_chiamata === "on_demand";
+  if (!imp.conferma_settimana && !aChiamataRispondono) return;
 
   const giorni = weekDaysISO(lunedi);
   const [personeRes, turniRes] = await Promise.all([
@@ -1005,22 +1174,43 @@ async function chiediLaSettimanaAChiVaInStraordinario(
   const domande = (personeRes.data ?? [])
     // Chi non entra nell'app non può rispondere, e una domanda che resta in
     // attesa per sempre farebbe sembrare la settimana non accettata da
-    // qualcuno che non l'ha mai potuta guardare.
-    .filter((p) => p.user_id && !p.on_call && p.contract_hours !== null)
-    .map((p) => ({
-      persona: p,
-      minuti: minutiDi.get(p.id) ?? 0,
-      contratto: Number(p.contract_hours) * 60,
-    }))
-    .filter((d) => d.minuti > d.contratto)
-    .map((d) => ({
-      company_id: companyId,
-      profile_id: d.persona.id,
-      monday: lunedi,
-      motivo: "straordinario",
-      minuti_previsti: d.minuti,
-      minuti_contratto: d.contratto,
-    }));
+    // qualcuno che non l'ha mai potuta guardare. Per chi è a chiamata questo
+    // vale doppio: la chiamata gli è arrivata comunque, per telefono, e
+    // l'app non deve fingere di avere una risposta che non avrà mai.
+    .filter((p) => p.user_id)
+    .flatMap((p) => {
+      const minuti = minutiDi.get(p.id) ?? 0;
+      const riga = { company_id: companyId, profile_id: p.id, monday: lunedi };
+
+      if (p.on_call) {
+        // Una settimana senza turni non è una chiamata: non c'è niente da
+        // accettare, e chiedere «ci sei?» a chi non è stato messo da nessuna
+        // parte è una domanda senza oggetto.
+        if (!aChiamataRispondono || minuti === 0) return [];
+        return [
+          {
+            ...riga,
+            motivo: "chiamata",
+            minuti_previsti: minuti,
+            // Zero non è un dato mancante: chi è a chiamata un monte ore non
+            // ce l'ha, ed è esattamente quello che il contratto dice.
+            minuti_contratto: 0,
+          },
+        ];
+      }
+
+      if (!imp.conferma_settimana || p.contract_hours === null) return [];
+      const contratto = Number(p.contract_hours) * 60;
+      if (minuti <= contratto) return [];
+      return [
+        {
+          ...riga,
+          motivo: "straordinario",
+          minuti_previsti: minuti,
+          minuti_contratto: contratto,
+        },
+      ];
+    });
 
   if (domande.length === 0) return;
 

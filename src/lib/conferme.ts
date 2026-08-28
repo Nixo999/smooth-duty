@@ -63,6 +63,7 @@ export const MOTIVO_RIFIUTO: Record<MotivoRifiuto, string> = {
   orario_diverso: "Orario diverso da quello del tuo contratto.",
   cambio_reparto: "Cambia il reparto: stesso orario, un altro posto.",
   turno_spostato: "Turno spostato: stesse ore, ma in un altro momento.",
+  chiamata: "Sei stato chiamato per questo turno.",
 };
 
 /** Lo stesso, partendo dal turno. Stringa vuota quando non c'è niente da
@@ -89,6 +90,11 @@ export function motivoDelTurno(turno: Pick<Shift, "richiede_conferma">): string 
  *  | `rifiutabile` | le ore aumentano, **o il turno si sposta** | può dire di no, e il responsabile riceve il messaggio |
  *  | `avviso` | le ore calano | «ho letto», e basta |
  *  | `niente` | il resto | niente |
+ *
+ *  E un caso che non è nessuno dei tre e sta prima di tutti: sotto il regime
+ *  `on_demand` il turno di chi è a chiamata, su una settimana pubblicata, è
+ *  una **chiamata** — si accetta o si rifiuta, e il silenzio non vale come
+ *  un sì. Vedi `lib/disponibilita.ts`.
  *
  *  Funzione pura, apposta: la stessa domanda la fanno `salvaTurno`,
  *  l'eliminazione di un turno e — un domani — l'importazione. Tre risposte
@@ -125,10 +131,21 @@ export function conseguenzaDelSalvataggio(input: {
   straordinario: boolean;
   /** L'orario è diverso da quello preimpostato sul suo contratto. */
   fuoriPreset: boolean;
+  /** La persona è a chiamata. Serve solo al regime `on_demand`: chi ha un
+   *  monte ore non riceve chiamate, riceve turni. */
+  aChiamata: boolean;
   imp: Impostazioni;
 }): Conseguenza {
-  const { prima, dopo, soloReparto, pubblicata, straordinario, fuoriPreset, imp } =
-    input;
+  const {
+    prima,
+    dopo,
+    soloReparto,
+    pubblicata,
+    straordinario,
+    fuoriPreset,
+    aChiamata,
+    imp,
+  } = input;
 
   // Il cambio di reparto decide da solo: gli orari non si sono mossi, quindi
   // le regole sulle ore non hanno niente da dire. Spostare qualcuno dalla
@@ -138,6 +155,30 @@ export function conseguenzaDelSalvataggio(input: {
     return imp.conferma_cambio_reparto
       ? { tipo: "rifiutabile", motivo: "cambio_reparto" }
       : NIENTE;
+  }
+
+  // Chi è a chiamata, sotto il regime `on_demand`, su una settimana che la
+  // squadra sta già guardando: quello non è un turno, è **una chiamata**, e
+  // va accettata. Qui il verso non conta — più ore o meno ore, la proposta è
+  // un'altra da quella a cui aveva detto di sì, e un turno accorciato che
+  // scatta alle sei del mattino resta una cosa a cui si può dire di no.
+  //
+  // Sta prima delle regole sulle ore perché quelle parlano a chi un monte
+  // ore ce l'ha: a chiamata non c'è straordinario da sfondare né orario da
+  // contratto da rispettare, e sono proprio i due interruttori che qui non
+  // hanno niente da dire. In bozza invece tace, come tutto il resto: la
+  // domanda su una settimana ancora da pubblicare si fa una volta sola, ed è
+  // la richiesta sulla settimana intera che nasce pubblicandola.
+  if (imp.regime_chiamata === "on_demand" && aChiamata && pubblicata) {
+    const cambiato =
+      !prima ||
+      prima.date !== dopo.date ||
+      prima.start_time !== dopo.start_time ||
+      prima.minuti !== dopo.minuti;
+    // Salvato senza spostare niente: la chiamata è ancora quella di prima e
+    // la risposta già data vale. Richiederla azzererebbe un sì per un
+    // salvataggio che non ha cambiato la giornata di nessuno.
+    return cambiato ? { tipo: "rifiutabile", motivo: "chiamata" } : NIENTE;
   }
 
   // Una modifica vera a una settimana pubblicata. È qui che il verso conta,

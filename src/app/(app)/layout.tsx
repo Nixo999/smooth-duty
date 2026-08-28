@@ -1,6 +1,7 @@
 import { esci } from "@/app/(auth)/actions";
 import { AppShell, type Section } from "@/components/app-shell";
 import { getViewer, requireMember } from "@/lib/auth";
+import { versoDelRegime } from "@/lib/disponibilita";
 import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
@@ -34,6 +35,16 @@ export default async function AppLayout({
     impostazioni.pagina_supervisione &&
     (capo || impostazioni.supervisione_dipendenti);
 
+  // Il calendario di chi e' a chiamata. Sparisce in due casi, e sono due
+  // ragioni diverse: sotto il regime `on_demand` non esiste per nessuno —
+  // li' i turni si propongono e si accettano uno per uno — e al dipendente
+  // che ha un contratto a ore non direbbe niente, anzi gli farebbe dubitare
+  // del suo. Come per le pagine spegnibili il controllo sta in due posti,
+  // qui e nella pagina: l'indirizzo se lo ricorda il browser.
+  const disponibilitaVisibile =
+    Boolean(versoDelRegime(impostazioni.regime_chiamata)) &&
+    (capo || profile.on_call);
+
   const sections: Section[] = [
     { href: "/turni", label: capo ? "Turni" : "I miei turni", icon: "calendar" },
     // Anche il dipendente, se l'azienda vuole: gli serve per sapere se la
@@ -44,6 +55,15 @@ export default async function AppLayout({
     // Per tutti: il dipendente chiede, il responsabile conferma.
     ...(impostazioni.pagina_permessi
       ? ([{ href: "/permessi", label: "Permessi", icon: "sun" }] as Section[])
+      : []),
+    ...(disponibilitaVisibile
+      ? ([
+          {
+            href: "/disponibilita",
+            label: "Disponibilità",
+            icon: "disponibilita",
+          },
+        ] as Section[])
       : []),
     ...(capo && impostazioni.pagina_prospetto
       ? ([{ href: "/prospetto", label: "Prospetto", icon: "prospetto" }] as Section[])

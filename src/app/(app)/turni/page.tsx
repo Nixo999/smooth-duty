@@ -5,6 +5,7 @@ import { requireMember } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
   COLONNE_AVVISO,
+  COLONNE_DISPONIBILITA,
   COLONNE_MESSAGGIO,
   COLONNE_PROFILO_CON_REPARTI,
   COLONNE_REPARTO,
@@ -12,11 +13,17 @@ import {
   COLONNE_TURNO,
   conReparti,
 } from "@/lib/colonne";
+import { versoDelRegime } from "@/lib/disponibilita";
+import {
+  COLONNE_IMPOSTAZIONI,
+  normalizzaImpostazioni,
+} from "@/lib/impostazioni";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Absence,
   Avviso,
   Department,
+  Disponibilita,
   MessaggioTurno,
   Profile,
   RichiestaSettimana,
@@ -64,6 +71,8 @@ export default async function TurniPage({
     messaggiResult,
     avvisiResult,
     settimaneResult,
+    impostazioniResult,
+    disponibilitaResult,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -141,6 +150,26 @@ export default async function TurniPage({
           .eq("profile_id", user.id)
           .eq("monday", monday)
           .eq("stato", "in_attesa"),
+    // Serve una cosa sola di qui: come l'azienda ingaggia chi è a chiamata.
+    // La lettura c'è comunque nel layout, per il menu, ma quello è un altro
+    // albero di componenti e non ha niente da passare a questa pagina. Sta
+    // dentro la stessa Promise.all, quindi non allunga niente.
+    supabase
+      .from("company_settings")
+      .select(COLONNE_IMPOSTAZIONI)
+      .eq("company_id", user.company_id)
+      .maybeSingle(),
+    // Le disponibilità della settimana, e solo al responsabile: è lui che
+    // deve sapere, prima di cliccare, in quali caselle non può scrivere. Al
+    // dipendente il suo calendario lo mostra la sua pagina.
+    user.role === "capo"
+      ? supabase
+          .from("availability_days")
+          .select(COLONNE_DISPONIBILITA)
+          .eq("company_id", user.company_id)
+          .gte("giorno", days[0])
+          .lte("giorno", days[6])
+      : Promise.resolve({ data: [] }),
   ]);
 
   // Un errore di lettura non deve mai travestirsi da settimana vuota: sono
@@ -168,6 +197,8 @@ export default async function TurniPage({
     }[]).map((r) => [r.profile_id, r.department_id]),
   );
 
+  const imp = normalizzaImpostazioni(impostazioniResult.data as never);
+
   if (user.role === "capo") {
     return (
       <Roster
@@ -181,6 +212,12 @@ export default async function TurniPage({
         inBozza={inBozza}
         messaggi={(messaggiResult.data ?? []) as MessaggioTurno[]}
         risposteSettimana={(settimaneResult.data ?? []) as RichiestaSettimana[]}
+        regimeChiamata={imp.regime_chiamata}
+        disponibilita={
+          versoDelRegime(imp.regime_chiamata)
+            ? ((disponibilitaResult.data ?? []) as Disponibilita[])
+            : []
+        }
       />
     );
   }
