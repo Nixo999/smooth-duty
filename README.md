@@ -9,6 +9,11 @@ settimana, ogni dipendente vede la sua.
 
 ## Avvio in locale
 
+> Serve a mettere in piedi una copia da zero — un progetto nuovo, o una
+> macchina nuova. **Non è il modo in cui si lavora a DenkiShift**: l'app sta
+> online su `denkishift.it`, ed è lì che si guarda. Vedi
+> [docs/06-ambiente.md](docs/06-ambiente.md).
+
 ### 1. Il database
 
 Serve un progetto Supabase (gratuito).

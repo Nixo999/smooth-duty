@@ -11,6 +11,28 @@ ricostruite dalla storia dei commit.
 
 ## 28 agosto 2026
 
+**`denkishift.it` è online, e la voce sparisce da «non c'è ancora»**
+Era in elenco da quando l'elenco esiste: «l'app gira in locale e sull'APK di
+prova puntato alla rete di casa». Adesso il sito c'è, risponde, e la pagina di
+accesso carica. Resta il resto del blocco commerciale — SMTP proprio, notifiche
+fuori dall'app, store — ma il pezzo che teneva ferma la demo non c'è più.
+
+**Non si avvia più niente in locale: si guarda su `denkishift.it`**
+Deciso da Nicola. L'app è online, e quello è il posto in cui vive davvero:
+stessa build, stessa latenza verso il database, service worker vero, telefono
+vero. Le tre cose che in locale non si sono mai viste — regione delle funzioni,
+PWA installata, rete lenta — lì si vedono da sole.
+
+La conseguenza va scritta accanto alla decisione, o fra un mese sembrerà solo
+una comodità: **si verifica dopo aver pubblicato**, e quello che finisce su
+`main` lo vede la squadra di un cliente. Da qui due cose che erano buone
+abitudini diventano l'unica rete: `prove` e `build` prima di ogni push, e la
+migrazione sul database di **produzione** prima del push, non dopo — è un
+progetto Supabase suo, `.env.local` e `.env.db` non ci arrivano, e un deploy
+porta il codice ma non lo schema. `npm run dev` e `.claude/launch.json` restano
+per il caso raro (nessuna rete, log del server da leggere): non sono stati
+tolti, non sono più il giro normale.
+
 **Chi è a chiamata smette di essere «quello senza contratto»** — migrazione `19`
 Era definito da ciò che non ha: nessun monte ore, nessun orario preimpostato,
 nessuna settimana da accettare. L'accordo vero — «il giovedì no», «i weekend

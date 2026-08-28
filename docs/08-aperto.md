@@ -76,13 +76,17 @@ non trova la tabella, e il motivo `chiamata` lo rifiuta il vincolo.
 
 ## ⚠️ Scritto ma mai visto a schermo
 
-Tutto quello che segue è stato scritto senza poterlo guardare a schermo: sul
-Mac `.env.db` non ha la password giusta, quindi niente migrazioni e niente
-dati veri da cui partire. Passano `npm run prove` (168 controlli), `npx tsc
+Tutto quello che segue passa `npm run prove` (168 controlli), `npx tsc
 --noEmit`, `npx eslint src scripts` e `npm run build` — che non è la stessa
-cosa.
+cosa che guardarlo.
 
-Da provare nel browser, in quest'ordine:
+**Si guarda su `denkishift.it`**, che dal 28 agosto 2026 è l'unico posto in cui
+si guarda (vedi [06-ambiente.md](06-ambiente.md)). Quindi questa lista non è
+più «cose da provare quando si potrà»: è **cosa aprire subito dopo il deploy**,
+e prima ancora la migrazione `19` sul database di produzione — senza, la metà
+di queste voci non si può nemmeno provare.
+
+In quest'ordine:
 
 0. **Le regole di ingaggio di chi è a chiamata**, che sono la cosa più nuova e
    la meno guardata (28 agosto 2026, migrazione `19`). Nell'ordine:
@@ -169,9 +173,6 @@ Da provare nel browser, in quest'ordine:
   nel tabellone, un'anteprima che mostri le proposte **prima** di scriverle —
   come fa già l'importazione — e la Server Action che le salva. Finché non
   c'è, quel motore non lo chiama nessuno.
-- **Pubblicazione su un indirizzo pubblico.** L'app gira in locale e sull'APK
-  di prova puntato alla rete di casa. Vedi [06-ambiente.md](06-ambiente.md) per
-  cosa fare al momento del deploy.
 - **App sugli store.** C'è il guscio Capacitor per Android e un APK di debug;
   iOS non è nemmeno impostato.
 - **Storico e archiviazione.** Non c'è un modo per chiudere un anno: le

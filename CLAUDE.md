@@ -29,8 +29,14 @@ Partenza a freddo, tre file: [docs/01-mappa.md](docs/01-mappa.md) →
    già sta lì, ed evita quasi sempre la ricerca.
 2. **Verificare nel browser.** «Compila» non è una verifica. `npm run prove`
    copre solo i motori puri (copertura, prospetto, copia, lettore Excel).
-3. **Mai avviare il server da Bash**: si usa il pannello browser, che ha già la
-   configurazione in `.claude/launch.json`.
+3. **Si guarda su `denkishift.it`, non in locale.** Dal 28 agosto 2026 l'app
+   sta online e non si avvia più niente qui: quindi **si verifica dopo aver
+   pubblicato**, e quello che finisce su `main` lo vede la squadra di un
+   cliente. Prima del push: `npm run prove`, `npm run build`, e la migrazione
+   sul database di produzione — che è un progetto Supabase suo, e le
+   migrazioni non se le esegue da solo. `npm run dev` resta per i casi rari
+   (nessuna rete, log del server da leggere) e **da Bash non si avvia
+   comunque**: si usa il pannello browser.
 4. **Password mai.** Non si digitano credenziali in nessun campo: si chiede
    all'utente di entrare lui. Vale anche per gli account di prova.
 5. **Dire cosa non si è verificato.** Meglio un buco dichiarato di una

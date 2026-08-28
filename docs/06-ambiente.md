@@ -58,21 +58,39 @@ solo, e va fatto ogni volta:
    risultato: `main` è condiviso, e un `--force` cancella il lavoro di
    qualcun altro senza chiedere.
 
-## Il server di sviluppo
+## Dove si guarda l'app: su `denkishift.it`
 
-```bash
-npm run dev
-```
+**Dal 28 agosto 2026 non si avvia più niente in locale.** L'app è online e si
+guarda lì: è il posto in cui vive davvero — stessa build, stessa latenza verso
+il database, stesso service worker, e il telefono è un telefono vero e non una
+finestra stretta. Tre cose che in locale non si sono mai viste (la regione
+delle funzioni, la PWA installata, il comportamento della rete lenta) lì si
+vedono da sole.
 
-C'è già `.claude/launch.json` con la configurazione `turni` sulla porta 3000:
-il pannello browser la avvia da solo. **Non avviare mai il server da Bash.**
+Ha un prezzo, ed è il motivo per cui questa riga sta qui e non solo nel
+diario: **si verifica dopo aver pubblicato.** Quello che finisce su `main` lo
+vede la squadra dell'azienda che sta usando l'app, non chi l'ha scritto. Due
+cose che prima erano buone abitudini adesso sono l'unica rete rimasta:
+
+1. **Prima la migrazione sul database di produzione, poi il push.** Un deploy
+   porta il codice, non lo schema, e il codice nuovo su un database vecchio non
+   dà un errore onesto: dà elenchi vuoti, che somigliano a dati cancellati.
+   Vedi «Il database di produzione è un'altra cosa», più sotto.
+2. **`npm run prove` e `npm run build` prima di ogni push.** Non provano che
+   funzioni — lo dice la riga qui sotto da sempre — ma sono quello che resta
+   fra un errore e il tabellone di un cliente.
+
+`npm run dev` e `.claude/launch.json` restano nel repository e non sono stati
+tolti: servono ancora nel caso raro in cui si debba smontare un guasto guardando
+i log del server, o si lavori senza rete. Non fanno più parte del giro normale,
+e **da Bash non si avviano comunque mai** — si usa il pannello browser.
 
 Altri comandi:
 
 | Comando | Cosa fa |
 |---|---|
 | `npm run build` | build di produzione — *passa ≠ funziona* |
-| `npm run start:rete` | serve la build su `0.0.0.0:3000`, per provare dal telefono |
+| `npm run start:rete` | serve la build su `0.0.0.0:3000`. Serviva a provare dal telefono sulla rete di casa: oggi il telefono apre `denkishift.it` |
 | `npm run lint` | eslint |
 | `npm run prove` | i controlli sui motori puri (vedi sotto) |
 | `npm run icone` | rigenera le icone PWA e Android |
@@ -196,9 +214,14 @@ mostrando turni vecchi come se fossero quelli veri.
 
 ## Il database di produzione è un'altra cosa
 
-`denkishift.it` gira su Netlify con un suo progetto Supabase, e **le
-migrazioni lì non si eseguono da sole**: un deploy porta il codice, non lo
-schema. Il codice nuovo che arriva su un database vecchio è il guasto
+⚠️ **Da quando si verifica sul sito, questo capitolo non è più un dettaglio di
+pubblicazione: è la cosa che decide se quello che hai appena scritto si può
+guardare.**
+
+`denkishift.it` gira su Netlify con un suo progetto Supabase — **un progetto
+diverso da quello di sviluppo**, quindi `.env.local` e `.env.db` non ci
+arrivano: le migrazioni lì si incollano nel SQL Editor di *quel* progetto. E
+**non si eseguono da sole**: un deploy porta il codice, non lo schema. Il codice nuovo che arriva su un database vecchio è il guasto
 raccontato in [05-convenzioni.md](05-convenzioni.md) — le letture falliscono e
 si travestono da elenchi vuoti.
 
