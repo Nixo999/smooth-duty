@@ -225,8 +225,8 @@ export function Supervisione({
       } else {
         toast.success(
           richieste > 0
-            ? `Modifiche applicate. ${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede lo trovi nei messaggi, nei Turni.`
-            : "Modifiche applicate.",
+            ? `Modifiche pubblicate. Da adesso i tuoi vedono la settimana aggiornata. ${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede lo trovi nei messaggi, nei Turni.`
+            : "Modifiche pubblicate. Da adesso i tuoi vedono la settimana aggiornata.",
         );
       }
     });
@@ -481,7 +481,7 @@ export function Supervisione({
                   >
                     Pubblica modifiche
                     {sospese.fatte.length > 0 ? (
-                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[12px] cifre">
                         {sospese.fatte.length}
                       </span>
                     ) : null}
@@ -562,7 +562,7 @@ export function Supervisione({
                     {oreIntere.map((m) => (
                       <span
                         key={m}
-                        className="absolute -translate-x-1/2 text-[11px] tabular-nums text-faint"
+                        className="absolute -translate-x-1/2 text-[12px] cifre text-faint"
                         style={{ left: `${pct(m)}%` }}
                       >
                         {oraDa(m).slice(0, 2)}
@@ -654,7 +654,7 @@ export function Supervisione({
                           {g.fasce.map((f) => (
                             <span
                               key={`${f.id}-${f.da}`}
-                              className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded border border-dashed border-border-strong bg-surface-3 px-1.5 text-[11px] text-muted"
+                              className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded border border-dashed border-border-strong bg-surface-3 px-1.5 text-[12px] text-muted"
                               style={{
                                 left: `${pct(f.da)}%`,
                                 width: `${pct(f.a) - pct(f.da)}%`,
@@ -957,7 +957,11 @@ function BarraTurno({
         {nome}
         {finoADopo ? " ▸" : ""}
       </span>
-      <span className="orario ml-1.5 shrink-0 truncate text-[11px] tabular-nums opacity-70">
+      {/* Senza opacity: e' il numero piu' importante della corsia, ed e' gia'
+          secondario rispetto al nome perche' il nome e' in grassetto e lui
+          no. Sbiadito stava a 3,25-4,67 secondo la tinta del reparto.
+          `orario` porta `cifre` dentro di se'. */}
+      <span className="orario ml-1.5 shrink-0 truncate text-[12px]">
         {s.assenza ? "assente" : orario}
       </span>
 
@@ -1042,7 +1046,7 @@ function Stato({ buchi, conRegole }: { buchi: Buco[]; conRegole: boolean }) {
               >
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                 <span>
-                  <strong className="tabular-nums">
+                  <strong className="orario">
                     {oraDa(b.da)}–{oraDa(b.a)}
                   </strong>{" "}
                   scoperto: servono {b.richiesti},{" "}
@@ -1121,7 +1125,7 @@ function Vuoto({ capo, onApri }: { capo: boolean; onApri: () => void }) {
         <p className="mt-1 text-[13.5px] text-muted">
           {capo
             ? "Crea i reparti e di' quante persone servono in ogni fascia: da lì in poi questa pagina dice da sola se la giornata è coperta."
-            : "Il responsabile non ha ancora impostato i reparti."}
+            : "Qui compaiono i reparti con le persone in turno, ora per ora. Li imposta il responsabile: tu non devi fare niente."}
         </p>
       </div>
       {capo ? (
@@ -1154,7 +1158,7 @@ function FiltroReparti({
           <ListFilter className="size-3.5" />
           <span className="hidden sm:inline">Mostra</span>
           {spenti > 0 ? (
-            <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold tabular-nums text-accent-fg">
+            <span className="rounded-full bg-accent px-1.5 text-[12px] font-semibold cifre text-accent-fg">
               {gruppi.length - spenti}/{gruppi.length}
             </span>
           ) : null}
@@ -1167,7 +1171,7 @@ function FiltroReparti({
           sideOffset={8}
           className="z-40 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
         >
-          <p className="px-2.5 pb-1 pt-2 text-[11px] uppercase tracking-wide text-faint">
+          <p className="px-2.5 pb-1 pt-2 text-[12px] uppercase tracking-wide text-faint">
             Reparti da vedere
           </p>
           {gruppi.map((g) => (
@@ -1186,7 +1190,7 @@ function FiltroReparti({
                 </DropdownMenu.ItemIndicator>
               </span>
               <span
-                className="pastiglia-reparto truncate rounded-full px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-wide"
+                className="pastiglia-reparto truncate rounded-full px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide"
                 style={{ ["--tinta" as string]: g.tinta }}
               >
                 {g.nome}

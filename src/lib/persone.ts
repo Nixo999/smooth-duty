@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { nomiDaElenco } from "@/lib/elenco";
+import { messaggioErrore } from "@/lib/errori";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Creazione di persone in blocco, condivisa fra il pannello del
@@ -131,7 +132,7 @@ export async function creaPersoneDaElenco(
     )
     .select("id");
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   if (reparti.length > 0 && creati) {
     await admin.from("profile_departments").insert(

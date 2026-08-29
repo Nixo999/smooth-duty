@@ -77,6 +77,29 @@ export function oggiCivile(): ISODate {
   }
 }
 
+/** Un istante scritto nel fuso dell'azienda.
+ *
+ *  Stessa trappola di `oggiCivile`, e per questo lo stesso ripiego: dove il
+ *  runtime non porta con sé i dati dei fusi, `timeZone: FUSO` non sbaglia
+ *  l'orario — solleva `RangeError` — e chiamata dentro il render di una
+ *  pagina quel sasso porta giù la pagina intera. Senza fuso si formatta
+ *  nell'ora di chi esegue: per qualche ora può dire il giorno prima, che è
+ *  incomparabilmente meglio di un errore del server.
+ *
+ *  Va usata ovunque serva `timeZone: FUSO`: scriverlo a mano in una pagina
+ *  significa rifare la stessa riga senza la sua protezione. */
+export function nelFuso(
+  quando: Date,
+  locale: string,
+  opzioni: Intl.DateTimeFormatOptions = {},
+): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { ...opzioni, timeZone: FUSO }).format(quando);
+  } catch {
+    return new Intl.DateTimeFormat(locale, opzioni).format(quando);
+  }
+}
+
 /** "3 – 9 marzo 2026", oppure con i due mesi se la settimana e' a cavallo. */
 export function weekLabel(start: Date): string {
   const end = addDays(start, 6);

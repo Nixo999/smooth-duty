@@ -162,9 +162,9 @@ function VoceSettimana({
       toast.success(
         scelta === "si"
           ? nota.trim()
-            ? "Settimana accettata, con la tua richiesta allegata."
-            : "Settimana accettata."
-          : "Rifiuto inviato: il responsabile rifarà la settimana.",
+            ? "Settimana accettata, con la tua richiesta allegata. Il responsabile la legge nei suoi messaggi."
+            : "Settimana accettata. Il responsabile vede che hai risposto."
+          : "Rifiuto inviato. Il responsabile lo trova nei suoi messaggi e rifà la settimana.",
       );
       setScelta(null);
       setNota("");
@@ -301,7 +301,7 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
       setInCorso("si");
       const esito = await accettaTurno(turno.id);
       if (!esito.ok) toast.error(esito.error);
-      else toast.success("Turno accettato.");
+      else toast.success("Turno accettato. Il responsabile vede che hai risposto.");
       router.refresh();
     });
 
@@ -316,7 +316,7 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
       }
       setScriveNo(false);
       setNota("");
-      toast.success("Rifiuto inviato: il responsabile è stato avvisato.");
+      toast.success("Rifiuto inviato. Il responsabile lo trova nei suoi messaggi, dentro l'app.");
       router.refresh();
     });
 
@@ -328,7 +328,8 @@ function VoceTurno({ turno, motivo }: { turno: Shift; motivo: string }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[14.5px] font-semibold tracking-tight">
-            {dayLong(fromISODate(turno.date))} · {timeRange(turno.start_time, turno.end_time)}
+            {dayLong(fromISODate(turno.date))} ·{" "}
+            <span className="orario">{timeRange(turno.start_time, turno.end_time)}</span>
           </p>
           <p className="mt-1 text-[13px] text-muted">
             {motivo}{" "}
@@ -443,13 +444,15 @@ function VoceAvviso({ avviso }: { avviso: Avviso }) {
           </p>
           <p className="mt-1 text-[13px] text-muted">
             <span className={cn(dopo && "line-through")}>
-              {dayLong(fromISODate(prima.date))} · {timeRange(prima.start_time, prima.end_time)}
+              {dayLong(fromISODate(prima.date))} ·{" "}
+              <span className="orario">{timeRange(prima.start_time, prima.end_time)}</span>
             </span>
             {dopo ? (
               <>
                 {" → "}
                 <strong className="text-text">
-                  {dayLong(fromISODate(dopo.date))} · {timeRange(dopo.start_time, dopo.end_time)}
+                  {dayLong(fromISODate(dopo.date))} ·{" "}
+                  <span className="orario">{timeRange(dopo.start_time, dopo.end_time)}</span>
                 </strong>
               </>
             ) : null}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CODICI_CAUSALE } from "@/lib/assenze";
 import { requireCapo } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { REGIMI_CHIAMATA } from "@/lib/disponibilita";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,7 +25,7 @@ const schema = z.object({
   pagina_permessi: z.boolean(),
   causali_richiedibili: z
     .array(z.string().refine((v) => CODICI_CAUSALE.includes(v)))
-    .min(1, "Lascia almeno una causale richiedibile."),
+    .min(1, "Lascia almeno un motivo che si possa chiedere dall'app."),
   pagina_prospetto: z.boolean(),
 });
 
@@ -44,7 +45,7 @@ export async function salvaImpostazioni(
     ...parsed.data,
     updated_at: new Date().toISOString(),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   // Le impostazioni cambiano cosa vedono gli altri, e ora anche quali pagine
   // esistono. Il menu sta nel layout, e un gruppo di route (`(app)`) non ha

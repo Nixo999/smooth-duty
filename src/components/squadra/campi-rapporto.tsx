@@ -179,7 +179,8 @@ export function CampiRapporto({
 
         {valore.on_call ? (
           <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-muted">
-            Nessun monte ore da rispettare: lavora quando viene chiamata.
+            Nessun numero di ore a settimana da rispettare: lavora quando viene
+            chiamata.
           </p>
         ) : (
           <>

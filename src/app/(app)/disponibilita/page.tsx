@@ -55,11 +55,21 @@ export default async function DisponibilitaPage({
 
   const supabase = await createClient();
 
-  const { data: impRiga } = await supabase
+  const { data: impRiga, error: erroreImp } = await supabase
     .from("company_settings")
     .select(COLONNE_IMPOSTAZIONI)
     .eq("company_id", user.company_id)
     .maybeSingle();
+
+  // Il controllo viene prima del redirect di proposito: se la lettura non
+  // riesce, `normalizzaImpostazioni` darebbe i default e la pagina
+  // deciderebbe di esistere o no su un dato inventato. Rimandare ai Turni
+  // qualcuno che ha diritto a questa pagina e' peggio di dirgli che c'e' un
+  // guasto, perche' sembra una scelta dell'azienda.
+  if (erroreImp) {
+    return <ErroreDati cosa="le impostazioni dell'azienda" dettaglio={erroreImp.message} />;
+  }
+
   const imp = normalizzaImpostazioni(impRiga as never);
   if (!versoDelRegime(imp.regime_chiamata)) redirect("/turni");
 
@@ -90,6 +100,12 @@ export default async function DisponibilitaPage({
     return (
       <ErroreDati cosa="le tue disponibilità" dettaglio={righeRes.error.message} />
     );
+  }
+  // Anche i turni: la griglia li mostra per dire «qui sei gia' impegnato», e
+  // un elenco vuoto per errore fa dichiarare disponibile un giorno che e'
+  // gia' occupato.
+  if (turniRes.error) {
+    return <ErroreDati cosa="i tuoi turni" dettaglio={turniRes.error.message} />;
   }
 
   return (

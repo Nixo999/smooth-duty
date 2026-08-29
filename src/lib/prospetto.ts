@@ -4,6 +4,7 @@
  *  Funzioni pure, provabili senza database e senza browser. */
 
 import { assenzaDelGiorno, type AssenzaInput } from "@/lib/assenze";
+import { siLavoreraDavvero } from "@/lib/ore-effettive";
 
 export type Livello = "settimana" | "mese" | "anno";
 
@@ -20,6 +21,9 @@ export type TurnoProspetto = {
   date: string;
   start_time: string;
   end_time: string;
+  /** Valorizzata = la persona ha detto di no, e quelle ore non le farà.
+   *  Vedi `lib/ore-effettive.ts`. */
+  rifiutato_at?: string | null;
 };
 
 export type RepartoProspetto = { id: string; name: string; hue: number };
@@ -34,7 +38,13 @@ export type Totali = {
   /** Quante ore di turno già scritte sono saltate: è quello che il
    *  responsabile deve ricoprire, ed è un numero diverso dalle ore perse. */
   saltati: number;
-  /** Quello che resta: le ore che verranno lavorate davvero. */
+  /** Quello che resta: le ore che verranno lavorate davvero — la stessa
+   *  domanda del monte ore a tabellone e del totale sul telefono del
+   *  dipendente (`lib/ore-effettive.ts`).
+   *
+   *  Non è `programmati - saltati`: fuori restano anche i turni che la
+   *  persona ha rifiutato, che a tabellone ci sono ancora ma non li farà
+   *  nessuno. */
   effettivi: number;
   /** Ore attese dal contratto nel periodo. null se nessuno le ha. */
   attesi: number | null;
@@ -209,12 +219,16 @@ export function calcolaProspetto({
       const suo = saltatePerCausale.get(t.profile_id) ?? {};
       suo[causale] = (suo[causale] ?? 0) + durata;
       saltatePerCausale.set(t.profile_id, suo);
-    } else {
+    } else if (siLavoreraDavvero(t, assenze)) {
       riga.totali.effettivi += durata;
       const suoi = lavorate.get(t.profile_id) ?? new Map<string, number>();
       suoi.set(t.date, (suoi.get(t.date) ?? 0) + durata);
       lavorate.set(t.profile_id, suoi);
     }
+    // Rimane fuori il turno rifiutato: sta ancora a tabellone (e infatti
+    // resta fra i `programmati`), ma non lo farà nessuno. Contarlo qui
+    // dava un numero diverso da quello che la stessa persona legge sul
+    // telefono per la stessa settimana.
   }
 
   /* ------------------------------------------------- quanto e' costata --

@@ -49,7 +49,7 @@ const dati = calcolaProspetto({
     `departments?select=id,name,hue&company_id=eq.${azienda.id}&order=position`,
   ),
   turni: await get(
-    `shifts?select=profile_id,date,start_time,end_time&company_id=eq.${azienda.id}&date=gte.${estremi.da}&date=lte.${estremi.a}`,
+    `shifts?select=profile_id,date,start_time,end_time,rifiutato_at&company_id=eq.${azienda.id}&date=gte.${estremi.da}&date=lte.${estremi.a}`,
   ),
   assenze: await get(
     `absences?select=id,profile_id,type,start_date,end_date&company_id=eq.${azienda.id}` +

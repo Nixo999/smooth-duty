@@ -1,3 +1,4 @@
+import { ErroreLeggibile } from "@/lib/errori";
 import type { Cell, Grid } from "@/lib/import/grid";
 import type {
   ParsedMarker,
@@ -400,7 +401,7 @@ export function parseGrid(
   }
 
   if (!people) {
-    throw new Error(
+    throw new ErroreLeggibile(
       "Non riconosco la struttura del foglio. Serve una riga con i giorni e una con «Nome», " +
         "oppure un elenco con le colonne Nome, Data, Da, A.",
     );

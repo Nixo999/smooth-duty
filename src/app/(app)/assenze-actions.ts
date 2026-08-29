@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CODICI_CAUSALE } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -14,7 +15,7 @@ const apriSchema = z.object({
   profile_id: z.string().uuid(),
   type: z
     .string()
-    .refine((v) => CODICI_CAUSALE.includes(v), "Causale non riconosciuta."),
+    .refine((v) => CODICI_CAUSALE.includes(v), "Motivo non riconosciuto."),
   start_date: giorno,
   // Vuota di proposito nel caso normale: chi si ammala non sa quando torna.
   end_date: giorno.nullable(),
@@ -58,7 +59,7 @@ export async function apriAssenza(input: ApriAssenzaInput): Promise<ActionResult
       error:
         error.code === "23505"
           ? "Questa persona ha già un'assenza in corso: chiudila prima di aprirne un'altra."
-          : error.message,
+          : messaggioErrore(error),
     };
   }
 
@@ -96,7 +97,7 @@ export async function chiudiAssenza(
       error:
         error.code === "23514"
           ? "Il rientro non può essere prima dell'inizio dell'assenza."
-          : error.message,
+          : messaggioErrore(error),
     };
   }
 
@@ -109,7 +110,7 @@ export async function eliminaAssenza(id: string): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("absences").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   aggiorna();
   return { ok: true };
@@ -131,7 +132,7 @@ export async function confermaRientro(primoGiorno: string): Promise<ActionResult
     primo_giorno: parsed.data,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   aggiorna();
   return { ok: true };

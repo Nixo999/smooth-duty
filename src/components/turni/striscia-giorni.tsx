@@ -43,8 +43,8 @@ export function StrisciaGiorni({
               !active && isToday(d) && "border-accent",
             )}
           >
-            <span className="text-[11px] font-medium capitalize">{dayShort(d)}</span>
-            <span className="text-[16px] font-semibold tabular-nums">
+            <span className="text-[12px] font-medium capitalize">{dayShort(d)}</span>
+            <span className="text-[16px] font-semibold cifre">
               {d.getDate()}
             </span>
             <span

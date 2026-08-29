@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -181,10 +182,10 @@ function Dato({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-card">
-      <p className="text-[11px] uppercase tracking-wide text-faint">{etichetta}</p>
+      <p className="text-[12px] uppercase tracking-wide text-faint">{etichetta}</p>
       <p
         className={cn(
-          "mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight",
+          "mt-0.5 text-[22px] font-semibold cifre tracking-tight",
           allerta ? "text-warning" : "text-muted",
         )}
       >
@@ -200,9 +201,24 @@ function Dato({
 function Tabella({ dati }: { dati: Dati }) {
   if (dati.righe.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-10 text-center text-[13.5px] text-muted">
-        Nessuno in squadra.
-      </p>
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border-strong bg-surface px-6 py-12 text-center">
+        <div className="grid size-11 place-items-center rounded-full bg-surface-3 text-muted">
+          <Users className="size-5" />
+        </div>
+        <div>
+          <p className="text-[15px] font-medium">Non c&apos;è ancora nessuno in squadra</p>
+          <p className="mt-1 text-[13.5px] text-muted">
+            Qui finiscono le ore lavorate e i giorni di assenza di ogni persona,
+            periodo per periodo. Aggiungi le persone e i conti si riempiono da soli.
+          </p>
+        </div>
+        <Link href="/squadra">
+          <Button size="sm">
+            <Plus className="size-4" />
+            Aggiungi le persone
+          </Button>
+        </Link>
+      </div>
     );
   }
 
@@ -218,7 +234,7 @@ function Tabella({ dati }: { dati: Dati }) {
           style={{ minWidth: `${larghezza}rem` }}
         >
           <thead>
-            <tr className="border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-faint">
+            <tr className="border-b border-border bg-surface-2 text-left text-[12px] uppercase tracking-wide text-faint">
               <th className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 font-medium">
                 Nome
               </th>
@@ -249,14 +265,14 @@ function Tabella({ dati }: { dati: Dati }) {
                       <span className="font-medium">{r.nome}</span>
                       {r.reparto ? (
                         <span
-                          className="pastiglia-reparto rounded-full px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wide"
+                          className="pastiglia-reparto rounded-full px-2 py-0.5 text-[12px] font-medium uppercase tracking-wide"
                           style={{ ["--tinta" as string]: r.tinta }}
                         >
                           {r.reparto}
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[11.5px] text-faint">
+                    <p className="text-[12px] text-faint">
                       {formatDuration(r.totali.effettivi)} lavorate
                       {r.aChiamata ? " · a chiamata" : ""}
                     </p>
@@ -264,7 +280,7 @@ function Tabella({ dati }: { dati: Dati }) {
 
                   <td
                     className={cn(
-                      "px-3 py-2.5 text-right font-semibold tabular-nums",
+                      "px-3 py-2.5 text-right font-semibold cifre",
                       totaleRiga > 0 ? "text-warning" : "text-faint",
                     )}
                     title={
@@ -283,7 +299,7 @@ function Tabella({ dati }: { dati: Dati }) {
                       <td
                         key={c}
                         className={cn(
-                          "px-3 py-2.5 text-right tabular-nums",
+                          "px-3 py-2.5 text-right cifre",
                           minuti > 0 ? "text-text" : "text-faint",
                         )}
                         title={
@@ -294,7 +310,7 @@ function Tabella({ dati }: { dati: Dati }) {
                       >
                         {ore(minuti)}
                         {minuti === 0 && giorni > 0 ? (
-                          <span className="block text-[10.5px] text-muted">
+                          <span className="block text-[12px] text-muted">
                             {giorni}g
                           </span>
                         ) : null}
@@ -311,14 +327,14 @@ function Tabella({ dati }: { dati: Dati }) {
               <td className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5">Totale</td>
               <td
                 className={cn(
-                  "px-3 py-2.5 text-right tabular-nums",
+                  "px-3 py-2.5 text-right cifre",
                   dati.totaleAssenze > 0 ? "text-warning" : "text-faint",
                 )}
               >
                 {ore(dati.totaleAssenze)}
               </td>
               {dati.causali.map((c) => (
-                <td key={c} className="px-3 py-2.5 text-right tabular-nums">
+                <td key={c} className="px-3 py-2.5 text-right cifre">
                   {ore(dati.totalePerCausale[c] ?? 0)}
                 </td>
               ))}

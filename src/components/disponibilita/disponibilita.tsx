@@ -21,7 +21,7 @@ import {
 } from "@/lib/disponibilita";
 import type { Disponibilita as Riga } from "@/lib/types";
 import { addDays } from "@/lib/week";
-import { cn } from "@/lib/utils";
+import { BARRA_AZIONI, cn } from "@/lib/utils";
 
 const MESI = [
   "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
@@ -152,7 +152,11 @@ export function Disponibilita({
         nota,
       });
       if (!esito.ok) return void toast.error(esito.error);
-      finito(scelti.size === 1 ? "Giorno segnato." : `${scelti.size} giorni segnati.`);
+      finito(
+        scelti.size === 1
+          ? "Giorno segnato. Da adesso il responsabile lo vede."
+          : `${scelti.size} giorni segnati. Da adesso il responsabile li vede.`,
+      );
     });
 
   const segnaOre = () =>
@@ -165,18 +169,18 @@ export function Disponibilita({
         nota,
       });
       if (!esito.ok) return void toast.error(esito.error);
-      finito("Ore segnate.");
+      finito("Ore segnate. Da adesso il responsabile le vede.");
     });
 
   const togli = () =>
     start(async () => {
       const esito = await togliDisponibilita({ profile_id: mioId, giorni: [...scelti] });
       if (!esito.ok) return void toast.error(esito.error);
-      finito("Tolto.");
+      finito("Tolto. Da adesso il responsabile vede la casella libera.");
     });
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4">
       <div>
         <h1 className="text-[19px] font-semibold tracking-tight">{parole.titolo}</h1>
         <p className="text-[13.5px] text-muted">{parole.spiega}</p>
@@ -210,7 +214,7 @@ export function Disponibilita({
           {settimane[0].map((g) => (
             <p
               key={g}
-              className="px-1 py-2 text-center text-[11px] font-medium capitalize text-faint"
+              className="px-1 py-2 text-center text-[12px] font-medium capitalize text-faint"
             >
               {dayShort(fromISODate(g))}
             </p>
@@ -253,7 +257,7 @@ export function Disponibilita({
                   <span className="flex items-center gap-1 px-0.5">
                     <span
                       className={cn(
-                        "text-[11.5px] tabular-nums",
+                        "text-[12px] cifre",
                         isToday(fromISODate(g))
                           ? "font-semibold text-accent"
                           : delMese
@@ -274,7 +278,7 @@ export function Disponibilita({
                   {stato ? (
                     <span
                       className={cn(
-                        "mt-0.5 block truncate rounded px-1 py-0.5 text-[10.5px] font-medium leading-tight",
+                        "mt-0.5 block truncate rounded px-1 py-0.5 text-[12px] font-medium leading-tight",
                         verso === "non_posso"
                           ? "bg-danger-soft text-danger"
                           : "bg-success-soft text-success",
@@ -301,7 +305,7 @@ export function Disponibilita({
 
       {/* ------------------------------------ la barra di quello che hai scelto */}
       {scelti.size > 0 ? (
-        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 py-3 shadow-float backdrop-blur">
+        <div className={BARRA_AZIONI}>
           <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
             <p className="mr-auto text-[13px] font-medium">
               {scelti.size === 1 ? "1 giorno scelto" : `${scelti.size} giorni scelti`}

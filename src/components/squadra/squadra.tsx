@@ -171,7 +171,11 @@ export function Squadra({
               className={cn(
                 "flex items-center gap-3 px-4 py-3.5",
                 i > 0 && "border-t border-border",
-                !p.active && "opacity-55",
+                // Chi e' sospeso lo dice la pastiglia «sospeso» qui sotto,
+                // non lo sbiadire della riga: a opacity-55 il nome scendeva
+                // a 4,06 e l'email a 2,56, e la riga di una persona sospesa
+                // e' esattamente quella che si sta leggendo per decidere se
+                // riattivarla.
               )}
             >
               <div className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">
@@ -187,30 +191,30 @@ export function Squadra({
                   <p className="truncate text-[14.5px] font-medium">{p.full_name}</p>
                   {reparto ? (
                     <span
-                      className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide"
+                      className="pastiglia-reparto rounded-full px-2 py-0.5 text-[12px] font-medium uppercase tracking-wide"
                       style={{ ["--tinta" as string]: reparto.hue }}
                     >
                       {reparto.name}
                     </span>
                   ) : null}
                   {p.role === "capo" ? (
-                    <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-medium text-muted">
+                    <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium text-muted">
                       responsabile
                     </span>
                   ) : null}
                   {!p.active ? (
-                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[12px] font-medium text-warning">
                       sospeso
                     </span>
                   ) : null}
                   {assenzaAperta(assenze, p.id) ? (
-                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[12px] font-medium text-warning">
                       {ETICHETTA(assenzaAperta(assenze, p.id)?.type)}
                     </span>
                   ) : null}
                   {!p.user_id ? (
                     <span
-                      className="rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-medium text-muted"
+                      className="rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium text-muted"
                       title="Sta in squadra e va in turno, ma non può entrare nell'app"
                     >
                       nessun accesso
@@ -218,7 +222,7 @@ export function Squadra({
                   ) : null}
                   {p.must_change_password ? (
                     <span
-                      className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent"
+                      className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent"
                       title="Non ha ancora fatto il primo accesso"
                     >
                       password provvisoria
@@ -467,7 +471,7 @@ function EditDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Persona rimossa.");
+      toast.success("Persona rimossa: non la puoi più mettere in turno.");
       onDone();
     });
   }

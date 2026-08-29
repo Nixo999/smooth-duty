@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCapo } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -37,7 +38,7 @@ export async function salvaReparto(input: RepartoInput): Promise<ActionResult> {
   if (error) {
     return {
       ok: false,
-      error: error.code === "23505" ? "Esiste già un reparto con questo nome." : error.message,
+      error: error.code === "23505" ? "Esiste già un reparto con questo nome." : messaggioErrore(error),
     };
   }
 
@@ -54,7 +55,7 @@ export async function eliminaReparto(id: string): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("departments").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/supervisione");
   revalidatePath("/squadra");
@@ -102,7 +103,7 @@ export async function salvaFascia(input: FasciaInput): Promise<ActionResult> {
     ? await supabase.from("coverage_bands").update(riga).eq("id", id)
     : await supabase.from("coverage_bands").insert(riga);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/supervisione");
   return { ok: true };
@@ -113,7 +114,7 @@ export async function eliminaFascia(id: string): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("coverage_bands").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/supervisione");
   return { ok: true };

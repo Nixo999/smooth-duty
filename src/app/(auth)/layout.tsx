@@ -1,4 +1,5 @@
 import { CalendarDays } from "lucide-react";
+import { NOME_PRODOTTO } from "@/app/layout";
 import { ThemeToggle } from "@/components/ui/theme";
 
 export default function AuthLayout({
@@ -13,7 +14,11 @@ export default function AuthLayout({
           <div className="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">
             <CalendarDays className="size-4" />
           </div>
-          <span className="text-[15px] font-semibold tracking-tight">Turni</span>
+          {/* L'unico posto in cui il prodotto si nomina prima del ruolo: vale
+              per login, password dimenticata, cambia password e atterraggio. */}
+          <span className="text-[15px] font-semibold tracking-tight">
+            {NOME_PRODOTTO}
+          </span>
         </div>
         <ThemeToggle />
       </header>

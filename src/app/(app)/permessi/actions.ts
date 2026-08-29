@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CODICI_CAUSALE } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -23,7 +24,7 @@ const richiestaSchema = z
   .object({
     type: z
       .string()
-      .refine((v) => CODICI_CAUSALE.includes(v), "Causale non riconosciuta."),
+      .refine((v) => CODICI_CAUSALE.includes(v), "Motivo non riconosciuto."),
     start_date: giorno,
     end_date: giorno,
     note: z.string().trim().max(300).optional().or(z.literal("")),
@@ -54,7 +55,7 @@ export async function chiediPermesso(input: RichiestaInput): Promise<ActionResul
     end_date: v.end_date,
     note: v.note?.trim() || null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/permessi");
   return { ok: true };
@@ -72,7 +73,7 @@ export async function ritiraRichiesta(id: string): Promise<ActionResult> {
     .eq("id", id)
     .eq("profile_id", user.id)
     .eq("status", "richiesta");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
   if (!count) {
     return { ok: false, error: "Questa richiesta è già stata decisa: parlane col responsabile." };
   }
@@ -96,7 +97,7 @@ export async function decidiRichiesta(
     .select("id, profile_id, type, start_date, end_date, note, status, absence_id")
     .eq("id", id)
     .maybeSingle();
-  if (erroreLettura) return { ok: false, error: erroreLettura.message };
+  if (erroreLettura) return { ok: false, error: messaggioErrore(erroreLettura) };
   if (!richiesta) return { ok: false, error: "Richiesta non trovata." };
 
   const statoNuovo = approva ? "approvata" : "rifiutata";
@@ -118,7 +119,7 @@ export async function decidiRichiesta(
       })
       .select("id")
       .single();
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
     absenceId = assenza.id;
   } else if (richiesta.absence_id) {
     // Era approvata: la revoca porta via anche l'assenza che aveva creato.
@@ -126,7 +127,7 @@ export async function decidiRichiesta(
       .from("absences")
       .delete()
       .eq("id", richiesta.absence_id);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
     absenceId = null;
   }
 
@@ -134,7 +135,7 @@ export async function decidiRichiesta(
     .from("vacation_requests")
     .update({ status: statoNuovo, absence_id: absenceId, decided_by: capo.id })
     .eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   aggiorna();
   return { ok: true };

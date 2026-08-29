@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { ErroreLeggibile } from "@/lib/errori";
 import Papa from "papaparse";
 
 /** Il contenuto grezzo di un foglio: righe di celle, niente interpretazione.
@@ -54,7 +55,7 @@ export async function readSpreadsheet(
   }
 
   if (name.endsWith(".xls")) {
-    throw new Error(
+    throw new ErroreLeggibile(
       "Il formato .xls è quello vecchio di Excel. Aprilo e salvalo come .xlsx, poi ricaricalo.",
     );
   }
@@ -67,7 +68,7 @@ export async function readSpreadsheet(
     (sheet ? workbook.worksheets.find((w) => w.name === sheet) : null) ??
     workbook.worksheets[0];
 
-  if (!worksheet) throw new Error("Il file non contiene nessun foglio.");
+  if (!worksheet) throw new ErroreLeggibile("Il file non contiene nessun foglio.");
 
   const width = Math.max(worksheet.columnCount, 1);
   const grid: Grid = [];

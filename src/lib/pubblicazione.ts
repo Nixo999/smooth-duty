@@ -20,10 +20,19 @@
  *  ore da chi è in malattia da lunedì bloccherebbe la pubblicazione per
  *  sempre, e quelle ore non le deve nessuno. La proporzione sui giorni è la
  *  stessa del Prospetto (`ore × giorni / 7`), e per la stessa ragione: di un
- *  giorno di assenza non si sa quante ore avrebbe avuto. */
+ *  giorno di assenza non si sa quante ore avrebbe avuto.
+ *
+ *  ⚠️ Un turno **rifiutato** non conta fra le ore fatte, come non conta nel
+ *  totale che il dipendente legge sul telefono, nel monte ore a tabellone e
+ *  nel Prospetto: quali ore si faranno davvero lo dice `lib/ore-effettive.ts`,
+ *  e lo dice per tutti e quattro. La conseguenza si vede: una settimana con
+ *  un no ancora aperto torna a chiedere conferma prima di pubblicare le
+ *  modifiche. È voluto — è esattamente il caso in cui il buco c'è — e si
+ *  passa oltre con lo stesso «pubblica lo stesso» di sempre. */
 
-import { assenzaDelGiorno, type AssenzaInput } from "@/lib/assenze";
+import { type AssenzaInput, assenzaDelGiorno } from "@/lib/assenze";
 import { durationMinutes } from "@/lib/date";
+import { siLavoreraDavvero } from "@/lib/ore-effettive";
 
 export type PersonaContratto = {
   id: string;
@@ -38,6 +47,10 @@ export type TurnoMinuti = {
   date: string;
   start_time: string;
   end_time: string;
+  /** Valorizzata = la persona ha detto di no. Vale da sola: il database
+   *  rifiuta un no su un turno che non chiedeva una risposta
+   *  (`rifiuta_turno`, `richiede_conferma is not null`). */
+  rifiutato_at: string | null;
 };
 
 export type SottoContratto = {
@@ -77,9 +90,11 @@ export function chiStaSottoContratto(input: {
         (t) =>
           t.profile_id === p.id &&
           giorni.includes(t.date) &&
-          // I turni di chi è assente quel giorno non li fa nessuno: contarli
-          // farebbe passare per completa una settimana che non lo è.
-          presenti.includes(t.date),
+          // Assente quel giorno, o ha detto di no: in tutti e due i casi
+          // quelle ore non le fa nessuno, e contarle spegnerebbe l'avviso
+          // proprio nel caso in cui il buco esiste davvero — cioè quello
+          // che questa domanda serve a trovare.
+          siLavoreraDavvero(t, assenze),
       )
       .reduce((n, t) => n + durationMinutes(t.start_time, t.end_time), 0);
 

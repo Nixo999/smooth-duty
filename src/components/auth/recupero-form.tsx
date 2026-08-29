@@ -20,7 +20,9 @@ export function RecuperoForm() {
           <MailCheck className="mt-0.5 size-4 shrink-0" />
           <div className="text-[13.5px]">
             <p className="font-medium">Se quell&apos;indirizzo è di un account, la mail è partita.</p>
-            <p className="mt-1 opacity-90">
+            {/* Senza opacity: e' la riga che dice cosa fare adesso. Quella
+                sopra si stacca gia' col grassetto. */}
+            <p className="mt-1">
               Apri il link che trovi dentro e scegli la password nuova. Se non
               arriva entro qualche minuto guarda nella posta indesiderata.
             </p>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Permessi } from "@/components/permessi/permessi";
+import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireMember } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
@@ -78,8 +79,30 @@ export default async function PermessiPage({
       .maybeSingle(),
   ]);
 
+  // Prima di qualunque cosa: se una lettura non e' riuscita si dice, invece
+  // di disegnare un calendario che sembra vero. Un elenco di richieste vuoto
+  // per errore si legge «nessuno ha chiesto niente» — e chi aspetta una
+  // risposta continua ad aspettarla.
+  if (richieste.error) {
+    return <ErroreDati cosa="le richieste" dettaglio={richieste.error.message} />;
+  }
+  if (persone.error) {
+    return <ErroreDati cosa="le persone" dettaglio={persone.error.message} />;
+  }
+  if (reparti.error) {
+    return <ErroreDati cosa="i reparti" dettaglio={reparti.error.message} />;
+  }
+  if (assenze.error) {
+    return <ErroreDati cosa="le assenze" dettaglio={assenze.error.message} />;
+  }
+  if (impostazioni.error) {
+    return <ErroreDati cosa="le impostazioni" dettaglio={impostazioni.error.message} />;
+  }
+
   // L'azienda puo' non usare i Permessi: dal menu spariscono, e dal loro
-  // indirizzo si torna ai Turni.
+  // indirizzo si torna ai Turni. Il controllo qui sopra e' quello che rende
+  // vero questo redirect: senza, con la lettura fallita si tornava ai Turni
+  // per un default, non per una scelta dell'azienda.
   const imp = normalizzaImpostazioni(impostazioni.data as never);
   if (!imp.pagina_permessi) redirect("/turni");
 

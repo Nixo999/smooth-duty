@@ -269,7 +269,7 @@ function Contenuto({
               if (!scelto) setDepartmentId(proposto(e.target.value));
             }}
           >
-            <option value="">— Turno scoperto —</option>
+            <option value="">— Scoperto —</option>
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.full_name}

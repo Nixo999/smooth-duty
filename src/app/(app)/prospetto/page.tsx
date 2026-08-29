@@ -8,7 +8,11 @@ import {
   COLONNE_IMPOSTAZIONI,
   normalizzaImpostazioni,
 } from "@/lib/impostazioni";
-import { calcolaProspetto, type Livello } from "@/lib/prospetto";
+import {
+  calcolaProspetto,
+  type Livello,
+  type TurnoProspetto,
+} from "@/lib/prospetto";
 import { createClient } from "@/lib/supabase/server";
 import type { Absence, Department, Profile } from "@/lib/types";
 import { addDays } from "@/lib/week";
@@ -61,7 +65,9 @@ export default async function ProspettoPage({
       .order("position"),
     supabase
       .from("shifts")
-      .select("profile_id, date, start_time, end_time")
+      // `rifiutato_at` serve al conto: un turno che la persona ha rifiutato
+      // resta a tabellone, ma quelle ore non le fa nessuno.
+      .select("profile_id, date, start_time, end_time, rifiutato_at")
       .eq("company_id", capo.company_id)
       .gte("date", da)
       .lte("date", a),
@@ -98,12 +104,7 @@ export default async function ProspettoPage({
     a,
     persone: (persone.data ?? []) as Profile[],
     reparti: (reparti.data ?? []) as Department[],
-    turni: (turni.data ?? []) as {
-      profile_id: string | null;
-      date: string;
-      start_time: string;
-      end_time: string;
-    }[],
+    turni: (turni.data ?? []) as TurnoProspetto[],
     assenze: (assenze.data ?? []) as Absence[],
   });
 

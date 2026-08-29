@@ -241,7 +241,7 @@ function Riga({
               <RotateCcw className="mt-0.5 size-3.5 shrink-0 text-success" />
               <span>
                 Il turno è tornato com&apos;era:{" "}
-                <strong className="tabular-nums text-text">
+                <strong className="orario text-text">
                   {m.turno_prima.start_time}–{m.turno_prima.end_time}
                 </strong>
                 {/* Il giorno solo se il ripristino lo riporta indietro:

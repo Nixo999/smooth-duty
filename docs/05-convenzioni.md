@@ -75,6 +75,7 @@ producono bug che sembrano fantasmi.
 | `lib/conferme.ts` | a che punto sta un turno rifiutabile? |
 | `lib/supervisione/trascina.ts` | dove finisce una barra trascinata? |
 | `lib/generazione.ts` | chi mettere sui buchi di una settimana? |
+| `lib/ore-effettive.ts` | questo turno lo farà davvero qualcuno? |
 | `lib/pubblicazione.ts` | chi sta sotto le sue ore da contratto? |
 | `lib/disponibilita.ts` | a chi è a chiamata, questo turno si può dare? |
 

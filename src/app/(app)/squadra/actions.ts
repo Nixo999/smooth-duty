@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCapo } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   creaPersoneDaElenco,
@@ -188,7 +189,7 @@ export async function creaAccesso(
 
   if (updateError) {
     await admin.auth.admin.deleteUser(creato.user.id);
-    return { ok: false, error: updateError.message };
+    return { ok: false, error: messaggioErrore(updateError) };
   }
 
   aggiorna();
@@ -257,10 +258,10 @@ export async function modificaPersona(
     .update({ full_name: fullName, role, active, ...campi })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   const errore = await sincronizzaReparti(id, reparti);
-  if (errore) return { ok: false, error: errore.message };
+  if (errore) return { ok: false, error: messaggioErrore(errore) };
 
   aggiorna();
   return { ok: true };
@@ -302,13 +303,13 @@ export async function reimpostaPassword(
     .from("profiles")
     .update({ must_change_password: true })
     .eq("id", profileId);
-  if (flagError) return { ok: false, error: flagError.message };
+  if (flagError) return { ok: false, error: messaggioErrore(flagError) };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(persona.user_id, {
     password,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   aggiorna();
   return { ok: true };
@@ -334,7 +335,7 @@ export async function rimuoviPersona(id: string): Promise<ActionResult> {
     .delete({ count: "exact" })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
   if (!count) return { ok: false, error: "Persona non trovata." };
 
   // L'account di accesso vive in auth.users e non viene toccato dal delete
@@ -408,7 +409,7 @@ export async function commutaAttiva(
     .update({ active: parsed.data.attiva })
     .eq("id", parsed.data.id)
     .eq("company_id", capo.company_id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   aggiorna();
   return { ok: true };

@@ -1,4 +1,5 @@
 import { Squadra } from "@/components/squadra/squadra";
+import { ErroreDati } from "@/components/ui/errore-dati";
 import { requireCapo } from "@/lib/auth";
 import {
   COLONNE_ASSENZA,
@@ -35,6 +36,21 @@ export default async function SquadraPage() {
       .eq("company_id", capo.company_id)
       .is("end_date", null),
   ]);
+
+  // Le tre letture si controllano tutte, e non e' zelo: una squadra vuota per
+  // errore e' indistinguibile da un'azienda appena creata, i reparti mancanti
+  // fanno sembrare tutti senza reparto, e le assenze mancanti mettono al
+  // lavoro chi e' a casa in malattia. Il vuoto vero si vede lo stesso: e'
+  // `data` vuoto **senza** errore.
+  if (persone.error) {
+    return <ErroreDati cosa="le persone" dettaglio={persone.error.message} />;
+  }
+  if (reparti.error) {
+    return <ErroreDati cosa="i reparti" dettaglio={reparti.error.message} />;
+  }
+  if (assenze.error) {
+    return <ErroreDati cosa="le assenze" dettaglio={assenze.error.message} />;
+  }
 
   return (
     <Squadra

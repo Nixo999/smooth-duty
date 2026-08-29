@@ -25,8 +25,9 @@ const persona = (nome, o = {}) => ({
   contract_hours: o.ore === undefined ? 40 : o.ore,
   on_call: o.chiamata ?? false,
 });
-const turno = (chi, giorno, da, a) => ({
+const turno = (chi, giorno, da, a, rifiutato = null) => ({
   profile_id: chi, date: giorno, start_time: da, end_time: a,
+  rifiutato_at: rifiutato,
 });
 /** N turni da 8 ore, uno per giorno, a partire da lunedi'. */
 const giornate = (chi, quante) =>
@@ -124,6 +125,22 @@ uguale(
     turni: [turno("anna", "2026-08-27", "09:00:00", "17:00:00"),
             turno("anna", "2026-08-28", "09:00:00", "17:00:00")],
     assenze: [assenza("anna", "2026-08-26")],
+  }),
+);
+
+/* -------------------------------------------------------------- rifiuti */
+
+uguale(
+  "un turno rifiutato non conta fra le ore fatte: quelle ore mancano",
+  ["Anna: mancano 480 min su 2400"],
+  chiManca({
+    persone: [persona("Anna")],
+    // Cinque giornate da otto ore, ma il giovedi' e' stato rifiutato.
+    turni: [
+      ...giornate("anna", 3),
+      turno("anna", "2026-08-27", "09:00:00", "17:00:00", "2026-08-25T10:00:00Z"),
+      turno("anna", "2026-08-28", "09:00:00", "17:00:00"),
+    ],
   }),
 );
 

@@ -347,7 +347,7 @@ function FormFascia({
           defaultValue={fascia ? hhmm(fascia.start_time) : "09:00"}
           required
           aria-label="Dalle"
-          className="h-9 w-[6.5rem] text-[13px]"
+          className="h-9 w-[6.5rem] text-[13px] cifre"
         />
         <Input
           name="end_time"
@@ -355,7 +355,7 @@ function FormFascia({
           defaultValue={fascia ? hhmm(fascia.end_time) : "15:00"}
           required
           aria-label="Alle"
-          className="h-9 w-[6.5rem] text-[13px]"
+          className="h-9 w-[6.5rem] text-[13px] cifre"
         />
         <div className="flex items-center gap-1">
           <Input

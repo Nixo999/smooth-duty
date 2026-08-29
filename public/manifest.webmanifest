@@ -1,14 +1,14 @@
 {
-  "name": "Turni",
-  "short_name": "Turni",
+  "name": "DenkiShift",
+  "short_name": "DenkiShift",
   "description": "Pianificazione turni per squadre e aziende.",
   "lang": "it",
   "start_url": "/turni",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f2f2f5",
-  "theme_color": "#0071e3",
+  "background_color": "#e9ebf0",
+  "theme_color": "#e9ebf0",
   "icons": [
     { "src": "/icone/icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icone/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

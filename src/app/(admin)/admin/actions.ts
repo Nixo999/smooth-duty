@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { creaPersoneDaElenco } from "@/lib/persone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -159,7 +160,7 @@ export async function rinominaAzienda(
     .update({ name: trimmed })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/admin");
   return { ok: true };
@@ -176,7 +177,7 @@ export async function eliminaAzienda(id: string): Promise<ActionResult> {
     .select("id")
     .eq("company_id", id);
 
-  if (readError) return { ok: false, error: readError.message };
+  if (readError) return { ok: false, error: messaggioErrore(readError) };
 
   if (people?.some((p) => p.id === viewer.userId)) {
     return {
@@ -187,7 +188,7 @@ export async function eliminaAzienda(id: string): Promise<ActionResult> {
 
   // Turni e profili se ne vanno per cascata insieme all'azienda.
   const { error } = await supabase.from("companies").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   // Gli account di accesso vivono in auth.users, che la cascata non tocca:
   // senza questo passaggio resterebbero login orfani, capaci di autenticarsi
@@ -290,12 +291,12 @@ export async function reimpostaPassword(
     .update({ must_change_password: true }, { count: "exact" })
     .eq("id", profileId);
 
-  if (flagError) return { ok: false, error: flagError.message };
+  if (flagError) return { ok: false, error: messaggioErrore(flagError) };
   if (!count) return { ok: false, error: "Persona non trovata." };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(profileId, { password });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/admin");
   return { ok: true };

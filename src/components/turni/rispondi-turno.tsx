@@ -50,7 +50,7 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
         router.refresh();
         return;
       }
-      toast.success("Turno accettato.");
+      toast.success("Turno accettato. Il responsabile vede che hai risposto.");
       router.refresh();
     });
 
@@ -66,7 +66,7 @@ export function RispondiTurno({ turnoId }: { turnoId: string }) {
         return;
       }
       chiudi();
-      toast.success("Rifiuto inviato: il responsabile è stato avvisato.");
+      toast.success("Rifiuto inviato. Il responsabile lo trova nei suoi messaggi, dentro l'app.");
       router.refresh();
     });
 

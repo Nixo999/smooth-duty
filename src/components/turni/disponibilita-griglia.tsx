@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarClock, Check, Clock, Trash2, X } from "lucide-react";
+import { CalendarClock, Check, Clock, Trash2, Users, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
@@ -22,7 +23,7 @@ import {
   type StatoGiorno,
 } from "@/lib/disponibilita";
 import type { Disponibilita } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { BARRA_AZIONI, cn } from "@/lib/utils";
 
 /** Le disponibilità di chi è a chiamata, **dentro il tabellone**.
  *
@@ -171,15 +172,21 @@ export function DisponibilitaGriglia({
         <CalendarClock className="mx-auto size-6 text-faint" />
         <p className="mt-2 text-[14px] font-medium">Nessuno lavora a chiamata</p>
         <p className="mt-1 text-[13px] text-muted">
-          Questa vista è di chi ha «a chiamata» nella sua scheda. Il tipo di
-          contratto si sceglie in Squadra.
+          Qui compaiono i giorni in cui chi lavora a chiamata può essere messo in
+          turno. Il tipo di contratto si sceglie nella scheda della persona.
         </p>
+        <Link href="/squadra" className="mt-3 inline-block">
+          <Button size="sm">
+            <Users className="size-4" />
+            Apri la Squadra
+          </Button>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-3">
       <p className="rounded-xl bg-surface-2 px-3.5 py-2.5 text-[12.5px] text-muted">
         {verso === "non_posso" ? (
           <>
@@ -228,7 +235,7 @@ export function DisponibilitaGriglia({
                   </p>
                   <p
                     className={cn(
-                      "text-[15px] font-semibold tabular-nums",
+                      "text-[15px] font-semibold cifre",
                       today && "text-accent",
                     )}
                   >
@@ -265,7 +272,7 @@ export function DisponibilitaGriglia({
                     >
                       <Pastiglia stato={stato} verso={verso} />
                       {conTurno(p.id, day) ? (
-                        <span className="text-[10.5px] text-faint">
+                        <span className="text-[12px] text-faint">
                           ha un turno
                         </span>
                       ) : null}
@@ -327,7 +334,7 @@ export function DisponibilitaGriglia({
 
       {/* ------------------------------------ la barra di quello che hai scelto */}
       {scelte.size > 0 ? (
-        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 py-3 shadow-float backdrop-blur">
+        <div className={BARRA_AZIONI}>
           <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2">
             <p className="mr-auto text-[13px] font-medium">
               {scelte.size === 1 ? "1 casella scelta" : `${scelte.size} caselle scelte`}
@@ -443,7 +450,7 @@ function Pastiglia({
   if (!stato) {
     if (verso === "non_posso") return null;
     return (
-      <span className="truncate rounded px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-faint">
+      <span className="truncate rounded px-1.5 py-0.5 text-[12px] font-medium uppercase tracking-wide text-faint">
         nessuna disp.
       </span>
     );
@@ -452,7 +459,7 @@ function Pastiglia({
   return (
     <span
       className={cn(
-        "truncate rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight",
+        "truncate rounded px-1.5 py-0.5 text-[12px] font-medium leading-tight",
         verso === "non_posso"
           ? "bg-danger-soft text-danger"
           : "bg-success-soft text-success",

@@ -76,6 +76,7 @@ import {
   timeRange,
 } from "@/lib/date";
 import { assenzaDelGiorno, ETICHETTA } from "@/lib/assenze";
+import { siLavoreraDavvero } from "@/lib/ore-effettive";
 import { Modal } from "@/components/ui/modal";
 import type { SottoContratto } from "@/lib/pubblicazione";
 import type {
@@ -118,7 +119,7 @@ function OreDellaRiga({ minuti, riga }: { minuti: number; riga: Riga }) {
   return (
     <p
       className={cn(
-        "text-[12px] tabular-nums",
+        "text-[12px] cifre",
         // Sopra le ore e' un costo (arancio), sotto e' un buco nel
         // contratto (rosso): sono i due numeri che il responsabile cerca.
         oltre ? "text-warning" : sotto ? "text-danger" : "text-faint",
@@ -200,7 +201,7 @@ export function Roster({
         return;
       }
       setSottoContratto(null);
-      toast.success("Settimana pubblicata: ora i dipendenti la vedono.");
+      toast.success("Settimana pubblicata. Da adesso i tuoi la vedono sul telefono.");
       router.refresh();
     });
   const [draft, setDraft] = React.useState<ShiftDraft | null>(null);
@@ -524,12 +525,12 @@ export function Roster({
       } else {
         toast.success(
           [
-            "Modifiche applicate.",
+            "Modifiche pubblicate. Da adesso i tuoi vedono la settimana aggiornata.",
             richieste > 0
               ? `${richieste} ${richieste === 1 ? "turno vale" : "turni valgono"} da subito, ma ${richieste === 1 ? "l'interessato può rifiutarlo" : "gli interessati possono rifiutarli"}: se succede te lo dicono i messaggi.`
               : null,
             avvisi > 0
-              ? `${avvisi} ${avvisi === 1 ? "persona è stata avvisata" : "persone sono state avvisate"} di quello che le è stato tolto.`
+              ? `${avvisi} ${avvisi === 1 ? "persona trova" : "persone trovano"} nell'app quello che ${avvisi === 1 ? "le" : "gli"} è stato tolto.`
               : null,
           ]
             .filter(Boolean)
@@ -583,8 +584,8 @@ export function Roster({
       });
       toast.success(
         ritratto
-          ? "Settimana svuotata: torna in bozza. Finché resti qui, la freccia indietro la rimette com'era."
-          : "Settimana svuotata: torna in bozza.",
+          ? "Settimana svuotata: torna a vederla solo tu. Finché resti qui, la freccia indietro la rimette com'era."
+          : "Settimana svuotata: torna a vederla solo tu.",
       );
       router.refresh();
     });
@@ -703,9 +704,14 @@ export function Roster({
       // sposta una data nel pannello — e sommarla qui gonfierebbe un monte
       // ore per un turno che in questo tabellone non si vede nemmeno.
       if (!days.includes(s.date)) continue;
-      // Le ore di chi e' assente non si sommano: il monte ore deve dire
-      // quanto lavorera' davvero, non quanto era stato messo in programma.
-      if (assenzaDelGiorno(assenze, s.profile_id, s.date)) continue;
+      // Assente quel giorno, o ha detto di no: in tutti e due i casi quelle
+      // ore non le fa nessuno, e il monte ore deve dire quanto si lavorera'
+      // davvero, non quanto era stato messo in programma. La domanda sta in
+      // un posto solo (`lib/ore-effettive.ts`) perche' la fanno anche la
+      // schermata del dipendente, il Prospetto e il controllo prima di
+      // pubblicare: due numeri diversi sulla stessa persona e sulla stessa
+      // settimana insegnano a non fidarsi di nessuno dei due.
+      if (!siLavoreraDavvero(s, assenze)) continue;
       const key = s.profile_id ?? UNASSIGNED;
       totals.set(key, (totals.get(key) ?? 0) + durationMinutes(s.start_time, s.end_time));
     }
@@ -731,7 +737,7 @@ export function Roster({
       ? [
           {
             id: UNASSIGNED,
-            name: "Da assegnare",
+            name: "Scoperto",
             unassigned: true,
             contratto: null,
             aChiamata: false,
@@ -748,8 +754,8 @@ export function Roster({
   // deve restare intero, altrimenti cercando un nome non si potrebbe piu'
   // assegnare il turno a nessun altro. Il filtro per reparto guarda tutti i
   // reparti in cui la persona puo' lavorare, non solo il principale; la riga
-  // "Da assegnare" resta sempre, perche' nascondere turni scoperti e' il modo
-  // piu' silenzioso di dimenticarli.
+  // "Scoperto" resta sempre, perche' nascondere i turni che non sono di
+  // nessuno e' il modo piu' silenzioso di dimenticarli.
   /** Tipo di contratto: come scritto sulla scheda della persona. */
   const passaTipo = (r: Riga) =>
     !filtroContratto || r.unassigned || r.tipoContratto === filtroContratto;
@@ -933,7 +939,7 @@ export function Roster({
               onChange={(e) => setFiltroOre(e.target.value)}
               className="w-auto min-w-32 sm:h-9"
             >
-              <option value="">Qualsiasi monte ore</option>
+              <option value="">Tutte le ore a settimana</option>
               <option value="oltre">Con straordinari</option>
               <option value="sotto">Sotto le ore</option>
               <option value="pari">In pari</option>
@@ -983,9 +989,9 @@ export function Roster({
                     loading={inLavoro}
                     disabled={sospese.fatte.length === 0}
                   >
-                    Conferma modifiche
+                    Pubblica modifiche
                     {sospese.fatte.length > 0 ? (
-                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[11px] tabular-nums">
+                      <span className="rounded-full bg-accent-fg/20 px-1.5 text-[12px] cifre">
                         {/* I turni toccati, non i gesti: uno svuotamento e'
                             una mossa sola ma venti modifiche. */}
                         {sospese.fatte.flat().length}
@@ -998,7 +1004,7 @@ export function Roster({
                     onClick={() =>
                       setSospese({ monday, attivo: false, fatte: [], annullate: [] })
                     }
-                    title="Scarta le modifiche non confermate"
+                    title="Scarta le modifiche non pubblicate"
                   >
                     <X className="size-3.5" />
                     Annulla
@@ -1011,7 +1017,7 @@ export function Roster({
                   onClick={() =>
                     setSospese({ monday, attivo: true, fatte: [], annullate: [] })
                   }
-                  title="Modifica la settimana pubblicata: le modifiche valgono solo alla conferma"
+                  title="Modifica la settimana pubblicata: le modifiche valgono solo quando le pubblichi"
                 >
                   <PencilLine className="size-3.5" />
                   Modifica
@@ -1024,7 +1030,7 @@ export function Roster({
                     Tutta la settimana?
                   </span>
                   <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
-                    Elimina
+                    Sì, elimina
                   </Button>
                   <Button
                     variant="ghost"
@@ -1096,13 +1102,13 @@ export function Roster({
 
           {vista === "turni" && inBozza ? (
             <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
-              Settimana in bozza, come ogni settimana nuova: i dipendenti la
-              vedranno solo quando premi «Pubblica».
+              Questa settimana la vedi solo tu, come ogni settimana nuova: i
+              tuoi la vedranno quando premi «Pubblica».
             </p>
           ) : vista === "turni" && sospese.attivo ? (
             <p className="rounded-xl bg-accent-soft px-4 py-2.5 text-[13px] font-medium text-accent">
               Stai modificando una settimana pubblicata: i dipendenti vedono
-              ancora la versione di prima, finché non premi «Conferma
+              ancora la versione di prima, finché non premi «Pubblica
               modifiche».
             </p>
           ) : null}
@@ -1163,7 +1169,7 @@ export function Roster({
                       </p>
                       <p
                         className={cn(
-                          "text-[15px] font-semibold tabular-nums",
+                          "text-[15px] font-semibold cifre",
                           today && "text-accent",
                         )}
                       >
@@ -1186,7 +1192,7 @@ export function Roster({
                           {row.name}
                         </p>
                         {row.assenza ? (
-                          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-warning">
+                          <p className="truncate text-[12px] font-medium uppercase tracking-wide text-warning">
                             {ETICHETTA(row.assenza.type)}
                             {row.assenza.end_date === null ? " · in corso" : ""}
                           </p>
@@ -1326,10 +1332,10 @@ export function Roster({
             {sottoContratto.map((p) => (
               <li key={p.id} className="flex items-baseline gap-3 py-2.5">
                 <span className="min-w-0 flex-1 truncate text-[14px]">{p.nome}</span>
-                <span className="shrink-0 text-[13px] font-medium tabular-nums text-warning">
+                <span className="shrink-0 text-[13px] font-medium cifre text-warning">
                   −{formatDuration(p.mancano)}
                 </span>
-                <span className="shrink-0 text-[12.5px] tabular-nums text-muted">
+                <span className="shrink-0 text-[12.5px] cifre text-muted">
                   su {formatDuration(p.dovuti)}
                 </span>
               </li>
@@ -1391,7 +1397,7 @@ function Chip({
       )}
       title={stato ? SPIEGA_CONFERMA[stato] : undefined}
     >
-      <span className="orario flex items-center gap-1 text-[12px] font-semibold tabular-nums">
+      <span className="orario flex items-center gap-1 text-[12px] font-semibold cifre">
         {timeRange(shift.start_time, shift.end_time)}
         {/* Il colore da solo non basta: arancio e verde sono la coppia che
             un daltonismo su rosso e verde appiattisce, e su questa griglia
@@ -1409,8 +1415,11 @@ function Chip({
           <span className="sr-only">{ETICHETTA_CONFERMA[stato]}</span>
         ) : null}
       </span>
+      {/* Senza opacity: e' dove ci si deve presentare. Sta gia' sotto
+          all'orario e senza grassetto, e tanto basta a dire che non e' la
+          riga principale; sbiadito scendeva a 3,31. */}
       {reparto ? (
-        <span className="block truncate text-[11.5px] opacity-80">{reparto}</span>
+        <span className="block truncate text-[12px]">{reparto}</span>
       ) : null}
     </span>
   );
@@ -1469,7 +1478,12 @@ function DayList({
         >
           <CalendarPlus className="size-5" />
           <span className="text-[13.5px]">Nessun turno in questo giorno</span>
-          <span className="text-[12.5px] text-faint">Tocca per aggiungerne uno</span>
+          <span className="text-[12.5px] text-faint">
+            Qui compaiono i turni del giorno, con orario, reparto e chi li fa.
+          </span>
+          <span className="text-[12.5px] font-medium text-accent">
+            Tocca per aggiungerne uno
+          </span>
         </button>
       ) : (
         <ul className="stagger space-y-2">
@@ -1511,11 +1525,11 @@ function DayList({
                         assente(s) && "assente",
                       )}
                     >
-                      <span className="orario text-[15px] font-semibold tabular-nums">
+                      <span className="orario text-[15px] font-semibold cifre">
                         {hhmm(s.start_time)}
                       </span>
                       <span className="text-faint">→</span>
-                      <span className="orario text-[15px] font-semibold tabular-nums">
+                      <span className="orario text-[15px] font-semibold cifre">
                         {hhmm(s.end_time)}
                       </span>
                       {/* Da telefono questa e' l'unica vista del tabellone:
@@ -1561,10 +1575,15 @@ function SegnoDisponibilita({
   /** Lista bianca, e per questo giorno non ha dichiarato niente. */
   chiuso: boolean;
 }) {
+  // Era 10px maiuscolo e spaziato: la misura piu' piccola di tutta l'app, due
+  // gradini sotto il pavimento dei 12px. Alzandola qui il maiuscolo se ne va
+  // insieme alla spaziatura, altrimenti la pastiglia cresce di un quinto e
+  // `truncate` si mangia le parole dentro una riga gia' stretta. In minuscolo
+  // tornano anche le ascendenti, che sono meta' di come si legge una parola.
   if (!stato) {
     if (!chiuso) return null;
     return (
-      <span className="truncate rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">
+      <span className="truncate rounded px-1 py-0.5 text-[12px] font-medium text-faint">
         nessuna disp.
       </span>
     );
@@ -1573,7 +1592,7 @@ function SegnoDisponibilita({
   return (
     <span
       className={cn(
-        "truncate rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+        "truncate rounded px-1 py-0.5 text-[12px] font-medium",
         stato.verso === "non_posso"
           ? "bg-danger-soft text-danger"
           : "bg-success-soft text-success",
@@ -1607,7 +1626,7 @@ function Pastiglia({
     <span
       title={SPIEGA_CONFERMA[stato]}
       className={cn(
-        "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium",
+        "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium",
         stato === "rifiutato"
           ? "bg-danger-soft text-danger"
           : stato === "accettato"

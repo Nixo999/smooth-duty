@@ -14,10 +14,33 @@
    ombre a doversi far carico di tutta la separazione, e su uno schermo poco
    contrastato — o guardato di sbieco in magazzino — non ce la facevano.
 
-   I grigi del testo scendono fino a passare il rapporto di contrasto 4.5
-   dello standard di accessibilita' anche nella misura piu' piccola che
-   usiamo (11px): il grigio chiarissimo di prima era la meta' di quel
-   valore, e le etichette si leggevano solo da vicino. */
+   I grigi del testo passano il rapporto 4.5 dello standard di accessibilita'
+   sul fondo piu' sfavorevole in cui compaiono (--surface-3), non solo sul
+   bianco: e' su quel fondo che stanno le pastiglie grigie.
+
+   ---- Il colore e' una risorsa scarsa e ha un significato solo ------------
+   rosso   (--danger)  c'e' un buco e lo chiudi tu
+   ambra   (--warning) costa, oppure qualcuno non ha ancora risposto
+   verde   (--success) da te non serve niente
+   indaco  (--accent)  azione e selezione, MAI uno stato
+   Una schermata senza problemi e' una schermata grigia.
+
+   ---- Rapporti di contrasto, calcolati (WCAG 2.1, AA = 4.5 per il testo) --
+   Ogni colore e' misurato due volte: sul fondo piu' sfavorevole fra
+   --surface / --surface-2 / --canvas / --surface-3, e sulla propria forma
+   tenue (`bg-danger-soft text-danger` e' la coppia piu' usata dell'app,
+   e la tinta al 11-13% composta sopra --surface-3 e' il caso peggiore).
+
+   TEMA CHIARO      su fondo   su -soft
+   --accent         5,30       4,53      bianco su --accent pieno: 6,60
+   --danger         5,35       4,51
+   --success        5,44       4,53
+   --warning        5,43       4,52
+   --text           14,72      —         (--text-muted 5,91 · --text-faint 4,53)
+
+   I valori di prima fallivano: --accent 4,47 su --surface-3 e 3,85 sulla
+   sua forma tenue, --danger 3,83, --warning 4,20, --text-faint 3,98. Sono
+   stati scuriti quel tanto che basta, a tinta e saturazione invariate. */
 :root {
   --canvas: #e9ebf0;
   --surface: #ffffff;
@@ -27,25 +50,47 @@
   --border-strong: #bfc2cf;
   --text: #14141a;
   --text-muted: #55555f;
-  --text-faint: #6f6f7b;
-  --accent: #0066cc;
-  --accent-hover: #0058b0;
+  --text-faint: #666671;
+  --accent: #005bb7;
+  --accent-hover: #004a96;
   --accent-fg: #ffffff;
-  --accent-soft: rgba(0, 102, 204, 0.11);
-  --danger: #c62828;
-  --danger-soft: rgba(198, 40, 40, 0.11);
-  --success: #146c33;
-  --success-soft: rgba(20, 108, 51, 0.13);
-  --warning: #9a4a08;
-  --warning-soft: rgba(154, 74, 8, 0.13);
-  --ring: rgba(0, 102, 204, 0.4);
+  --accent-soft: rgba(0, 91, 183, 0.11);
+  --danger: #b12424;
+  --danger-soft: rgba(177, 36, 36, 0.11);
+  --success: #146932;
+  --success-soft: rgba(20, 105, 50, 0.13);
+  --warning: #924608;
+  --warning-soft: rgba(146, 70, 8, 0.13);
   --overlay: rgba(20, 20, 26, 0.32);
+
+  /* Ripiego per le barre dei reparti: la tinta vera (0-360) la scrive il JSX
+     riga per riga. Senza questo valore, un punto che dimentica lo style
+     produce un hsl() invalido e la barra resta senza colore. */
+  --tinta: 220;
 
   --shadow-sm: 0 1px 2px rgba(16, 16, 24, 0.07), 0 1px 1px rgba(16, 16, 24, 0.05);
   --shadow-md: 0 4px 14px rgba(16, 16, 24, 0.09), 0 1px 3px rgba(16, 16, 24, 0.06);
   --shadow-lg: 0 24px 60px rgba(16, 16, 24, 0.2), 0 2px 10px rgba(16, 16, 24, 0.09);
 }
 
+/* ---- Rapporti di contrasto del tema scuro, calcolati ---------------------
+   TEMA SCURO       su fondo   su -soft
+   --accent         5,81       4,51
+   --danger         5,70       4,51
+   --success        7,30       5,46
+   --warning        7,87       5,79
+   --text           14,62      —         (--text-muted 5,97 · --text-faint 4,51)
+
+   Due conti che qui cambiavano il risultato:
+   1. --accent e --danger non passavano sulla loro forma tenue (3,66 e 4,35)
+      e --accent nemmeno su --surface-3 pieno (4,44). Sono stati schiariti.
+   2. Schiarendo --accent, il bianco sopra il bottone pieno scendeva a 2,79.
+      In tema scuro non esiste un blu che sia insieme leggibile COME testo su
+      un fondo nero e abbastanza scuro da reggere il bianco SOPRA: le due
+      richieste vanno in direzioni opposte. Quindi qui il primo piano del
+      bottone non e' bianco ma il nero del fondo pagina — 7,18 su --accent,
+      9,13 su --accent-hover. `bg-accent-fg/20` (le pastigliette dentro i
+      bottoni pieni) segue da sola, perche' e' lo stesso colore al 20%. */
 .dark {
   --canvas: #08080a;
   --surface: #121216;
@@ -55,18 +100,17 @@
   --border-strong: #33333d;
   --text: #f3f3f6;
   --text-muted: #9c9caa;
-  --text-faint: #6d6d7a;
-  --accent: #0a84ff;
-  --accent-hover: #3d9dff;
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(10, 132, 255, 0.16);
-  --danger: #ff5f57;
-  --danger-soft: rgba(255, 95, 87, 0.16);
+  --text-faint: #868693;
+  --accent: #3d9eff;
+  --accent-hover: #6ab4ff;
+  --accent-fg: #08080a;
+  --accent-soft: rgba(61, 158, 255, 0.16);
+  --danger: #ff6860;
+  --danger-soft: rgba(255, 104, 96, 0.16);
   --success: #35c759;
   --success-soft: rgba(53, 199, 89, 0.16);
   --warning: #ff9f0a;
   --warning-soft: rgba(255, 159, 10, 0.16);
-  --ring: rgba(10, 132, 255, 0.5);
   --overlay: rgba(0, 0, 0, 0.55);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -99,7 +143,13 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Raggi generosi e costanti: e' la mezza dozzina di pixel che separa
-     "pagina web" da "applicazione". */
+     "pagina web" da "applicazione".
+     ⚠️ Questi cinque valori e le tre ombre qui sotto NON si cambiano insieme
+     ai colori: sono 180 punti di chiamata nel codice (129 raggi + 51 ombre) e
+     cambierebbero tutti in silenzio, senza che nessuna riga di JSX si muova.
+     `rounded-full` invece non dipende da qui: Tailwind emette
+     calc(infinity * 1px), quindi gli 82 punti che la usano restano pastiglie
+     qualunque cosa succeda a questa lista. */
   --radius-sm: 8px;
   --radius-md: 11px;
   --radius-lg: 15px;
@@ -183,6 +233,14 @@
 
   ::selection {
     background: var(--accent-soft);
+  }
+
+  /* Il triangolino nativo di <details>. `list-none` sul <summary> basta su
+     Chrome e Firefox, ma non su Safari prima della 16.4: la' resta, e accanto
+     c'e' gia' la freccia disegnata dall'app. Due frecce che dicono la stessa
+     cosa in versi diversi. */
+  summary::-webkit-details-marker {
+    display: none;
   }
 
   /* I campi data/ora nativi: su telefono aprono il selettore di sistema, che e'
@@ -284,10 +342,32 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* Orari e ore: cifre tutte della stessa larghezza e zero barrato. Una
+     colonna di numeri si legge cosi' per forma, senza metterla a fuoco — che
+     e' come si guarda un telefono in magazzino — e "10:08" non si scambia
+     piu' con "1O:O8". `orario` porta `cifre` dentro di se': e' il gancio che
+     l'app usa per gli orari.
+
+     Dove va: orari, durate, totali di ore, numeri incolonnati — la roba che
+     si confronta per forma, una riga sotto l'altra.
+
+     Dove NON va: prosa, indirizzi email, note e etichette scritte a parole.
+     Lo zero barrato dentro un'email sembra un carattere sbagliato, e una
+     frase in cifre a larghezza fissa si legge peggio, non meglio. Si mette
+     sul pezzo che e' un numero, mai sul paragrafo che lo contiene.
+
+     Una classe sola: `font-feature-settings` sparsi nei componenti si
+     perdono, e il primo che scrive `font-variant-numeric` da un'altra parte
+     spegne questa senza che si veda. */
+  .cifre,
+  .orario {
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+
   /* Segnaposto di caricamento: la forma della pagina prima dei suoi dati.
      Si vede nell'attimo fra il click e la risposta del server. */
   .skeleton {
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
     background: var(--surface-3);
     animation: skeleton-pulse 1.1s ease-in-out infinite;
   }

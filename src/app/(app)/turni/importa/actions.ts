@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCapo } from "@/lib/auth";
+import { ErroreLeggibile, messaggioErrore } from "@/lib/errori";
 import { readSpreadsheet } from "@/lib/import/grid";
 import { parseGrid } from "@/lib/import/parse";
 import type { ParseResult } from "@/lib/import/types";
@@ -34,12 +35,17 @@ export async function analizzaFile(formData: FormData): Promise<AnalisiResult> {
     );
     return { ok: true, result: parseGrid(grid, sheetName, sheetNames) };
   } catch (error) {
+    // Il lettore solleva due specie di errori: quelli scritti per chi carica
+    // il file (il `.xls` da riconvertire, il foglio senza intestazione), che
+    // vanno mostrati come sono, e quelli della libreria che apre l'Excel, che
+    // parlano inglese e di archivi ZIP. Si distinguono dal marcatore, non dal
+    // testo: un elenco di frasi note si scollerebbe al primo ritocco.
+    if (error instanceof ErroreLeggibile) return { ok: false, error: error.message };
     return {
       ok: false,
       error:
-        error instanceof Error
-          ? error.message
-          : "Non è stato possibile leggere il file.",
+        "Questo file non si riesce a leggere, e non è stato importato niente. " +
+        "Controlla che sia un .xlsx o un .csv integro, poi ricaricalo.",
     };
   }
 }
@@ -93,7 +99,7 @@ export async function importaTurni(input: ImportInput): Promise<ImportResult> {
       .eq("company_id", capo.company_id)
       .in("id", wanted);
 
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
     if ((valid?.length ?? 0) !== wanted.length) {
       return {
         ok: false,
@@ -110,7 +116,7 @@ export async function importaTurni(input: ImportInput): Promise<ImportResult> {
       .eq("company_id", capo.company_id)
       .in("date", giorni);
 
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
     rimossi = count ?? 0;
   }
 
@@ -131,12 +137,16 @@ export async function importaTurni(input: ImportInput): Promise<ImportResult> {
     const chunk = rows.slice(i, i + 500);
     const { error } = await supabase.from("shifts").insert(chunk);
     if (error) {
+      // Fermarsi a meta' e' l'unico caso in cui la prima frase non puo'
+      // essere «non e' cambiato niente»: dei turni sono entrati davvero, e
+      // chi legge deve saperlo prima di ricaricare tutto il foglio.
       return {
         ok: false,
         error:
           inseriti === 0
-            ? error.message
-            : `Importati ${inseriti} turni, poi si è fermato: ${error.message}`,
+            ? messaggioErrore(error)
+            : `Importati ${inseriti} turni su ${rows.length}, poi l'importazione si è fermata. ` +
+              `Quelli entrati restano al loro posto: guarda il tabellone e ricarica il foglio con i giorni che mancano.`,
       };
     }
     inseriti += chunk.length;

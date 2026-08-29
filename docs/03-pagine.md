@@ -55,6 +55,63 @@ il perché dei due limiti stanno in [05-convenzioni.md](05-convenzioni.md).
 
 ---
 
+## `/oggi` — la risposta, prima della griglia
+
+**File**: `src/app/(app)/oggi/page.tsx` · **motore**:
+`src/lib/oggi.ts` (`bilancioSettimana`), più `src/lib/supervisione/copertura.ts`
+per la giornata.
+
+Solo capo — al dipendente `requireCapo()` rimanda ai Turni. Colonna unica,
+cinque cose in quest'ordine, e nessun riquadro dentro un riquadro:
+
+1. **la riga di stato** — questa settimana è pubblicata? e **la prossima**?
+   Era il buco più caro: nessun'altra schermata diceva niente della settimana
+   dopo, e chi se ne accorgeva erano i dipendenti il lunedì mattina;
+2. **il numero grande** — le ore che verranno lavorate davvero contro quelle da
+   contratto;
+3. **cosa manca** — ore scoperte, chi sta sotto le sue ore e **chi sta sopra**,
+   coi nomi;
+4. **da decidere** — rifiuti, risposte sulla settimana, richieste di permesso.
+   A zero il blocco non c'è: è lo stesso conto del pallino nel menu;
+5. **oggi** — chi è in turno, chi è assente e con che motivo, i buchi della
+   giornata. È l'unico punto in cui l'app dice una cosa positiva, «giornata
+   coperta», e lo dice **solo** se ci sono fasce di copertura scritte: senza,
+   non c'è niente contro cui misurare la giornata.
+
+Un bottone pieno solo, in fondo: «Apri il tabellone». Ogni altro numero è già
+un link verso il posto dove si rimedia.
+
+### Le due correzioni che questa pagina porta con sé
+
+**Una sola definizione di «ore dovute».** Il Prospetto chiama `attesi` le ore da
+contratto intere; il controllo prima di pubblicare (`lib/pubblicazione.ts`) le
+riduce ai giorni in cui la persona c'è. Affiancati sulla stessa schermata sono
+due numeri per la stessa parola. Qui vale **quella ridotta**, e regge tutt'e
+tre le risposte: il confronto grande, chi sta sotto e chi sta sopra.
+`scripts/prova-oggi.mjs` verifica che l'elenco dei «sotto» sia lo stesso, nome
+per nome e minuto per minuto, di `chiStaSottoContratto`.
+
+⚠️ Resta una divergenza voluta, e va saputa: quando il tabellone decide se un
+salvataggio è uno **straordinario** confronta col contratto **pieno**. Chi è
+stato assente metà settimana può quindi comparire fra i «sopra» di questa
+pagina senza che il tabellone gli abbia chiesto niente.
+
+**E cosa si mostra quando nessuno ha ore da contratto** — lo stato di ogni
+azienda appena creata. Niente divisione per zero e niente rapporto senza
+denominatore: il numero grande diventa le ore a tabellone, e sotto c'è la
+riga che dice cosa manca e dove si scrive.
+
+Legge: `profiles` (attivi) · `shifts` della settimana **più ieri** (un turno
+18:00–02:00 di ieri copre le prime ore di oggi) · `absences` dalla tabella,
+perché qui il motivo serve e lo vede solo il responsabile ·
+`coverage_bands` · `published_weeks` per **due** lunedì · `company_settings` ·
+e tre conteggi: `shift_messages` aperti, `week_requests` decise e non lette,
+`vacation_requests` in stato `richiesta`.
+
+Non ha azioni: non si scrive niente da qui.
+
+---
+
 ## `/turni` — il tabellone
 
 **File**: `src/app/(app)/turni/page.tsx` · `actions.ts` ·

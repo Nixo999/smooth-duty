@@ -27,7 +27,7 @@ export function ConfermaRientro() {
         toast.error(r.error);
         return;
       }
-      toast.success("Rientro confermato.");
+      toast.success("Rientro segnato. Da adesso il responsabile ti può rimettere in turno.");
       setAperto(false);
       router.refresh();
     });
@@ -54,7 +54,7 @@ export function ConfermaRientro() {
         />
       </label>
       <Button size="sm" onClick={conferma} loading={attesa}>
-        Conferma
+        Sono rientrato
       </Button>
       <Button size="sm" variant="ghost" onClick={() => setAperto(false)}>
         Annulla

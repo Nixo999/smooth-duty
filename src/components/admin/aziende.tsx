@@ -83,7 +83,7 @@ export function Aziende({ companies }: { companies: CompanyRow[] }) {
               </div>
 
               <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-                <p className="text-[11px] uppercase tracking-wide text-faint">
+                <p className="text-[12px] uppercase tracking-wide text-faint">
                   Responsabile
                 </p>
                 {c.responsabili.length === 0 ? (
@@ -357,7 +357,7 @@ function Persone({
 
   return (
     <div className="mt-4 rounded-xl border border-border bg-surface-2 p-3.5">
-      <p className="mb-2 text-[11px] uppercase tracking-wide text-faint">
+      <p className="mb-2 text-[12px] uppercase tracking-wide text-faint">
         Persone
       </p>
 
@@ -374,18 +374,18 @@ function Persone({
             >
               <span className="font-medium">{p.full_name}</span>
               {p.role === "capo" ? (
-                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-medium text-muted">
+                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium text-muted">
                   responsabile
                 </span>
               ) : null}
               {!p.user_id ? (
-                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-medium text-muted">
+                <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium text-muted">
                   nessun accesso
                 </span>
               ) : null}
               {p.must_change_password ? (
                 <span
-                  className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent"
+                  className="rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent"
                   title="Non ha ancora fatto il primo accesso"
                 >
                   password provvisoria

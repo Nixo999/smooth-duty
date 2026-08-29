@@ -107,8 +107,8 @@ export function Importa({ people }: { people: Candidate[] }) {
       }
       toast.success(
         response.rimossi > 0
-          ? `${response.inseriti} turni importati, ${response.rimossi} sostituiti.`
-          : `${response.inseriti} turni importati.`,
+          ? `${response.inseriti} turni importati, ${response.rimossi} sostituiti. Restano da pubblicare.`
+          : `${response.inseriti} turni importati. Restano da pubblicare.`,
       );
       router.push(`/turni?s=${result.days[0]}`);
       router.refresh();
@@ -128,7 +128,7 @@ export function Importa({ people }: { people: Candidate[] }) {
         <div>
           <h1 className="text-[19px] font-semibold tracking-tight">Importa turni</h1>
           <p className="text-[13.5px] text-muted">
-            Da un foglio Excel o CSV. Niente viene salvato finché non confermi.
+            Da un foglio Excel o CSV. Niente viene salvato finché non lo dici tu.
           </p>
         </div>
       </div>
@@ -214,16 +214,21 @@ export function Importa({ people }: { people: Candidate[] }) {
                 dire che ho letto male qualche casella: controlla prima di
                 importare.
               </p>
+              {/* `cifre` sui numeri, non sulla riga: lo zero barrato dentro
+                  un cognome sembra un errore di battitura, e la prosa a
+                  larghezza fissa si legge peggio. */}
               <ul className="mt-2 space-y-0.5">
                 {mismatches.slice(0, 6).map((p) => (
                   <li key={p.index}>
                     <strong>{p.fullName}</strong> —{" "}
-                    {p.mismatches
-                      .map(
-                        (m) =>
-                          `${m.date}: nel file ${m.dichiarato}h, calcolate ${m.calcolato.toFixed(2)}h`,
-                      )
-                      .join("; ")}
+                    {p.mismatches.map((m, k) => (
+                      <span key={k}>
+                        {k > 0 ? "; " : ""}
+                        <span className="cifre">{m.date}</span>: nel file{" "}
+                        <span className="cifre">{m.dichiarato}h</span>, calcolate{" "}
+                        <span className="cifre">{m.calcolato.toFixed(2)}h</span>
+                      </span>
+                    ))}
                   </li>
                 ))}
               </ul>
@@ -275,15 +280,17 @@ export function Importa({ people }: { people: Candidate[] }) {
                           {person.fullName}
                         </p>
                         {person.reparto ? (
-                          <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] text-muted">
+                          <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-[12px] text-muted">
                             {person.reparto}
                           </span>
                         ) : null}
                       </div>
+                      {/* `cifre` sul conteggio e sulla durata, non sui codici
+                          delle assenze, che sono lettere. */}
                       <p className="text-[12.5px] text-muted">
-                        {person.shifts.length}{" "}
+                        <span className="cifre">{person.shifts.length}</span>{" "}
                         {person.shifts.length === 1 ? "turno" : "turni"} ·{" "}
-                        {formatDuration(ore)}
+                        <span className="cifre">{formatDuration(ore)}</span>
                         {codici.length ? ` · ${codici.join(", ")}` : ""}
                       </p>
                     </div>
@@ -302,7 +309,7 @@ export function Importa({ people }: { people: Candidate[] }) {
                         }
                       >
                         <option value={IGNORA}>Non importare</option>
-                        <option value={SCOPERTO}>Turno scoperto</option>
+                        <option value={SCOPERTO}>Scoperto</option>
                         {people.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.full_name}
@@ -366,7 +373,7 @@ function Riepilogo({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] uppercase tracking-wide text-faint">{etichetta}</p>
+      <p className="text-[12px] uppercase tracking-wide text-faint">{etichetta}</p>
       <p
         className={cn(
           "truncate text-[14px] font-medium",
@@ -402,7 +409,10 @@ function Avviso({
         <Icon className="size-4" />
         {titolo}
       </p>
-      <div className="opacity-90">{children}</div>
+      {/* Senza opacity: qui dentro c'e' l'elenco degli errori, cioe' la
+          ragione per cui l'avviso esiste. Il titolo si stacca da solo, con
+          l'icona e il grassetto. */}
+      <div>{children}</div>
     </div>
   );
 }

@@ -294,7 +294,7 @@ export function Permessi({
           {settimane[0].map((g) => (
             <p
               key={g}
-              className="px-1 py-2 text-center text-[11px] font-medium capitalize text-faint"
+              className="px-1 py-2 text-center text-[12px] font-medium capitalize text-faint"
             >
               {dayShort(fromISODate(g))}
             </p>
@@ -323,7 +323,7 @@ export function Permessi({
                 >
                   <p
                     className={cn(
-                      "px-0.5 text-[11.5px] tabular-nums",
+                      "px-0.5 text-[12px] cifre",
                       oggi
                         ? "font-semibold text-accent"
                         : delMese
@@ -343,9 +343,9 @@ export function Permessi({
                           key={chiave}
                           type="button"
                           onClick={() => setDettaglio(v)}
-                          title={`${persona?.full_name ?? "?"} · ${ETICHETTA(causaleDi(v))}${v.genere === "richiesta" ? " · con riserva" : ""}`}
+                          title={`${persona?.full_name ?? "?"} · ${ETICHETTA(causaleDi(v))}${v.genere === "richiesta" ? " · in attesa" : ""}`}
                           className={cn(
-                            "tap block w-full truncate rounded px-1 py-0.5 text-left text-[10.5px] font-medium leading-tight",
+                            "tap block w-full truncate rounded px-1 py-0.5 text-left text-[12px] font-medium leading-tight",
                             v.genere === "richiesta"
                               ? "border border-dashed border-warning/60 bg-warning-soft text-warning"
                               : causaleDi(v) === "ferie"
@@ -368,11 +368,11 @@ export function Permessi({
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-6 rounded border border-dashed border-warning/60 bg-warning-soft" />
-          con riserva: aspettano il responsabile
+          in attesa: aspettano il responsabile
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-6 rounded bg-success-soft" />
-          ferie confermate
+          ferie approvate
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-6 rounded bg-accent-soft" />
@@ -427,14 +427,14 @@ function EtichettaStato({ status }: { status: VacationRequest["status"] }) {
   return (
     <span
       className={cn(
-        "rounded-full px-2 py-0.5 text-[11px] font-medium",
+        "rounded-full px-2 py-0.5 text-[12px] font-medium",
         status === "richiesta" && "bg-warning-soft text-warning",
         status === "approvata" && "bg-success-soft text-success",
         status === "rifiutata" && "bg-surface-3 text-muted",
       )}
     >
       {status === "richiesta"
-        ? "con riserva"
+        ? "in attesa"
         : status === "approvata"
           ? "approvata"
           : "rifiutata"}
@@ -466,7 +466,7 @@ function FiltroCausali({
           <ListFilter className="size-3.5" />
           <span className="hidden sm:inline">Mostra</span>
           {spente.size > 0 ? (
-            <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold tabular-nums text-accent-fg">
+            <span className="rounded-full bg-accent px-1.5 text-[12px] font-semibold cifre text-accent-fg">
               {causali.length - spente.size}/{causali.length}
             </span>
           ) : null}
@@ -478,8 +478,8 @@ function FiltroCausali({
           sideOffset={8}
           className="z-40 w-60 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
         >
-          <p className="px-2.5 pb-1 pt-2 text-[11px] uppercase tracking-wide text-faint">
-            Causali da vedere
+          <p className="px-2.5 pb-1 pt-2 text-[12px] uppercase tracking-wide text-faint">
+            Motivi da vedere
           </p>
           {causali.map((c) => (
             <DropdownMenu.CheckboxItem
@@ -526,7 +526,11 @@ function DaConfermare({
         toast.error(esito.error);
         return;
       }
-      toast.success(approva ? "Richiesta approvata." : "Richiesta rifiutata.");
+      toast.success(
+        approva
+          ? "Richiesta approvata. Chi l'ha chiesta la vede approvata nei suoi Permessi."
+          : "Richiesta rifiutata. Chi l'ha chiesta lo vede nei suoi Permessi.",
+      );
       router.refresh();
     });
   };
@@ -534,7 +538,7 @@ function DaConfermare({
   return (
     <div className="overflow-hidden rounded-2xl border border-warning/40 bg-surface shadow-card">
       <p className="border-b border-border bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">
-        Da confermare: {richieste.length}
+        Da approvare: {richieste.length}
       </p>
       <ul className="divide-y divide-border">
         {richieste.map((r) => (
@@ -559,7 +563,7 @@ function DaConfermare({
                 loading={pending && inLavorazione === r.id}
               >
                 <Check className="size-3.5" />
-                Conferma
+                Approva
               </Button>
               <Button
                 variant="secondary"
@@ -639,7 +643,7 @@ function ChiediPermesso({
         toast.error(esito.error);
         return;
       }
-      toast.success("Richiesta inviata: vale quando il responsabile la conferma.");
+      toast.success("Richiesta inviata. Il responsabile la trova nei Permessi e decide lui.");
       onFatto();
     });
   }
@@ -649,7 +653,7 @@ function ChiediPermesso({
       open
       onOpenChange={(o) => !o && onClose()}
       title="Chiedi un permesso"
-      description="La richiesta nasce con riserva: vale quando il responsabile la conferma."
+      description="La richiesta nasce in attesa: vale quando il responsabile la approva."
       footer={
         <>
           <Button type="button" variant="secondary" onClick={onClose}>
@@ -662,7 +666,7 @@ function ChiediPermesso({
       }
     >
       <form id="chiedi-permesso" action={invia} className="space-y-4">
-        <Field label="Causale" htmlFor="permesso-causale">
+        <Field label="Motivo" htmlFor="permesso-causale">
           <Select
             id="permesso-causale"
             value={causale}
@@ -720,7 +724,7 @@ function RegistraAssenza({
         toast.error(esito.error);
         return;
       }
-      toast.success("Assenza registrata.");
+      toast.success("Assenza registrata. Da adesso la persona la vede nei suoi Permessi.");
       onFatto();
     });
   }
@@ -755,7 +759,7 @@ function RegistraAssenza({
             ))}
           </Select>
         </Field>
-        <Field label="Causale" htmlFor="assenza-causale">
+        <Field label="Motivo" htmlFor="assenza-causale">
           <Select
             id="assenza-causale"
             value={causale}
@@ -855,7 +859,7 @@ function Dettaglio({
                         () => decidiRichiesta(voce.richiesta.id, false),
                         voce.richiesta.status === "approvata"
                           ? "Approvazione revocata."
-                          : "Richiesta rifiutata.",
+                          : "Richiesta rifiutata. Chi l'ha chiesta lo vede nei suoi Permessi.",
                       )
                     }
                     loading={pending}
@@ -870,13 +874,13 @@ function Dettaglio({
                     onClick={() =>
                       esegui(
                         () => decidiRichiesta(voce.richiesta.id, true),
-                        "Richiesta approvata.",
+                        "Richiesta approvata. Chi l'ha chiesta la vede approvata nei suoi Permessi.",
                       )
                     }
                     loading={pending}
                   >
                     <Check className="size-3.5" />
-                    Conferma
+                    Approva
                   </Button>
                 ) : null}
               </>
@@ -890,7 +894,7 @@ function Dettaglio({
           <>
             {confermaElimina ? (
               <div className="mr-auto flex items-center gap-2">
-                <span className="text-[13px] text-muted">Sicuro?</span>
+                <span className="text-[13px] text-muted">Elimini l&apos;assenza?</span>
                 <Button
                   type="button"
                   variant="danger"
@@ -900,7 +904,7 @@ function Dettaglio({
                   }
                   loading={pending}
                 >
-                  Elimina
+                  Sì, elimina
                 </Button>
                 <Button
                   type="button"
@@ -970,7 +974,7 @@ function Dettaglio({
                   esegui(
                     () =>
                       chiudiAssenza({ id: voce.assenza.id, primo_giorno: rientro }),
-                    "Rientro registrato.",
+                    "Rientro registrato. Da adesso la persona può tornare in turno.",
                   )
                 }
                 loading={pending}
@@ -983,7 +987,7 @@ function Dettaglio({
 
         {voce.genere === "assenza" && voce.assenza.end_date === null && !capo ? (
           <p className="text-[12.5px] text-faint">
-            Assenza in corso: il rientro si conferma dalla pagina «I miei turni».
+            Assenza in corso: il rientro si segna dalla pagina «I miei turni».
           </p>
         ) : null}
       </div>

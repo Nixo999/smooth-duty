@@ -11,11 +11,18 @@ const inter = Inter({
   display: "swap",
 });
 
+/** Il nome del prodotto, scritto una volta sola. Lo usano i metadata qui sotto
+ *  e l'intestazione delle schermate di accesso (src/app/(auth)/layout.tsx).
+ *  «Turni» resta il nome della pagina dei turni: sono due cose diverse.
+ *  L'unica copia che non puo' importarlo e' public/manifest.webmanifest, che e'
+ *  JSON: se cambia qui, va cambiato anche la'. */
+export const NOME_PRODOTTO = "DenkiShift";
+
 export const metadata: Metadata = {
-  title: "Turni",
+  title: NOME_PRODOTTO,
   description: "Pianificazione turni per squadre e aziende.",
   manifest: "/manifest.webmanifest",
-  applicationName: "Turni",
+  applicationName: NOME_PRODOTTO,
   icons: {
     icon: [
       { url: "/icone/icona-192.png", sizes: "192x192", type: "image/png" },
@@ -27,7 +34,7 @@ export const metadata: Metadata = {
   // chiedono con questi meta tag, non con il file.
   appleWebApp: {
     capable: true,
-    title: "Turni",
+    title: NOME_PRODOTTO,
     statusBarStyle: "default",
   },
 };

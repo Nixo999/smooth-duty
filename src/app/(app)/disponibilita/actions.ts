@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireMember } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { oggiCivile } from "@/lib/date";
 import { versoDelRegime } from "@/lib/disponibilita";
 import type { VersoDichiarazione } from "@/lib/disponibilita";
@@ -151,7 +152,7 @@ export async function segnaDisponibilita(input: SegnaInput): Promise<ActionResul
         creato_da: user.id,
       })),
     );
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
   } else {
     // Una fascia su un giorno già dichiarato intero non aggiunge niente, e
     // una identica sarebbe un doppione: in tutti e due i casi il giorno si
@@ -185,7 +186,7 @@ export async function segnaDisponibilita(input: SegnaInput): Promise<ActionResul
         creato_da: user.id,
       })),
     );
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
   }
 
   revalidatePath("/disponibilita");
@@ -235,7 +236,7 @@ export async function togliDisponibilita(input: TogliInput): Promise<ActionResul
     .eq("profile_id", v.profile_id)
     .eq("verso", esito.verso)
     .in("giorno", giorni);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/disponibilita");
   revalidatePath("/turni");

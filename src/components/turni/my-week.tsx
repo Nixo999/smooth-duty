@@ -1,4 +1,4 @@
-import { Clock, Info, MapPin } from "lucide-react";
+import { CalendarClock, Clock, Info, MapPin } from "lucide-react";
 import { ConfermaRientro } from "@/components/turni/conferma-rientro";
 import { Posta } from "@/components/turni/posta";
 import { WeekNav } from "@/components/turni/week-nav";
@@ -19,6 +19,7 @@ import {
   oggiCivile,
   timeRange,
 } from "@/lib/date";
+import { siLavoreraDavvero } from "@/lib/ore-effettive";
 import { repartoDelTurno } from "@/lib/reparto";
 import type {
   Absence,
@@ -62,15 +63,31 @@ export function MyWeek({
   const assente = (s: Shift) =>
     Boolean(assenzaDelGiorno(assenze, s.profile_id, s.date));
 
+  /** Le ore di questo turno non si faranno: o si è assenti quel giorno, o si
+   *  è detto di no.
+   *
+   *  Un turno rifiutato resta a tabellone finché il responsabile non apre la
+   *  casella — possono passare giorni — e in quella finestra sommarlo vuol
+   *  dire scrivere «Hai rifiutato questo turno» e contarlo lo stesso, sulla
+   *  stessa schermata.
+   *
+   *  ⚠️ «Non conta nel totale» e «da sbiadire» sono due cose diverse, e
+   *  vanno tenute separate: `.assente` porta un `opacity: .45` che si eredita
+   *  su tutta la riga, e dentro la riga di un turno rifiutato c'è il riquadro
+   *  che spiega alla persona che cosa è successo al suo turno. Sbiadito
+   *  scendeva a 2,08 di contrasto (chiaro) e 2,05 (scuro): l'unica frase che
+   *  dà la spiegazione, resa illeggibile. Spento resta solo il turno di chi
+   *  quel giorno non c'è, che infatti non ha niente da leggere. */
+  const nonConta = (s: Shift) => !siLavoreraDavvero(s, assenze);
+
   /** Dove si lavora, al posto della mansione: è la prima cosa che serve
    *  sapere per presentarsi al posto giusto. */
   const reparto = (s: Shift) =>
     repartoDelTurno(reparti, s.department_id, repartoPersona);
 
-  // Le ore di quando si è assenti non si sommano: il totale deve dire quanto
-  // si lavorerà davvero.
+  // Il totale deve dire quanto si lavorerà davvero.
   const total = shifts.reduce(
-    (sum, s) => (assente(s) ? sum : sum + durationMinutes(s.start_time, s.end_time)),
+    (sum, s) => (nonConta(s) ? sum : sum + durationMinutes(s.start_time, s.end_time)),
     0,
   );
 
@@ -95,20 +112,15 @@ export function MyWeek({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeekNav monday={monday} />
-        <div className="rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium tabular-nums text-muted">
-          {formatDuration(total)} in settimana
-        </div>
+        {/* In bozza i turni non arrivano: un totale sarebbe «0h in
+            settimana», che si legge come «questa settimana non lavori». Non
+            si sa ancora, e non saperlo si dice tacendo il numero. */}
+        {inBozza ? null : (
+          <div className="rounded-full bg-surface-3 px-3 py-1.5 text-[13px] font-medium cifre text-muted">
+            {formatDuration(total)} in settimana
+          </div>
+        )}
       </div>
-
-      {inBozza ? (
-        <div className="flex items-start gap-2.5 rounded-2xl bg-surface-2 px-4 py-3.5 text-muted">
-          <Info className="mt-0.5 size-4 shrink-0" />
-          <p className="text-[13.5px]">
-            Il responsabile non ha ancora pubblicato questa settimana: i turni
-            compariranno quando lo farà.
-          </p>
-        </div>
-      ) : null}
 
       {inCorso ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-warning-soft px-4 py-3.5">
@@ -118,7 +130,10 @@ export function MyWeek({
               <p className="text-[14px] font-medium first-letter:uppercase">
                 {descriviAssenza(inCorso, (iso) => dayLong(fromISODate(iso)))}
               </p>
-              <p className="text-[12.5px] opacity-80">
+              {/* Senza opacity: la riga sopra e' gia' in grassetto, e questa
+                  e' l'unica frase che spiega l'assenza in corso. Sbiadita
+                  scendeva a 3,27 di contrasto sul tema chiaro. */}
+              <p className="text-[12.5px]">
                 I turni di questi giorni restano in elenco ma non contano.
                 Quando torni, confermalo: da lì tornano validi.
               </p>
@@ -128,123 +143,143 @@ export function MyWeek({
         </div>
       ) : null}
 
-      <ul className="stagger space-y-2.5">
-        {days.map((day) => {
-          const d = fromISODate(day);
-          const today = isToday(d);
-          // Un giorno gia' passato: quello che c'era scritto e' stato fatto,
-          // e non c'e' piu' niente da dirne. In ora italiana come il
-          // database, dove sta la parola definitiva (`rifiuta_turno`,
-          // `accetta_turno`): il server gira in UTC, e fino alle due di
-          // notte i due si darebbero risposte diverse.
-          const passato = day < oggiCivile();
-          const assenzaOggi = assenzaDelGiorno(assenze, profileId, day);
-          const list = shifts
-            .filter((s) => s.date === day)
-            .sort((a, b) => a.start_time.localeCompare(b.start_time));
+      {/* In bozza i giorni non si disegnano affatto. Sette schede vuote
+          direbbero «Riposo» sette volte, cioe' la cosa piu' sbagliata che si
+          possa dire a chi sta chiedendo quando lavora: non e' riposo, e'
+          che non si sa ancora. */}
+      {inBozza ? (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface-2 px-6 py-10 text-center">
+          <CalendarClock className="size-6 text-faint" />
+          <p className="text-[15px] font-medium">
+            La settimana non è ancora pubblicata
+          </p>
+          <p className="max-w-xs text-[13.5px] text-muted">
+            Il responsabile non l&apos;ha ancora pubblicata. Quando lo fa, i
+            tuoi turni compaiono qui: non devi fare niente.
+          </p>
+        </div>
+      ) : (
+        <ul className="stagger space-y-2.5">
+          {days.map((day) => {
+            const d = fromISODate(day);
+            const today = isToday(d);
+            // Un giorno gia' passato: quello che c'era scritto e' stato fatto,
+            // e non c'e' piu' niente da dirne. In ora italiana come il
+            // database, dove sta la parola definitiva (`rifiuta_turno`,
+            // `accetta_turno`): il server gira in UTC, e fino alle due di
+            // notte i due si darebbero risposte diverse.
+            const passato = day < oggiCivile();
+            const assenzaOggi = assenzaDelGiorno(assenze, profileId, day);
+            const list = shifts
+              .filter((s) => s.date === day)
+              .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
-          return (
-            <li
-              key={day}
-              className={cn(
-                "overflow-hidden rounded-2xl border bg-surface shadow-soft",
-                today ? "border-accent" : "border-border",
-              )}
-            >
-              <div
+            return (
+              <li
+                key={day}
                 className={cn(
-                  "flex flex-wrap items-baseline gap-x-2 px-4 py-2.5",
-                  today ? "bg-accent-soft" : "bg-surface-2",
+                  "overflow-hidden rounded-2xl border bg-surface shadow-soft",
+                  today ? "border-accent" : "border-border",
                 )}
               >
-                <p
+                <div
                   className={cn(
-                    "text-[13.5px] font-medium capitalize",
-                    today && "text-accent",
+                    "flex flex-wrap items-baseline gap-x-2 px-4 py-2.5",
+                    today ? "bg-accent-soft" : "bg-surface-2",
                   )}
                 >
-                  {dayLong(d)}
-                </p>
-                {today ? (
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">
-                    oggi
-                  </span>
-                ) : null}
-                {assenzaOggi ? (
-                  <span className="ml-auto rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
-                    {ETICHETTA(assenzaOggi.type)}
-                  </span>
-                ) : null}
-              </div>
+                  <p
+                    className={cn(
+                      "text-[13.5px] font-medium capitalize",
+                      today && "text-accent",
+                    )}
+                  >
+                    {dayLong(d)}
+                  </p>
+                  {today ? (
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-accent">
+                      oggi
+                    </span>
+                  ) : null}
+                  {assenzaOggi ? (
+                    <span className="ml-auto rounded-full bg-warning-soft px-2 py-0.5 text-[12px] font-medium text-warning">
+                      {ETICHETTA(assenzaOggi.type)}
+                    </span>
+                  ) : null}
+                </div>
 
-              {list.length === 0 ? (
-                <p className="px-4 py-4 text-[13.5px] text-faint">Riposo</p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {list.map((s) => {
-                    const suo = reparto(s);
-                    return (
-                      <li
-                        key={s.id}
-                        className={cn("px-4 py-3.5", assente(s) && "assente")}
-                      >
-                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                          <span className="orario text-[17px] font-semibold tabular-nums tracking-tight">
-                            {timeRange(s.start_time, s.end_time)}
-                          </span>
-                          {assente(s) ? (
-                            <span className="text-[12.5px] font-medium text-warning">
-                              non conta
+                {list.length === 0 ? (
+                  <p className="px-4 py-4 text-[13.5px] text-faint">Riposo</p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {list.map((s) => {
+                      const suo = reparto(s);
+                      return (
+                        <li
+                          key={s.id}
+                          className={cn("px-4 py-3.5", assente(s) && "assente")}
+                        >
+                          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <span className="orario text-[17px] font-semibold cifre tracking-tight">
+                              {timeRange(s.start_time, s.end_time)}
                             </span>
-                          ) : (
-                            <>
-                              <span className="inline-flex items-center gap-1 text-[12.5px] text-muted">
-                                <Clock className="size-3" />
-                                {formatDuration(durationMinutes(s.start_time, s.end_time))}
+                            {/* Un turno che non si fara' non porta la sua
+                                durata: la riga e' l'unico posto in cui il
+                                totale in cima si puo' ricontare a mano. */}
+                            {nonConta(s) ? (
+                              <span className="text-[12.5px] font-medium text-warning">
+                                non conta
                               </span>
-                              {crossesMidnight(s.start_time, s.end_time) ? (
-                                <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium text-warning">
-                                  finisce il giorno dopo
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center gap-1 text-[12.5px] text-muted cifre">
+                                  <Clock className="size-3" />
+                                  {formatDuration(durationMinutes(s.start_time, s.end_time))}
                                 </span>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
+                                {crossesMidnight(s.start_time, s.end_time) ? (
+                                  <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[12px] font-medium text-warning">
+                                    finisce il giorno dopo
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
 
-                        {suo ? (
-                          <p className="mt-1.5">
-                            <span
-                              className="pastiglia-reparto rounded-full px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-wide"
-                              style={{ ["--tinta" as string]: suo.hue }}
-                            >
-                              {suo.name}
-                            </span>
-                          </p>
-                        ) : null}
+                          {suo ? (
+                            <p className="mt-1.5">
+                              <span
+                                className="pastiglia-reparto rounded-full px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide"
+                                style={{ ["--tinta" as string]: suo.hue }}
+                              >
+                                {suo.name}
+                              </span>
+                            </p>
+                          ) : null}
 
-                        {s.location ? (
-                          <p className="mt-0.5 inline-flex items-center gap-1 text-[13px] text-muted">
-                            <MapPin className="size-3" />
-                            {s.location}
-                          </p>
-                        ) : null}
+                          {s.location ? (
+                            <p className="mt-0.5 inline-flex items-center gap-1 text-[13px] text-muted">
+                              <MapPin className="size-3" />
+                              {s.location}
+                            </p>
+                          ) : null}
 
-                        {s.notes ? (
-                          <p className="mt-1.5 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted">
-                            {s.notes}
-                          </p>
-                        ) : null}
+                          {s.notes ? (
+                            <p className="mt-1.5 rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted">
+                              {s.notes}
+                            </p>
+                          ) : null}
 
-                        <Risposta turno={s} passato={passato} />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                          <Risposta turno={s} passato={passato} />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

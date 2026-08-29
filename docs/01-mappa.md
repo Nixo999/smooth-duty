@@ -36,6 +36,7 @@ trenta nomi da un elenco senza pretendere trenta indirizzi email.
 /login                accesso (solo email+password: l'azienda si ricava dall'account)
 /cambia-password      obbligatoria finché must_change_password è alzato
 
+/oggi                 come sta la settimana, e cosa aspetta una decisione (solo capo)
 /turni                capo → tabellone settimanale + casella dei messaggi
                       dipendente → la sua settimana, con sì/no sui turni segnalati
 /turni/importa        lettura di un foglio Excel/CSV con anteprima (solo capo)
@@ -54,6 +55,19 @@ trenta nomi da un elenco senza pretendere trenta indirizzi email.
 
 Il menu lo costruisce `src/app/(app)/layout.tsx`; le icone attraversano il
 confine server→client come chiavi di stringa, non come componenti.
+
+**Nella barra ci stanno solo le pagine di ogni giorno.** Al responsabile:
+Oggi, Turni, Supervisione, Permessi, Prospetto. **Squadra, Impostazioni e
+Aziende sono nella tendina dell'iniziale**, in alto a destra: si aprono una
+volta a settimana o al mese, e «Aziende» in particolare cambia guscio, titolo e
+menu a chi la tocca per sbaglio — cioè all'unico account con cui si fa vedere
+l'app. Da telefono la barra scende in basso, con l'etichetta scritta su ogni
+voce: le cinque etichette intere non stanno in una riga sola a 375px, e i nomi
+delle pagine non si accorciano (decisione del 29 agosto 2026).
+
+**Un pallino solo in tutta la barra**, su «Oggi»: le cose che aspettano una
+decisione. Due contatori sullo stesso dato insegnano a non fidarsi di nessuno
+dei due.
 
 **Supervisione, Permessi e Prospetto si possono spegnere** per azienda: allora
 spariscono dal menu e il loro indirizzo riporta ai Turni. Turni, Squadra e

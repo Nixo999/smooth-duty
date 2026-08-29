@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ETICHETTA } from "@/lib/assenze";
 import { requireCapo, requireMember } from "@/lib/auth";
+import { messaggioErrore } from "@/lib/errori";
 import { dayLong, durationMinutes, formatDuration, fromISODate, hhmm } from "@/lib/date";
 import { esitoAssegnazione, spiegaBlocco, versoDelRegime } from "@/lib/disponibilita";
 import type { Dichiarazione } from "@/lib/disponibilita";
+import { minutiPerPersona, siLavoreraDavvero } from "@/lib/ore-effettive";
 import { chiStaSottoContratto } from "@/lib/pubblicazione";
 import type { SottoContratto } from "@/lib/pubblicazione";
 import {
@@ -319,7 +321,7 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
     const lunedi = mondayOf(v.date);
     const giorniSettimana = weekDaysISO(lunedi);
 
-    const [impostazioniRes, personaRes, turniSettimanaRes, bozzaRes] =
+    const [impostazioniRes, personaRes, turniSettimanaRes, assenzeRes, bozzaRes] =
       await Promise.all([
         supabase
           .from("company_settings")
@@ -333,10 +335,20 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
           .maybeSingle(),
         supabase
           .from("shifts")
-          .select("id, start_time, end_time")
+          // `date` e `rifiutato_at` servono al conto delle ore effettive:
+          // un turno rifiutato, o di un giorno in cui la persona è assente,
+          // non lo fa nessuno e non porta ore. Vedi `lib/ore-effettive.ts`.
+          .select("id, date, start_time, end_time, rifiutato_at")
           .eq("profile_id", v.profile_id)
           .gte("date", giorniSettimana[0])
           .lte("date", giorniSettimana[6]),
+        supabase
+          .from("absences")
+          .select("id, profile_id, start_date, end_date")
+          .eq("company_id", user.company_id)
+          .eq("profile_id", v.profile_id)
+          .lte("start_date", giorniSettimana[6])
+          .or(`end_date.is.null,end_date.gte.${giorniSettimana[0]}`),
         supabase
           .from("published_weeks")
           .select("monday")
@@ -391,8 +403,19 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
 
     // Le ore della settimana com'era prima, senza il turno che si sta
     // salvando, piu' il turno nuovo: e' il totale che varra' dopo.
+    //
+    // Si contano solo le ore che qualcuno fara' davvero — stessa domanda del
+    // monte ore a tabellone, del totale sul telefono e del Prospetto
+    // (`lib/ore-effettive.ts`). Contando anche i turni rifiutati, il
+    // tabellone poteva dare la persona sotto contratto e questo salvataggio
+    // dichiarare lo stesso turno uno straordinario.
+    const assenze = assenzeRes.data ?? [];
     const minutiAltri = (turniSettimanaRes.data ?? [])
-      .filter((t) => t.id !== v.id)
+      .filter(
+        (t) =>
+          t.id !== v.id &&
+          siLavoreraDavvero({ ...t, profile_id: v.profile_id }, assenze),
+      )
       .reduce((n, t) => n + durationMinutes(t.start_time, t.end_time), 0);
     const minutiDopo = minutiAltri + durationMinutes(v.start_time, v.end_time);
 
@@ -490,14 +513,14 @@ export async function salvaTurno(input: ShiftInput): Promise<SalvaResult> {
   let id = v.id ?? "";
   if (v.id) {
     const { error } = await supabase.from("shifts").update(row).eq("id", v.id);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: messaggioErrore(error) };
   } else {
     const { data: creato, error } = await supabase
       .from("shifts")
       .insert({ ...row, created_by: user.id })
       .select("id")
       .single();
-    if (error || !creato) return { ok: false, error: error?.message ?? "Salvataggio non riuscito." };
+    if (error || !creato) return { ok: false, error: messaggioErrore(error) };
     id = creato.id;
   }
 
@@ -604,7 +627,7 @@ export async function eliminaTurno(id: string): Promise<ActionResult> {
     .maybeSingle();
 
   const { error } = await supabase.from("shifts").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   if (turno) {
     // Prima l'avviso, poi il ritorno in bozza: se la settimana si svuota,
@@ -687,7 +710,7 @@ export async function eliminaTuttiITurni(monday: string): Promise<SvuotaResult> 
     .select(
       "profile_id, department_id, date, start_time, end_time, title, location, notes, richiede_conferma, stato_prima",
     );
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   await supabase
     .from("published_weeks")
@@ -792,7 +815,7 @@ export async function ripristinaTurni(input: RipristinoInput): Promise<ActionRes
       created_by: user.id,
     })),
   );
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   revalidatePath("/supervisione");
@@ -885,7 +908,7 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
     .eq("company_id", user.company_id)
     .in("date", origine);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
   if (!turni || turni.length === 0) {
     return {
       ok: false,
@@ -968,7 +991,7 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
       .eq("company_id", user.company_id)
       .in("date", destinazione);
 
-    if (deleteError) return { ok: false, error: deleteError.message };
+    if (deleteError) return { ok: false, error: messaggioErrore(deleteError) };
     sostituiti = count ?? 0;
   }
 
@@ -980,7 +1003,7 @@ export async function copiaTurni(input: CopiaInput): Promise<CopiaResult> {
   }));
 
   const { error: insertError } = await supabase.from("shifts").insert(righe);
-  if (insertError) return { ok: false, error: insertError.message };
+  if (insertError) return { ok: false, error: messaggioErrore(insertError) };
 
   revalidatePath("/turni");
   revalidatePath("/supervisione");
@@ -1035,7 +1058,7 @@ export async function pubblicaSettimana(
   const { error } = await supabase
     .from("published_weeks")
     .upsert({ company_id: user.company_id, monday: lunedi });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   await chiediLaSettimanaAChiDeveRispondere(supabase, user.company_id, lunedi);
 
@@ -1067,7 +1090,10 @@ async function chiStaSottoIlSuoContratto(
       .eq("active", true),
     supabase
       .from("shifts")
-      .select("profile_id, date, start_time, end_time")
+      // `rifiutato_at` serve al conto: un turno che la persona ha rifiutato
+      // non porta le sue ore, e senza questa colonna la domanda si
+      // risponderebbe da sola con un sì che non è vero.
+      .select("profile_id, date, start_time, end_time, rifiutato_at")
       .eq("company_id", companyId)
       .gte("date", giorni[0])
       .lte("date", giorni[6]),
@@ -1148,7 +1174,7 @@ async function chiediLaSettimanaAChiDeveRispondere(
   if (!imp.conferma_settimana && !aChiamataRispondono) return;
 
   const giorni = weekDaysISO(lunedi);
-  const [personeRes, turniRes] = await Promise.all([
+  const [personeRes, turniRes, assenzeRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, contract_hours, on_call, user_id")
@@ -1156,20 +1182,27 @@ async function chiediLaSettimanaAChiDeveRispondere(
       .eq("active", true),
     supabase
       .from("shifts")
-      .select("profile_id, start_time, end_time")
+      // `date` e `rifiutato_at` non sono di contorno: sono le due colonne che
+      // dicono se quel turno lo fara' qualcuno. Senza la prima non si puo'
+      // guardare l'assenza di quel giorno, senza la seconda un no gia' detto
+      // conta come ore lavorate.
+      .select("profile_id, date, start_time, end_time, rifiutato_at")
       .eq("company_id", companyId)
       .gte("date", giorni[0])
       .lte("date", giorni[6]),
+    supabase
+      .from("absences")
+      .select("id, profile_id, start_date, end_date")
+      .eq("company_id", companyId)
+      .lte("start_date", giorni[6])
+      .or(`end_date.is.null,end_date.gte.${giorni[0]}`),
   ]);
 
-  const minutiDi = new Map<string, number>();
-  for (const t of turniRes.data ?? []) {
-    if (!t.profile_id) continue;
-    minutiDi.set(
-      t.profile_id,
-      (minutiDi.get(t.profile_id) ?? 0) + durationMinutes(t.start_time, t.end_time),
-    );
-  }
+  // Le stesse ore che ha appena contato il controllo sotto contratto, dallo
+  // stesso posto: erano due conti diversi, e con un click solo l'app poteva
+  // dire «sta sotto le sue ore da contratto» e subito dopo chiedere alla
+  // stessa persona di confermare uno straordinario.
+  const minutiDi = minutiPerPersona(turniRes.data ?? [], assenzeRes.data ?? []);
 
   const domande = (personeRes.data ?? [])
     // Chi non entra nell'app non può rispondere, e una domanda che resta in
@@ -1240,7 +1273,7 @@ export async function accettaTurno(id: string): Promise<ActionResult> {
   const { data: preso, error } = await supabase.rpc("accetta_turno", {
     turno: parsed.data,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   if (!preso) {
@@ -1283,7 +1316,7 @@ export async function rifiutaTurno(
     turno: parsed.data.id,
     motivazione: parsed.data.nota ?? null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   // La funzione dice di no quando non c'e' piu' niente da rifiutare: il
   // responsabile ha gia' rimesso mano a quel turno, il no era gia' partito,
@@ -1327,7 +1360,7 @@ export async function apriMessaggi(): Promise<ActionResult> {
     // rifiuto, una modifica, un altro rifiuto — e comanda l'ultimo: i
     // precedenti raccontano una storia gia' scavalcata.
     .order("creato_at", { ascending: false });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
   if (!nuovi || nuovi.length === 0) return { ok: true };
 
   const adesso = new Date().toISOString();
@@ -1440,7 +1473,7 @@ export async function chiudiMessaggio(id: string): Promise<ActionResult> {
     .update({ risolto_at: new Date().toISOString() })
     .eq("id", parsed.data)
     .eq("company_id", user.company_id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   return { ok: true };
@@ -1464,7 +1497,7 @@ export async function segnaAvvisoLetto(id: string): Promise<ActionResult> {
   const { data: preso, error } = await supabase.rpc("segna_avviso_letto", {
     avviso: parsed.data,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   if (!preso) return { ok: false, error: "Questo avviso risulta già letto." };
@@ -1497,7 +1530,7 @@ export async function accettaSettimana(
     lunedi: mondayOf(parsed.data.monday),
     nota_ritocco: parsed.data.nota ?? null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   if (!preso) {
@@ -1539,7 +1572,7 @@ export async function rifiutaSettimana(
     lunedi: mondayOf(parsed.data.monday),
     motivazione: parsed.data.motivazione,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   if (!preso) {
@@ -1567,7 +1600,7 @@ export async function chiudiRichiestaSettimana(id: string): Promise<ActionResult
     .update({ visto_at: new Date().toISOString() })
     .eq("id", parsed.data)
     .is("visto_at", null);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: messaggioErrore(error) };
 
   revalidatePath("/turni");
   return { ok: true };
