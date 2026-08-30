@@ -121,9 +121,14 @@
      piu' scura dei due estremi e si vedeva la gobba a meta' schermo. */
   --fondo-verticale: linear-gradient(180deg, #f3f1f7 0%, #edeaf0 52%, #e7e3ec 100%);
 
-  /* La sfumatura del sito, stessa inclinazione e stessi due estremi. Vale solo
-     per il monogramma: non entra in una pagina operativa. */
-  --brand-gradient: linear-gradient(135deg, #923adf 0%, #da2f9b 100%);
+  /* I due estremi del marchio, sorgente unica: da qui scendono sia la sfumatura
+     sia i colori dentro il logo (`components/ui/marchio.tsx`), che li legge
+     direttamente. Sono i colori del sito, non quelli del PDF di stampa: il
+     file originale e' in CMYK e su schermo darebbe una coppia piu' spenta
+     (#626095 -> #ab4287) che non coincide con niente altro nell'app. */
+  --marchio-1: #923adf;
+  --marchio-2: #da2f9b;
+  --brand-gradient: linear-gradient(135deg, var(--marchio-1) 0%, var(--marchio-2) 100%);
 
   /* Ripiego per le barre dei reparti: la tinta vera (0-360) la scrive il JSX
      riga per riga. Senza questo valore, un punto che dimentica lo style
@@ -173,7 +178,9 @@
   --filo: rgba(140, 71, 209, 0.22);
   --fondo-verticale: linear-gradient(180deg, #070708 0%, #0e0d12 52%, #09090b 100%);
 
-  --brand-gradient: linear-gradient(135deg, #a855f7 0%, #e93da6 100%);
+  --marchio-1: #a855f7;
+  --marchio-2: #e93da6;
+  --brand-gradient: linear-gradient(135deg, var(--marchio-1) 0%, var(--marchio-2) 100%);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
@@ -368,15 +375,6 @@
     background-color: color-mix(in srgb, var(--surface) 78%, transparent);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
-  }
-
-  /* Il monogramma in alto a sinistra: l'unico punto dell'app dove la sfumatura
-     del marchio ha il permesso di comparire. E' la prima cosa che l'occhio
-     incontra ed e' quella che finisce negli screenshot mostrati ai clienti;
-     sul resto delle pagine si usano i token, non questa. */
-  .marchio {
-    background: var(--brand-gradient);
-    color: #ffffff;
   }
 
   /* La risposta al tocco la da' solo l'elemento premuto. */

@@ -11,6 +11,46 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**Il marchio vero al posto dell'icona di ripiego**
+Patrick ha passato il logo di DenkiShift in PDF (Affinity, «Presentazione logo
+alternativa»): l'anello spezzato con le due saette, metà neutro e metà sfumato,
+col calendario al centro. Fino a ieri al suo posto c'era un quadretto sfumato
+con dentro l'icona `CalendarDays` di lucide — un segnaposto.
+
+**È stato estratto come vettore, non ridisegnato e non rasterizzato.** Il PDF
+non conteneva nessuna immagine: solo tracciati, una sfumatura assiale e un Form
+XObject per il calendario. Da lì escono 34 percorsi, che sono i tracciati veri
+di Affinity. Il nuovo componente è `components/ui/marchio.tsx`.
+
+Due cose lo rendono usabile ovunque, e non solo sul nero per cui era disegnato:
+- la metà neutra e il corpo del calendario usano `currentColor`, quindi prendono
+  il colore del testo intorno. Sul tema scuro il risultato è **identico
+  all'originale**; sul chiaro è il suo negativo. Senza questo, su fondo bianco
+  sparirebbe metà marchio;
+- la metà sfumata legge `--marchio-1` / `--marchio-2`, che da oggi sono la
+  **sorgente unica** da cui scende anche `--brand-gradient`.
+
+I colori sono quelli del sito, non quelli del PDF. Il file originale è in CMYK
+e su schermo darebbe `#626095 → #ab4287`, una coppia più spenta che non
+coinciderebbe con nient'altro nell'app — sono gli stessi due colori del
+marchio, smorzati dalla conversione per la stampa.
+
+⚠️ **La trappola, per chi rifarà questo lavoro.** Con
+`gradientUnits="userSpaceOnUse"` l'asse del gradiente si legge nello spazio
+utente **dell'elemento che usa il gradiente** — cioè dentro al gruppo che
+capovolge la Y, non fuori. Avendo messo le coordinate già capovolte, l'asse
+finiva fuori dal disegno e la sfumatura usciva **piatta**: un colore solo, senza
+errori e senza avvisi. Va con le coordinate PDF originali.
+
+Rifatte anche le tre icone PWA (180, 192, 512): marchio sul nero `#09090B` del
+sito, dentro al 62% del lato perché la 512 è dichiarata anche `maskable` e fuori
+dall'80% centrale il sistema taglia. Sparisce la classe `.marchio`, che non
+serve più.
+
+✅ Verificato a 28, 32, 40, 64 e 110px su tutti e due i temi: a 28px — la misura
+della barra in alto — anello, saette e calendario si distinguono ancora.
+⚠️ Dentro l'app no, è dietro login.
+
 **Il turno nel tabellone non è l'accento, e lo sfondo è quello del sito**
 Due richieste di Patrick sullo stesso giro. La prima: «i turni lasciali
 azzurri». Aveva ragione, e la ragione è più forte di così — nel tabellone
