@@ -27,6 +27,7 @@ const schema = z.object({
     .array(z.string().refine((v) => CODICI_CAUSALE.includes(v)))
     .min(1, "Lascia almeno un motivo che si possa chiedere dall'app."),
   pagina_prospetto: z.boolean(),
+  pagina_disponibilita: z.boolean(),
 });
 
 export type ImpostazioniInput = z.input<typeof schema>;

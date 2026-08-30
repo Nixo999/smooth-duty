@@ -11,6 +11,17 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**La Disponibilità diventa una scelta, e la Supervisione smette di mostrare i fantasmi**
+Due richieste di Nicola. La pagina Disponibilità ora si spegne dalle
+Impostazioni come le altre tre (`pagina_disponibilita`, migrazione `20`,
+default acceso): sparisce dal menu del dipendente e si rifiuta di aprirsi,
+ma le dichiarazioni restano e il responsabile continua a gestirle dal
+tabellone — si spegne la porta, non il calendario, e il regime di ingaggio
+vale lo stesso. In Supervisione gli assenti non si disegnano più: la barra
+sbiadita «assente, non conta» occupava la corsia senza contare nella
+copertura, che è l'unica domanda della pagina. Migrazione eseguita sullo
+sviluppo; produzione da eseguire prima del push.
+
 **«Oggi» e' vissuta un giorno**
 Tolta da Nicola: per adesso non serve, e il tabellone resta la casa. Con lei
 se ne vanno la voce di menu col distintivo delle cose da decidere — e le tre

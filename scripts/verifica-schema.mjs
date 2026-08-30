@@ -417,6 +417,16 @@ const MIGRAZIONI = [
       ],
     ],
   },
+  {
+    file: "20-pagina-disponibilita.sql",
+    cosa: "la pagina Disponibilita' si puo' spegnere dalle Impostazioni",
+    prove: [
+      [
+        "colonna company_settings.pagina_disponibilita",
+        () => colonna("company_settings", "pagina_disponibilita"),
+      ],
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------- il giro */

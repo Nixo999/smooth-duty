@@ -71,6 +71,13 @@ export type Impostazioni = {
 
   /* -------------------------------------------------------- prospetto */
   pagina_prospetto: boolean;
+
+  /* ---------------------------------------------------- disponibilita */
+  /** La pagina del calendario di chi è a chiamata. Spenta, il dipendente
+   *  non la vede; le dichiarazioni restano e il responsabile continua a
+   *  vederle e scriverle dal tabellone. Non tocca il regime: le regole di
+   *  ingaggio valgono sui dati, non sulla porta da cui si scrivono. */
+  pagina_disponibilita: boolean;
 };
 
 export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
@@ -85,6 +92,7 @@ export const IMPOSTAZIONI_DEFAULT: Impostazioni = {
   pagina_permessi: true,
   causali_richiedibili: [...CODICI_CAUSALE],
   pagina_prospetto: true,
+  pagina_disponibilita: true,
 };
 
 export function normalizzaImpostazioni(
@@ -98,7 +106,7 @@ export const COLONNE_IMPOSTAZIONI =
   "conferma_straordinari, conferma_modifiche, orari_preimpostati, " +
   "conferma_cambio_reparto, conferma_settimana, regime_chiamata, " +
   "pagina_supervisione, supervisione_dipendenti, pagina_permessi, " +
-  "causali_richiedibili, pagina_prospetto";
+  "causali_richiedibili, pagina_prospetto, pagina_disponibilita";
 
 /* Le tre `pagina_*` valgono in due posti, e vanno tenuti d'accordo: il menu
    (src/app/(app)/layout.tsx) che nasconde la voce, e la pagina stessa che

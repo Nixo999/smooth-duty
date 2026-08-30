@@ -21,11 +21,12 @@ import { addDays, mondayOf } from "@/lib/week";
  *  diverse lo obbligherebbe a ricordarsi l'una mentre guarda l'altra. Chi
  *  arriva qui da responsabile viene rimandato ai Turni.
  *
- *  Non esiste nemmeno per il dipendente, in due casi: sotto il regime
- *  `on_demand` non c'è niente da segnare, e a chi ha un contratto a ore
+ *  Non esiste nemmeno per il dipendente, in tre casi: sotto il regime
+ *  `on_demand` non c'è niente da segnare; a chi ha un contratto a ore
  *  questo calendario non direbbe niente — anzi, gli farebbe dubitare di
- *  averlo. Come per le pagine spegnibili il controllo sta in due posti,
- *  qui e nel menu: l'indirizzo se lo ricorda il browser. */
+ *  averlo; e dal 30 agosto 2026 l'azienda può spegnerla dalle
+ *  Impostazioni, come Permessi e Supervisione. Il controllo sta in due
+ *  posti, qui e nel menu: l'indirizzo se lo ricorda il browser. */
 export default async function DisponibilitaPage({
   searchParams,
 }: {
@@ -71,6 +72,7 @@ export default async function DisponibilitaPage({
   }
 
   const imp = normalizzaImpostazioni(impRiga as never);
+  if (!imp.pagina_disponibilita) redirect("/turni");
   if (!versoDelRegime(imp.regime_chiamata)) redirect("/turni");
 
   const [righeRes, turniRes] = await Promise.all([

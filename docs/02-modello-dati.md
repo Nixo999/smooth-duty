@@ -200,7 +200,7 @@ dall'approvazione, per poterla revocare) · `decided_by`.
 Una riga per azienda, **facoltativa**: se manca valgono i default, che stanno
 scritti due volte — nel `default` della colonna e in `IMPOSTAZIONI_DEFAULT`
 (`src/lib/impostazioni.ts`). Chi legge passa sempre da
-`normalizzaImpostazioni()`. Undici campi letti, raggruppati **per pagina** come nella
+`normalizzaImpostazioni()`. Dodici campi letti, raggruppati **per pagina** come nella
 schermata che li mostra:
 
 - turni: `conferma_straordinari · conferma_modifiche · orari_preimpostati ·
@@ -208,6 +208,9 @@ schermata che li mostra:
 - supervisione: `pagina_supervisione · supervisione_dipendenti`
 - permessi: `pagina_permessi · causali_richiedibili[]`
 - prospetto: `pagina_prospetto`
+- disponibilità: `pagina_disponibilita` — spenta, la pagina del dipendente
+  sparisce; le dichiarazioni restano e il responsabile le gestisce dal
+  tabellone (migrazione `20`)
 
 > ⚠️ `conferma_modifiche_straordinari` **non è più letta da nessuno** dal 26
 > agosto 2026: le modifiche a una settimana pubblicata hanno un interruttore

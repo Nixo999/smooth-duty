@@ -163,6 +163,12 @@ export function Impostazioni({
             acceso={v.pagina_prospetto}
             onCambia={(x) => cambia({ pagina_prospetto: x })}
           />
+          <Pagina
+            nome="Disponibilità"
+            breve="Il calendario di chi è a chiamata, dal suo telefono. Spenta, le disponibilità le segni tu dal tabellone."
+            acceso={v.pagina_disponibilita}
+            onCambia={(x) => cambia({ pagina_disponibilita: x })}
+          />
         </div>
         <p className="border-t border-border bg-surface-2 px-4 py-2.5 text-[12.5px] text-faint">
           Turni, Squadra e Impostazioni non si spengono: senza, l&apos;app non
@@ -289,11 +295,17 @@ export function Impostazioni({
             È l&apos;unico caso in tutta l&apos;app in cui il silenzio non
             vuol dire sì.
           </p>
-        ) : (
+        ) : v.pagina_disponibilita ? (
           <p className="pb-3.5 text-[13px] leading-relaxed text-muted">
             Il calendario si riempie da «Disponibilità», nel menu dei
             dipendenti a chiamata; se uno ti telefona, puoi segnarlo tu al
             posto suo.
+          </p>
+        ) : (
+          <p className="pb-3.5 text-[13px] leading-relaxed text-muted">
+            La pagina Disponibilità è spenta: le dichiarazioni le segni tu
+            dal tabellone, dalla vista «Disponibilità». La regola scelta qui
+            vale lo stesso.
           </p>
         )}
       </Gesto>

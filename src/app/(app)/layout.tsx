@@ -72,6 +72,7 @@ export default async function AppLayout({
   const disponibilitaVisibile =
     !capo &&
     profile.on_call &&
+    impostazioni.pagina_disponibilita &&
     Boolean(versoDelRegime(impostazioni.regime_chiamata));
 
   // La pagina «Oggi» c'e' stata per un giorno — 30 agosto 2026 — ed e' stata

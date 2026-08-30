@@ -172,6 +172,11 @@ supera i limiti della richiesta e fallisce senza dire perché.
 
 ## `/supervisione` — la giornata
 
+> Dal 30 agosto 2026 **gli assenti non compaiono**: il loro turno non conta
+> nella copertura — che è la domanda di questa pagina — e la barra sbiadita
+> che lo mostrava senza contarlo confondeva più di quanto informasse. Chi è
+> assente e perché resta scritto nei Permessi.
+
 **File**: `src/app/(app)/supervisione/page.tsx` · `actions.ts` ·
 `src/components/supervisione/supervisione.tsx` ·
 `src/components/supervisione/reparti-sheet.tsx` ·
@@ -225,6 +230,12 @@ solo le ferie. Si spegne con `pagina_permessi`.
 ---
 
 ## `/disponibilita` — il calendario del dipendente a chiamata
+
+> Dal 30 agosto 2026 la pagina **si può spegnere dalle Impostazioni**
+> (`pagina_disponibilita`, migrazione `20`), come Permessi e Supervisione:
+> spenta, sparisce dal menu e si rifiuta di aprirsi. Le dichiarazioni
+> restano, e il responsabile continua a gestirle dalla vista Disponibilità
+> del tabellone — che **non** dipende da questa levetta.
 
 **File**: `src/app/(app)/disponibilita/page.tsx` · `actions.ts` ·
 `src/components/disponibilita/disponibilita.tsx` ·

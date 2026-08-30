@@ -280,7 +280,18 @@ export function Supervisione({
     startNavigazione(() => router.push(`/supervisione?g=${g}`, { scroll: false }));
 
   const dati = (() => {
-    const segmenti = segmentiDelGiorno(turniVivi, persone, giorno, giornoPrima, assenze);
+    // Gli assenti qui non si vedono: il loro turno non conta nella
+    // copertura — che e' la domanda di questa pagina — e una barra che
+    // occupa la corsia senza contare confondeva piu' di quanto informasse.
+    // Deciso da Nicola il 30 agosto 2026. Chi e' assente e perche' resta
+    // scritto nei Permessi.
+    const segmenti = segmentiDelGiorno(
+      turniVivi,
+      persone,
+      giorno,
+      giornoPrima,
+      assenze,
+    ).filter((s) => !s.assenza);
     const fasceOggi = fasceDelGiorno(
       fasce.map((f) => ({ ...f, weekdays: f.weekdays ?? [] })),
       giorno,
@@ -936,7 +947,6 @@ function BarraTurno({
       className={cn(
         "group barra absolute inset-y-0 flex select-none items-center overflow-hidden rounded-md px-2 text-left",
         !s.profileId && "border-dashed",
-        s.assenza && "assente",
         rifiutato && "ring-2 ring-danger",
         apribile && "tap cursor-pointer",
         trascinabile && !anteprima && "cursor-grab",
@@ -950,7 +960,7 @@ function BarraTurno({
         // scorrimento orizzontale della corsia.
         touchAction: trascinabile ? "none" : undefined,
       }}
-      title={`${nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${s.assenza ? " · assente, non conta" : ""}${rifiutato ? " · rifiutato: apri i messaggi nei Turni" : ""}${trascinabile ? " · tocca per modificare, trascina per aggiustare" : apribile ? " · tocca per modificare" : ""}`}
+      title={`${nome} · ${oraDa(s.da)}–${oraDa(s.a)}${s.title ? ` · ${s.title}` : ""}${rifiutato ? " · rifiutato: apri i messaggi nei Turni" : ""}${trascinabile ? " · tocca per modificare, trascina per aggiustare" : apribile ? " · tocca per modificare" : ""}`}
     >
       <span className="truncate text-[12px] font-semibold uppercase tracking-wide">
         {daPrima ? "◂ " : ""}
@@ -962,7 +972,7 @@ function BarraTurno({
           no. Sbiadito stava a 3,25-4,67 secondo la tinta del reparto.
           `orario` porta `cifre` dentro di se'. */}
       <span className="orario ml-1.5 shrink-0 truncate text-[12px]">
-        {s.assenza ? "assente" : orario}
+        {orario}
       </span>
 
       {trascinabile ? (
@@ -1086,13 +1096,6 @@ function Legenda({ capo }: { capo: boolean }) {
           </span>
         </>
       ) : null}
-      <span className="flex items-center gap-1.5">
-        <span
-          className="barra assente h-3 w-6 rounded"
-          style={{ ["--tinta" as string]: 210 }}
-        />
-        assente: il turno resta visibile ma non conta
-      </span>
       <span>◂ ▸ il turno continua nel giorno prima o dopo</span>
       {capo ? (
         <span className="flex items-center gap-1.5">
