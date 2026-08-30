@@ -9,14 +9,14 @@
  *  - **la persona ha detto di no.** La riga resta a tabellone finché il
  *    responsabile non apre la casella, e possono passare giorni.
  *
- *  Perché sta in un file suo: la stessa domanda la fanno otto punti — il
+ *  Perché sta in un file suo: la stessa domanda la fanno sei punti — il
  *  totale delle ore del tabellone (`components/turni/roster.tsx`), il totale
  *  della settimana del dipendente (`components/turni/my-week.tsx`), il
  *  controllo prima di pubblicare (`lib/pubblicazione.ts`), il Prospetto
  *  (`lib/prospetto.ts`), la domanda «questo salvataggio è uno
  *  straordinario?» e quella che parte alla pubblicazione, entrambe in
- *  `turni/actions.ts`, lo scostamento di Oggi (`lib/oggi.ts`) e i turni che
- *  Oggi disegna in fascia (`app/(app)/oggi/page.tsx`).
+ *  `turni/actions.ts`. (Erano otto con la pagina «Oggi», vissuta un giorno
+ *  e tolta il 30 agosto 2026.)
  *
  *  ⚠️ Questo elenco è il registro nato apposta per non perdere un punto di
  *  chiamata: chi ne aggiunge uno lo scrive qui. È nato con sei voci su otto

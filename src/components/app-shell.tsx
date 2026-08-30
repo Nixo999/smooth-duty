@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ClipboardList,
   Eye,
-  House,
   KeyRound,
   LogOut,
   Settings2,
@@ -35,40 +34,13 @@ const ICONS = {
   sun: Sun,
   disponibilita: CalendarClock,
   settings: Settings2,
-  oggi: House,
 } as const;
 
 export type Section = {
   href: string;
   label: string;
   icon: keyof typeof ICONS;
-  /** Quante cose aspettano una decisione. Ce l'ha **una voce sola** in tutta
-   *  la barra: due contatori sullo stesso dato insegnano a non fidarsi di
-   *  nessuno dei due. */
-  daDecidere?: number;
 };
-
-/** Il distintivo sulla voce di menu: il numero, scritto.
- *
- *  Prima era un punto ambra da 6px col numero riservato al lettore di
- *  schermo: un titolare con tre decisioni in sospeso vedeva un puntino.
- *  Il numero e' l'informazione — «quante» e' la prima cosa che uno si
- *  chiede — e il colore da solo a un uomo su dodici non dice niente. */
-function Pallino({ quante }: { quante: number }) {
-  return (
-    <>
-      <span
-        aria-hidden
-        className="cifre grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-warning px-1 text-[12px] font-semibold leading-none text-surface"
-      >
-        {quante}
-      </span>
-      <span className="sr-only">
-        , {quante} {quante === 1 ? "cosa" : "cose"} da decidere
-      </span>
-    </>
-  );
-}
 
 export function AppShell({
   title,
@@ -126,7 +98,7 @@ export function AppShell({
               aria-label="Sezioni"
               className="ml-2 hidden items-center gap-0.5 rounded-full bg-surface-3 p-0.5 sm:flex"
             >
-              {sections.map(({ href, label, icon, daDecidere }) => {
+              {sections.map(({ href, label, icon }) => {
                 const Icon = ICONS[icon];
                 const active = pathname === href;
                 return (
@@ -143,7 +115,6 @@ export function AppShell({
                   >
                     <Icon className="size-3.5" />
                     <span>{label}</span>
-                    {daDecidere ? <Pallino quante={daDecidere} /> : null}
                   </Link>
                 );
               })}
@@ -282,7 +253,7 @@ export function AppShell({
           className="glass safe-bottom border-t border-border sm:hidden"
         >
           <div className="flex items-stretch">
-            {sections.map(({ href, label, icon, daDecidere }) => {
+            {sections.map(({ href, label, icon }) => {
               const Icon = ICONS[icon];
               const active = pathname === href;
               return (
@@ -299,10 +270,7 @@ export function AppShell({
                     active ? "text-accent" : "text-muted",
                   )}
                 >
-                  <span className="flex items-center gap-1">
-                    <Icon className="size-5" />
-                    {daDecidere ? <Pallino quante={daDecidere} /> : null}
-                  </span>
+                  <Icon className="size-5" />
                   {/* L'etichetta c'e' sempre, su tutte le voci. Sotto i 640px
                       la barra di prima lasciava fino a sette icone mute senza
                       nemmeno un suggerimento, in un'app il cui utente di

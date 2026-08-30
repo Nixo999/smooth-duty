@@ -57,7 +57,7 @@ Il menu lo costruisce `src/app/(app)/layout.tsx`; le icone attraversano il
 confine server→client come chiavi di stringa, non come componenti.
 
 **Nella barra ci stanno solo le pagine di ogni giorno.** Al responsabile:
-Oggi, Turni, Supervisione, Permessi, Prospetto. **Squadra, Impostazioni e
+Turni, Supervisione, Permessi, Prospetto. **Squadra, Impostazioni e
 Aziende sono nella tendina dell'iniziale**, in alto a destra: si aprono una
 volta a settimana o al mese, e «Aziende» in particolare cambia guscio, titolo e
 menu a chi la tocca per sbaglio — cioè all'unico account con cui si fa vedere

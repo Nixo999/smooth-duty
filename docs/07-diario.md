@@ -11,6 +11,14 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**«Oggi» e' vissuta un giorno**
+Tolta da Nicola: per adesso non serve, e il tabellone resta la casa. Con lei
+se ne vanno la voce di menu col distintivo delle cose da decidere — e le tre
+query che il guscio pagava a ogni carico per contarle — il motore
+`lib/oggi.ts`, la sua prova, e la sezione nei docs. Il registro dei punti che
+usano `siLavoreraDavvero` scende da otto a sei. Tutto recuperabile dalla
+storia di git, niente rami morti nel codice.
+
 **Il marchio vero al posto dell'icona di ripiego**
 Patrick ha passato il logo di DenkiShift in PDF (Affinity, «Presentazione logo
 alternativa»): l'anello spezzato con le due saette, metà neutro e metà sfumato,

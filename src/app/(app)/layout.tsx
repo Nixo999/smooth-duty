@@ -26,43 +26,11 @@ export default async function AppLayout({
 
   const supabase = await createClient();
 
-  // Le tre cose che aspettano una decisione, contate e basta: sono il pallino
-  // su «Oggi». Al dipendente non si contano — quella schermata non ce l'ha —
-  // e stanno nella stessa Promise.all della lettura delle impostazioni,
-  // quindi al guscio costano un'andata sola invece di quattro.
-  const [{ data, error }, rifiuti, risposte, permessi] = await Promise.all([
-    supabase
-      .from("company_settings")
-      .select(COLONNE_IMPOSTAZIONI)
-      .eq("company_id", profile.company_id)
-      .maybeSingle(),
-    capo
-      ? supabase
-          .from("shift_messages")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", profile.company_id)
-          // Lo stesso conto della schermata «Oggi», con la stessa regola: un
-          // rifiuto già rientrato non è più una cosa da decidere, e
-          // `risolto_at` da sola non se ne accorge.
-          .is("risolto_at", null)
-          .or("esito.is.null,esito.eq.da_rifare")
-      : Promise.resolve({ count: 0 }),
-    capo
-      ? supabase
-          .from("week_requests")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", profile.company_id)
-          .neq("stato", "in_attesa")
-          .is("visto_at", null)
-      : Promise.resolve({ count: 0 }),
-    capo
-      ? supabase
-          .from("vacation_requests")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", profile.company_id)
-          .eq("status", "richiesta")
-      : Promise.resolve({ count: 0 }),
-  ]);
+  const { data, error } = await supabase
+    .from("company_settings")
+    .select(COLONNE_IMPOSTAZIONI)
+    .eq("company_id", profile.company_id)
+    .maybeSingle();
 
   // Se la lettura non riesce, `normalizzaImpostazioni` restituisce i default
   // e il menu li mostra come se fossero le scelte dell'azienda: fino a qui
@@ -86,14 +54,6 @@ export default async function AppLayout({
 
   const impostazioni = normalizzaImpostazioni(data as never);
 
-  // Il conto del pallino tace su quello che il menu non mostra: se l'azienda
-  // non usa i Permessi, una richiesta ferma li' non ha una freccia dove
-  // andare, e un pallino che rimanda a niente e' peggio di nessun pallino.
-  const daDecidere =
-    (rifiuti.count ?? 0) +
-    (risposte.count ?? 0) +
-    (impostazioni.pagina_permessi ? (permessi.count ?? 0) : 0);
-
   const supervisioneVisibile =
     impostazioni.pagina_supervisione &&
     (capo || impostazioni.supervisione_dipendenti);
@@ -114,14 +74,10 @@ export default async function AppLayout({
     profile.on_call &&
     Boolean(versoDelRegime(impostazioni.regime_chiamata));
 
-  // Cinque voci al responsabile, e sono le cinque cose che apre ogni giorno.
-  // Si entra su una risposta, non su una griglia: il tabellone resta a un
-  // tocco. Il dipendente «Oggi» non ce l'ha — la sua schermata e' un'altra
-  // domanda, «quando lavoro», e ha gia' la sua.
+  // La pagina «Oggi» c'e' stata per un giorno — 30 agosto 2026 — ed e' stata
+  // tolta da Nicola: per adesso non serve, e il tabellone resta la casa.
+  // Sta nella storia di git, non in un ramo morto qui dentro.
   const sections: Section[] = [
-    ...(capo
-      ? ([{ href: "/oggi", label: "Oggi", icon: "oggi", daDecidere }] as Section[])
-      : []),
     { href: "/turni", label: capo ? "Turni" : "I miei turni", icon: "calendar" },
     // Anche il dipendente, se l'azienda vuole: gli serve per sapere se la
     // giornata e' coperta e chi c'e' con lui.

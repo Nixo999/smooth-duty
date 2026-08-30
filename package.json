@@ -10,7 +10,7 @@
     "start:rete": "next start -H 0.0.0.0 -p 3000",
     "icone": "node scripts/crea-icone.mjs && node scripts/icone-android.mjs",
     "apk": "node scripts/apk.mjs",
-    "prove": "node --import ./scripts/alias.mjs scripts/prova-copia.mjs && node --import ./scripts/alias.mjs scripts/prova-copertura.mjs && node --import ./scripts/alias.mjs scripts/prova-prospetto.mjs && node --import ./scripts/alias.mjs scripts/prova-trascina.mjs && node --import ./scripts/alias.mjs scripts/prova-generazione.mjs && node --import ./scripts/alias.mjs scripts/prova-conferme.mjs && node --import ./scripts/alias.mjs scripts/prova-disponibilita.mjs && node --import ./scripts/alias.mjs scripts/prova-pubblicazione.mjs && node --import ./scripts/alias.mjs scripts/prova-ore-effettive.mjs && node --import ./scripts/alias.mjs scripts/prova-lettura.mjs && node --import ./scripts/alias.mjs scripts/prova-errori.mjs && node --import ./scripts/alias.mjs scripts/prova-oggi.mjs"
+    "prove": "node --import ./scripts/alias.mjs scripts/prova-copia.mjs && node --import ./scripts/alias.mjs scripts/prova-copertura.mjs && node --import ./scripts/alias.mjs scripts/prova-prospetto.mjs && node --import ./scripts/alias.mjs scripts/prova-trascina.mjs && node --import ./scripts/alias.mjs scripts/prova-generazione.mjs && node --import ./scripts/alias.mjs scripts/prova-conferme.mjs && node --import ./scripts/alias.mjs scripts/prova-disponibilita.mjs && node --import ./scripts/alias.mjs scripts/prova-pubblicazione.mjs && node --import ./scripts/alias.mjs scripts/prova-ore-effettive.mjs && node --import ./scripts/alias.mjs scripts/prova-lettura.mjs && node --import ./scripts/alias.mjs scripts/prova-errori.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
