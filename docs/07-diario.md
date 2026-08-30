@@ -9,6 +9,23 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 30 agosto 2026
+
+**Perche' l'app e' lenta: misurato, e il database e' innocente**
+Statici a 832-1187ms l'uno alla prima visita e 21ms alla seconda (cache di
+bordo fredda), /login a 458-633ms freddo e 223ms caldo (funzioni in Ohio,
+database in Irlanda — spostare la regione su Netlify e' a pagamento), query
+del tabellone sotto RLS a 3,7ms con piano ottimale: il tempo si perde in
+viaggio, non nel database ne' nel codice. Tre contromisure a costo zero:
+`netlify/functions/tienila-sveglia.mjs` fa una richiesta a /login ogni cinque
+minuti cosi' nessun click paga l'avvio a freddo; `staleTimes: 30` in
+next.config riusa per mezzo minuto le pagine appena viste — accettabile
+perche' tutte le 70 scritture passano da `revalidatePath`, verificato — e il
+service worker gia' copriva gli statici con cache-first, al contrario di
+quanto pensavamo: alla seconda apertura quel costo non c'e' gia' piu'.
+
+---
+
 ## 28 agosto 2026
 
 **`denkishift.it` è online, e la voce sparisce da «non c'è ancora»**

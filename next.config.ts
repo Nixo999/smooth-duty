@@ -46,6 +46,17 @@ const nextConfig: NextConfig = {
       // senza spiegare perche'.
       bodySizeLimit: "5mb",
     },
+
+    // Tornare su una pagina appena vista non ripaga il giro fino al server.
+    // Le funzioni girano in Ohio (la regione giusta e' a pagamento) e il
+    // database in Irlanda: ogni navigazione costa ~300ms misurati, e senza
+    // questa voce il router butta via la pagina appena lasciata. Trenta
+    // secondi di riuso: chi rimbalza fra Turni e Oggi naviga all'istante.
+    //
+    // Il prezzo, dichiarato: per mezzo minuto si puo' rivedere un dato
+    // vecchio. Qui e' quasi sempre il capo l'unico che scrive, e ogni
+    // azione di scrittura invalida comunque la cache col suo revalidate.
+    staleTimes: { dynamic: 30 },
   },
 };
 
