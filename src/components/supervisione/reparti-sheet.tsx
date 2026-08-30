@@ -19,9 +19,12 @@ import { cn } from "@/lib/utils";
 // Tutte pastello: il colore vero lo compone il foglio di stile, qui si
 // sceglie solo la tinta. I gialli fra 50 e 72 si saltano perche' col testo
 // scuro sopra diventano illeggibili.
+// Salta anche la fascia 260-285, che e' quella dell'accento (tinta 272): un
+// reparto colorato li' sembra il reparto selezionato, e l'anello di selezione
+// — che e' color accento — sopra un pastello della stessa tinta non si vede.
 const TINTE = [
   0, 10, 25, 35, 45, 80, 95, 110, 125, 140, 150, 165,
-  178, 190, 200, 210, 225, 240, 255, 265, 280, 295, 310, 320, 335, 348,
+  178, 190, 200, 210, 225, 240, 255, 289, 310, 320, 335, 348,
 ];
 const GIORNI = ["L", "M", "M", "G", "V", "S", "D"];
 const GIORNI_LUNGHI = [

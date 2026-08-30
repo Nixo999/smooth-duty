@@ -11,6 +11,45 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**L'azzurro di iOS non era un colore nostro: l'app passa al viola del marchio**
+Poche ore dopo la revisione dei contrasti qui sotto, e costruita sopra quella,
+non al posto suo. `--accent` va da `#005BB7` a `#802ACB` sul chiaro e da
+`#3D9EFF` a `#BC79F6` sullo scuro. La ragione non è estetica: l'azzurro di
+sistema è il colore che hanno tutte le applicazioni, comprese quelle contro cui
+DenkiShift si vende, e un tabellone che finisce in uno screenshot commerciale
+deve essere riconoscibile.
+
+Il viola sta alla tinta **272**, che è il punto di mezzo esatto fra i due soli
+colori del marchio (viola `#695CA5`, magenta `#C23C8E`, fermi dal 13 maggio).
+Il fondo scuro è il `#09090B` di `denkicode.com` preso tale e quale, e l'oro
+del sito `#EBC247` diventa `--warning` sul tema scuro: un colore di marchio che
+nell'app non ha un mestiere diventa decorazione.
+
+Il pezzo che fa il lavoro non è l'accento ma **i grigi**, che portano la stessa
+tinta 272 a saturazione 9-18%. Un accento nuovo sopra grigi azzurri resta un
+bottone diverso; con i neutri intonati l'app si legge come una cosa sola. Il
+magenta esiste come `--brand-2` ma **non entra nelle pagine operative**: alla
+tinta 322 è troppo vicino al rosso di `--danger`, e un colore che somiglia a un
+allarme senza esserlo è un difetto. Sta nel contratto dei significati, riga
+propria, accanto agli altri quattro.
+
+**Il metodo dei contrasti è quello di qui sotto, non uno nuovo.** Ogni colore è
+stato ricalcolato con le due misure già stabilite — fondo più sfavorevole
+(`--surface-3`) e forma tenue composta sopra quel fondo — e **tutti e otto
+passano 4,5 su entrambe, in tutti e due i temi**. Regge anche il conto che
+aveva imposto `--accent-fg` scuro: nemmeno in viola esiste un tono insieme
+leggibile come testo su fondo nero e abbastanza scuro da reggere il bianco
+sopra, quindi il primo piano del bottone pieno resta il nero della pagina.
+
+⚠️ **Le tinte dei reparti hanno perso la fascia 260-285**, che è quella
+dell'accento: un reparto colorato lì sembrava il reparto selezionato, e
+l'anello di selezione — che è color accento — sopra quel pastello non si vede.
+`TINTE` passa da 26 a 24 valori, `TINTE_RIGHE` sostituisce 270 con 289. Chi ha
+già un reparto su quelle tinte se lo ritrova invariato nel database: il valore
+salvato non viene toccato, cambia solo cosa si può scegliere da qui in avanti.
+
+Nessuna migrazione, nessun tocco al database: è colore, viaggia col codice.
+
 **La pagina che spiegava troppo, e la barra che faceva cinque mestieri**
 Nicola: «le impostazioni sono diventate difficili da usare», e il conteggio
 gli dava ragione — 2.700 parole per dieci controlli, quattro blocchi di testo

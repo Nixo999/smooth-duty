@@ -9,20 +9,45 @@
    Definiti una volta sola qui. Nei componenti si usano solo i token
    (bg-surface, text-muted, ...), mai un colore scritto a mano: e' l'unico
    modo perche' chiaro e scuro restino coerenti mentre l'app cresce. */
-/* Il tema chiaro non e' "bianco": e' un fondo grigio-azzurro su cui le
-   schede bianche si posano e si vedono. Con un fondo quasi bianco erano le
-   ombre a doversi far carico di tutta la separazione, e su uno schermo poco
+/* Il tema chiaro non e' "bianco": e' un fondo grigio-viola su cui le schede
+   bianche si posano e si vedono. Con un fondo quasi bianco erano le ombre a
+   doversi far carico di tutta la separazione, e su uno schermo poco
    contrastato — o guardato di sbieco in magazzino — non ce la facevano.
 
    I grigi del testo passano il rapporto 4.5 dello standard di accessibilita'
    sul fondo piu' sfavorevole in cui compaiono (--surface-3), non solo sul
    bianco: e' su quel fondo che stanno le pastiglie grigie.
 
+   ---- La tavolozza e' quella di DenkiCode, e viene da due posti soli -------
+   Il marchio, fermo dal 13 maggio 2026, ha esattamente due colori: viola
+   #695CA5 e magenta #C23C8E. Il sito denkicode.com li usa come sfumatura
+   (#8B5CF6 -> #CC3399) sopra un fondo quasi nero #09090B, con l'oro #EBC247
+   come unico richiamo. Da li' scendono tre cose:
+
+   1. --accent e' il viola a tinta 272, cioe' il punto di mezzo esatto fra i
+      due colori del marchio. Prima era l'azzurro di sistema di iOS: il colore
+      che hanno tutte le applicazioni, comprese quelle contro cui DenkiShift
+      si vende. Un tabellone che finisce in uno screenshot commerciale deve
+      essere riconoscibile.
+   2. Anche i grigi hanno la tinta 272, a saturazione 9-18%. E' il pezzo che
+      fa il lavoro vero: un accento nuovo sopra grigi azzurri resta un bottone
+      diverso, mentre fondo, bordi e testo intonati fanno leggere tutta l'app
+      come una cosa sola. Il fondo scuro e' il #09090B del sito, tale e quale.
+   3. L'oro del sito e' --warning sul tema scuro, cifra per cifra. Un colore
+      di marchio che nell'app non ha un mestiere diventa decorazione, e la
+      decorazione in un gestionale e' rumore.
+
+   Il magenta sta in --brand-2 e vale solo per i momenti di marchio (accesso,
+   monogramma, --brand-gradient). Nelle pagine operative non entra: alla tinta
+   322 e' troppo vicino al rosso di --danger, e su un tabellone un colore che
+   somiglia a un allarme senza esserlo e' un difetto, non uno stile.
+
    ---- Il colore e' una risorsa scarsa e ha un significato solo ------------
    rosso   (--danger)  c'e' un buco e lo chiudi tu
-   ambra   (--warning) costa, oppure qualcuno non ha ancora risposto
+   oro     (--warning) costa, oppure qualcuno non ha ancora risposto
    verde   (--success) da te non serve niente
-   indaco  (--accent)  azione e selezione, MAI uno stato
+   viola   (--accent)  azione e selezione, MAI uno stato
+   magenta (--brand-2) marchio, MAI un dato
    Una schermata senza problemi e' una schermata grigia.
 
    ---- Rapporti di contrasto, calcolati (WCAG 2.1, AA = 4.5 per il testo) --
@@ -32,86 +57,94 @@
    e la tinta al 11-13% composta sopra --surface-3 e' il caso peggiore).
 
    TEMA CHIARO      su fondo   su -soft
-   --accent         5,30       4,53      bianco su --accent pieno: 6,60
-   --danger         5,35       4,51
-   --success        5,44       4,53
-   --warning        5,43       4,52
-   --text           14,72      —         (--text-muted 5,91 · --text-faint 4,53)
+   --accent         5,38       4,58      bianco su --accent pieno: 6,75
+   --brand-2        5,50       4,65
+   --danger         5,55       4,67
+   --success        5,60       4,66
+   --warning        5,43       4,56
+   --text           14,34      —         (--text-muted 6,15 · --text-faint 4,51)
 
-   I valori di prima fallivano: --accent 4,47 su --surface-3 e 3,85 sulla
-   sua forma tenue, --danger 3,83, --warning 4,20, --text-faint 3,98. Sono
-   stati scuriti quel tanto che basta, a tinta e saturazione invariate. */
+   TEMA SCURO       su fondo   su -soft
+   --accent         5,55       4,62
+   --brand-2        5,83       4,54
+   --danger         5,84       4,55
+   --success        7,29       5,47
+   --warning        9,51       6,63
+   --text           14,67      —         (--text-muted 5,99 · --text-faint 4,91)
+
+   Vale ancora il conto che aveva imposto --accent-fg scuro: in tema scuro non
+   esiste un viola insieme leggibile COME testo su fondo nero e abbastanza
+   scuro da reggere il bianco SOPRA. Quindi anche qui il primo piano del
+   bottone pieno e' il nero della pagina — 6,83 su --accent, 10,21 su
+   --accent-hover — e `bg-accent-fg/20` segue da sola. */
 :root {
-  --canvas: #e9ebf0;
+  --canvas: #edeaf0;
   --surface: #ffffff;
-  --surface-2: #f3f4f8;
-  --surface-3: #e4e6ee;
-  --border: #d7d9e2;
-  --border-strong: #bfc2cf;
-  --text: #14141a;
-  --text-muted: #55555f;
-  --text-faint: #666671;
-  --accent: #005bb7;
-  --accent-hover: #004a96;
+  --surface-2: #f5f3f7;
+  --surface-3: #e8e4ec;
+  --border: #dbd6e1;
+  --border-strong: #c6bfcf;
+  --text: #19151e;
+  --text-muted: #594f63;
+  --text-faint: #6d6379;
+  --accent: #802acb;
+  --accent-hover: #651fa3;
   --accent-fg: #ffffff;
-  --accent-soft: rgba(0, 91, 183, 0.11);
-  --danger: #b12424;
-  --danger-soft: rgba(177, 36, 36, 0.11);
-  --success: #146932;
-  --success-soft: rgba(20, 105, 50, 0.13);
-  --warning: #924608;
-  --warning-soft: rgba(146, 70, 8, 0.13);
-  --overlay: rgba(20, 20, 26, 0.32);
+  --accent-soft: rgba(128, 42, 203, 0.11);
+  --brand-2: #a12674;
+  --brand-2-hover: #7d1c5a;
+  --brand-2-soft: rgba(161, 38, 116, 0.11);
+  --danger: #ab2521;
+  --danger-soft: rgba(171, 37, 33, 0.11);
+  --success: #0f663e;
+  --success-soft: rgba(15, 102, 62, 0.13);
+  --warning: #725703;
+  --warning-soft: rgba(114, 87, 3, 0.13);
+  --overlay: rgba(25, 21, 30, 0.32);
+
+  /* La sfumatura del sito, stessa inclinazione e stessi due estremi. Vale solo
+     per il monogramma: non entra in una pagina operativa. */
+  --brand-gradient: linear-gradient(135deg, #923adf 0%, #da2f9b 100%);
 
   /* Ripiego per le barre dei reparti: la tinta vera (0-360) la scrive il JSX
      riga per riga. Senza questo valore, un punto che dimentica lo style
      produce un hsl() invalido e la barra resta senza colore. */
   --tinta: 220;
 
-  --shadow-sm: 0 1px 2px rgba(16, 16, 24, 0.07), 0 1px 1px rgba(16, 16, 24, 0.05);
-  --shadow-md: 0 4px 14px rgba(16, 16, 24, 0.09), 0 1px 3px rgba(16, 16, 24, 0.06);
-  --shadow-lg: 0 24px 60px rgba(16, 16, 24, 0.2), 0 2px 10px rgba(16, 16, 24, 0.09);
+  /* Le ombre prendono la stessa tinta del resto invece del nero neutro, che
+     sopra un fondo viola si vede come una macchia grigia. */
+  --shadow-sm: 0 1px 2px rgba(24, 18, 32, 0.07), 0 1px 1px rgba(24, 18, 32, 0.05);
+  --shadow-md: 0 4px 14px rgba(24, 18, 32, 0.1), 0 1px 3px rgba(24, 18, 32, 0.06);
+  --shadow-lg: 0 24px 60px rgba(24, 18, 32, 0.22), 0 2px 10px rgba(24, 18, 32, 0.09);
 }
 
-/* ---- Rapporti di contrasto del tema scuro, calcolati ---------------------
-   TEMA SCURO       su fondo   su -soft
-   --accent         5,81       4,51
-   --danger         5,70       4,51
-   --success        7,30       5,46
-   --warning        7,87       5,79
-   --text           14,62      —         (--text-muted 5,97 · --text-faint 4,51)
-
-   Due conti che qui cambiavano il risultato:
-   1. --accent e --danger non passavano sulla loro forma tenue (3,66 e 4,35)
-      e --accent nemmeno su --surface-3 pieno (4,44). Sono stati schiariti.
-   2. Schiarendo --accent, il bianco sopra il bottone pieno scendeva a 2,79.
-      In tema scuro non esiste un blu che sia insieme leggibile COME testo su
-      un fondo nero e abbastanza scuro da reggere il bianco SOPRA: le due
-      richieste vanno in direzioni opposte. Quindi qui il primo piano del
-      bottone non e' bianco ma il nero del fondo pagina — 7,18 su --accent,
-      9,13 su --accent-hover. `bg-accent-fg/20` (le pastigliette dentro i
-      bottoni pieni) segue da sola, perche' e' lo stesso colore al 20%. */
 .dark {
-  --canvas: #08080a;
-  --surface: #121216;
-  --surface-2: #17171c;
-  --surface-3: #202027;
-  --border: #26262e;
-  --border-strong: #33333d;
-  --text: #f3f3f6;
-  --text-muted: #9c9caa;
-  --text-faint: #868693;
-  --accent: #3d9eff;
-  --accent-hover: #6ab4ff;
-  --accent-fg: #08080a;
-  --accent-soft: rgba(61, 158, 255, 0.16);
-  --danger: #ff6860;
-  --danger-soft: rgba(255, 104, 96, 0.16);
+  --canvas: #09090b;
+  --surface: #141217;
+  --surface-2: #19161d;
+  --surface-3: #231f28;
+  --border: #2b2730;
+  --border-strong: #3a3441;
+  --text: #f5f3f7;
+  --text-muted: #a39aac;
+  --text-faint: #938a9e;
+  --accent: #bc79f6;
+  --accent-hover: #d4a8fa;
+  --accent-fg: #09090b;
+  --accent-soft: rgba(188, 121, 246, 0.12);
+  --brand-2: #ef6cbf;
+  --brand-2-hover: #f797d4;
+  --brand-2-soft: rgba(239, 108, 191, 0.16);
+  --danger: #fb6f6a;
+  --danger-soft: rgba(251, 111, 106, 0.16);
   --success: #35c759;
   --success-soft: rgba(53, 199, 89, 0.16);
-  --warning: #ff9f0a;
-  --warning-soft: rgba(255, 159, 10, 0.16);
-  --overlay: rgba(0, 0, 0, 0.55);
+  /* L'oro e' quello del sito, cifra per cifra: #EBC247. */
+  --warning: #ebc247;
+  --warning-soft: rgba(235, 194, 71, 0.16);
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --brand-gradient: linear-gradient(135deg, #a855f7 0%, #e93da6 100%);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
@@ -132,6 +165,9 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-brand-2: var(--brand-2);
+  --color-brand-2-hover: var(--brand-2-hover);
+  --color-brand-2-soft: var(--brand-2-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
@@ -259,6 +295,15 @@
     background-color: color-mix(in srgb, var(--surface) 78%, transparent);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  /* Il monogramma in alto a sinistra: l'unico punto dell'app dove la sfumatura
+     del marchio ha il permesso di comparire. E' la prima cosa che l'occhio
+     incontra ed e' quella che finisce negli screenshot mostrati ai clienti;
+     sul resto delle pagine si usano i token, non questa. */
+  .marchio {
+    background: var(--brand-gradient);
+    color: #ffffff;
   }
 
   /* La risposta al tocco la da' solo l'elemento premuto. */

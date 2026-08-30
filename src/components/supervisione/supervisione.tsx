@@ -64,7 +64,7 @@ const SENZA_REPARTO = "__senza__";
  *  foglio di stile. La prima riga di ogni reparto e' sempre azzurra, la
  *  seconda sempre gialla: cosi' due tabelle si leggono con lo stesso
  *  occhio, invece di assegnare a ciascuno un colore a caso. */
-const TINTE_RIGHE = [200, 48, 5, 140, 330, 270, 25, 178, 225, 105, 300, 80];
+const TINTE_RIGHE = [200, 48, 5, 140, 330, 289, 25, 178, 225, 105, 300, 80];
 
 /** Chiave del salvataggio del filtro reparti. E' una preferenza di chi
  *  guarda, non un dato: per questo sta nel browser e non sul database. */

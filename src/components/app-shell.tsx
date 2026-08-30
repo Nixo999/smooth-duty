@@ -108,7 +108,7 @@ export function AppShell({
       <header className="glass sticky top-0 z-30 border-b border-border">
         <div className="mx-auto flex h-14 w-full max-w-[100rem] items-center gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent text-accent-fg">
+            <div className="grid size-7 shrink-0 place-items-center rounded-lg marchio">
               <CalendarDays className="size-4" />
             </div>
             <span className="truncate text-[15px] font-semibold tracking-tight">
