@@ -1431,7 +1431,7 @@ function Chip({
         "tap block cursor-pointer rounded-md px-2 py-1 text-left",
         unassigned
           ? "bg-warning-soft text-warning"
-          : "bg-accent-soft text-accent",
+          : "bg-turno-soft text-turno",
         assente && "assente border border-current",
         // Un anello, non un colore nuovo: il turno vale comunque, ha solo
         // qualcosa di particolare. Arancio finche' la persona non si e'

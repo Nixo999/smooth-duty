@@ -55,7 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // sull'<html> prima che React idrati, quindi server e client differiscono
     // di proposito su quell'attributo.
     <html lang="it" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-app bg-canvas text-text antialiased">
+      <body className="min-h-app text-text antialiased">
         <ThemeProvider>
           {children}
           <ServiceWorker />

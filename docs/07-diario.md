@@ -11,6 +11,44 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**Il turno nel tabellone non è l'accento, e lo sfondo è quello del sito**
+Due richieste di Patrick sullo stesso giro. La prima: «i turni lasciali
+azzurri». Aveva ragione, e la ragione è più forte di così — nel tabellone
+(`roster.tsx`, il `Chip`) ogni turno assegnato era `bg-accent-soft text-accent`,
+quindi seguiva l'accento ovunque fosse andato. Ma la regola scritta due voci
+più sotto dice che **l'accento è azione e selezione, mai uno stato**: un turno
+non è né l'una né l'altra, è la cosa che il tabellone mostra. Finché
+condividevano il token, quella regola era scritta e non applicata.
+
+Adesso il turno ha `--turno` / `--turno-soft`, fissi sull'azzurro `#0057AD`
+(chiaro) e `#3D9EFF` (scuro). Il chiaro è mezzo passo più scuro dell'azzurro di
+prima: sui grigi viola nuovi, `#005BB7` sulla propria pastiglia stava a 4,49 —
+sotto soglia per due centesimi. Il turno non assegnato resta oro, gli anelli di
+conferma restano arancio/verde/rosso.
+
+**Lo sfondo di `denkicode.com` è entrato nell'app**, portato dal sito misurato
+e non a memoria: la sfumatura verticale (`--gradient-hero`), due aloni viola
+radiali ai fianchi e i fili sottili inclinati fra una sezione e l'altra. Sul
+tema scuro le dosi sono quelle del sito senza sconti (alone a 0,16); sul chiaro
+sono dimezzate, perché le stesse dosi su un foglio chiaro sporcano invece di
+dare profondità.
+
+Tre scelte di costruzione che vale la pena non riscoprire:
+1. **Il fondo è passato da `<body>` a `<html>`.** Il livello d'ambiente è un
+   `::before` di `<body>` a `z-index: -1`, e così ci finisce sopra con
+   certezza invece di dipendere da quale dei due elementi propaga il proprio
+   sfondo alla pagina.
+2. **È fisso, non scorre.** Il tabellone si scorre per ore: uno sfondo che
+   scivola col contenuto dà il mal di mare.
+3. **Non costa leggibilità.** Le schede sono `--surface` pieno e opaco:
+   l'ambiente si vede solo nei margini fra una scheda e l'altra, e nessun testo
+   dell'app gli finisce sopra. I contrasti misurati restano quelli.
+
+⚠️ La prima versione della sfumatura chiara aveva la tappa di mezzo più scura
+dei due estremi e si vedeva **la gobba a metà schermo**. Va tenuta monotona.
+Verificato a 375px e a schermo largo, tutti e due i temi, su una riproduzione
+fedele fuori dall'app: dentro l'app non si è potuto guardare, è dietro login.
+
 **L'azzurro di iOS non era un colore nostro: l'app passa al viola del marchio**
 Poche ore dopo la revisione dei contrasti qui sotto, e costruita sopra quella,
 non al posto suo. `--accent` va da `#005BB7` a `#802ACB` sul chiaro e da

@@ -102,6 +102,25 @@
   --warning-soft: rgba(114, 87, 3, 0.13);
   --overlay: rgba(25, 21, 30, 0.32);
 
+  /* Il turno assegnato nel tabellone. Ha un colore suo, e non e' un capriccio:
+     l'accento vuol dire "azione e selezione", e un turno non e' ne' l'una ne'
+     l'altra — e' la cosa che il tabellone mostra. Finche' erano lo stesso
+     colore la regola era scritta ma non applicata. Resta l'azzurro, che e' il
+     colore con cui questa squadra ha imparato a leggere il tabellone. */
+  --turno: #0057ad;
+  --turno-soft: rgba(0, 87, 173, 0.11);
+
+  /* Lo sfondo di denkicode.com portato qui: la sfumatura verticale, due aloni
+     viola ai fianchi e i fili sottili fra una sezione e l'altra. Sul tema
+     chiaro vanno tenuti bassi: le stesse dosi del sito, che e' nero, qui
+     sporcherebbero il foglio invece di dargli profondita'. */
+  --alone-1: rgba(140, 71, 209, 0.07);
+  --alone-2: rgba(194, 60, 142, 0.05);
+  --filo: rgba(140, 71, 209, 0.13);
+  /* Monotona dall'alto in basso. La prima versione aveva la tappa di mezzo
+     piu' scura dei due estremi e si vedeva la gobba a meta' schermo. */
+  --fondo-verticale: linear-gradient(180deg, #f3f1f7 0%, #edeaf0 52%, #e7e3ec 100%);
+
   /* La sfumatura del sito, stessa inclinazione e stessi due estremi. Vale solo
      per il monogramma: non entra in una pagina operativa. */
   --brand-gradient: linear-gradient(135deg, #923adf 0%, #da2f9b 100%);
@@ -144,6 +163,16 @@
   --warning-soft: rgba(235, 194, 71, 0.16);
   --overlay: rgba(0, 0, 0, 0.6);
 
+  --turno: #3d9eff;
+  --turno-soft: rgba(61, 158, 255, 0.16);
+
+  /* Qui le dosi sono quelle del sito, senza sconti: stesso fondo, stessa
+     opacita' 0.16 sull'alone, stessa sfumatura verticale (--gradient-hero). */
+  --alone-1: rgba(140, 71, 209, 0.16);
+  --alone-2: rgba(204, 51, 153, 0.1);
+  --filo: rgba(140, 71, 209, 0.22);
+  --fondo-verticale: linear-gradient(180deg, #070708 0%, #0e0d12 52%, #09090b 100%);
+
   --brand-gradient: linear-gradient(135deg, #a855f7 0%, #e93da6 100%);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -168,6 +197,8 @@
   --color-brand-2: var(--brand-2);
   --color-brand-2-hover: var(--brand-2-hover);
   --color-brand-2-soft: var(--brand-2-soft);
+  --color-turno: var(--turno);
+  --color-turno-soft: var(--turno-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
@@ -240,18 +271,60 @@
     border-color: var(--border);
   }
 
+  /* Il fondo sta su <html>, non su <body>: cosi' il livello d'ambiente qui
+     sotto — che e' un figlio di <body> a z-index -1 — ci finisce sopra con
+     certezza, invece di dipendere da quale dei due elementi propaga il
+     proprio sfondo alla pagina. */
   html {
+    background-color: var(--canvas);
     -webkit-tap-highlight-color: transparent;
     /* Sotto i 16px iOS ingrandisce la pagina appena tocchi un campo. */
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    background-color: var(--canvas);
     color: var(--text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Lo sfondo di denkicode.com portato dentro l'app: la sfumatura verticale
+     del sito, due aloni viola ai fianchi e i fili sottili inclinati che il
+     sito tiene fra una sezione e l'altra.
+
+     Perche' non costa leggibilita': le schede sono --surface pieno e opaco,
+     quindi l'ambiente si vede solo nei margini fra una scheda e l'altra.
+     Nessun testo dell'app gli finisce sopra, e il contrasto delle tabelle
+     resta quello misurato piu' su.
+
+     E' un livello fisso, non un fondo che scorre: il tabellone si scorre per
+     ore, e uno sfondo che scivola con lui darebbe il mal di mare. Sta a
+     z-index -1 perche' il fondo di <body> viene propagato alla pagina, quindi
+     questo strato ci finisce sopra e non sotto. */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  body::before {
+    background:
+      radial-gradient(60% 120% at 6% 38%, var(--alone-1) 0%, transparent 70%),
+      radial-gradient(55% 110% at 94% 64%, var(--alone-2) 0%, transparent 70%),
+      var(--fondo-verticale);
+  }
+
+  /* I fili: sul sito sono inclinati, e inclinati restano. La scala li allarga
+     quel tanto che serve perche' la rotazione non scopra gli angoli. */
+  body::after {
+    background:
+      linear-gradient(to left, transparent, var(--filo) 48%, transparent) 0 30% / 62% 1px no-repeat,
+      linear-gradient(to right, transparent, var(--filo) 52%, transparent) 100% 68% / 54% 1px no-repeat;
+    transform: rotate(-6deg) scale(1.4);
   }
 
   h1,
