@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
   Eye,
   House,
@@ -46,13 +47,21 @@ export type Section = {
   daDecidere?: number;
 };
 
-/** Il pallino sulla voce di menu. Il colore da solo non basta — a un uomo su
- *  dodici non dice niente — quindi accanto viaggia il numero scritto, che
- *  legge chi usa lo schermo con la voce. */
+/** Il distintivo sulla voce di menu: il numero, scritto.
+ *
+ *  Prima era un punto ambra da 6px col numero riservato al lettore di
+ *  schermo: un titolare con tre decisioni in sospeso vedeva un puntino.
+ *  Il numero e' l'informazione — «quante» e' la prima cosa che uno si
+ *  chiede — e il colore da solo a un uomo su dodici non dice niente. */
 function Pallino({ quante }: { quante: number }) {
   return (
     <>
-      <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" />
+      <span
+        aria-hidden
+        className="cifre grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-warning px-1 text-[12px] font-semibold leading-none text-surface"
+      >
+        {quante}
+      </span>
       <span className="sr-only">
         , {quante} {quante === 1 ? "cosa" : "cose"} da decidere
       </span>
@@ -152,12 +161,18 @@ export function AppShell({
                 tastiera — e si chiude da solo toccando fuori o con Esc. */}
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
+                {/* La freccia dichiara che l'iniziale si apre: qui dentro
+                    vivono Squadra e Impostazioni, e un cerchio muto non
+                    dice a nessuno di andarle a cercare proprio li'. */}
                 <button
                   type="button"
-                  className="tap grid size-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent"
+                  className="tap flex items-center gap-0.5 rounded-full pr-0.5"
                   aria-label={identity.name}
                 >
-                  {initials}
+                  <span className="grid size-8 place-items-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">
+                    {initials}
+                  </span>
+                  <ChevronDown className="size-3.5 text-muted" aria-hidden />
                 </button>
               </DropdownMenu.Trigger>
 

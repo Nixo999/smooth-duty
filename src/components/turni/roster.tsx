@@ -8,6 +8,7 @@ import {
   Clock3,
   Copy,
   FileUp,
+  Filter,
   PencilLine,
   Plus,
   Redo2,
@@ -595,6 +596,12 @@ export function Roster({
   const [filtroReparto, setFiltroReparto] = React.useState("");
   const [filtroContratto, setFiltroContratto] = React.useState("");
   const [filtroOre, setFiltroOre] = React.useState("");
+  // I tre filtri vivono in un pannello che si apre a richiesta: nella barra
+  // stavano sempre aperti e al riposo dicevano solo «qualsiasi», tre volte.
+  const [filtriAperti, setFiltriAperti] = React.useState(false);
+  const filtriAttivi = [filtroReparto, filtroContratto, filtroOre].filter(
+    Boolean,
+  ).length;
   // Si tiene la posizione nella settimana, non la data. Tenendo la data,
   // cambiando settimana il giorno scelto sarebbe uno che non c'e' piu' e
   // servirebbe un effetto per rimetterlo a posto; cosi' invece il martedi'
@@ -907,69 +914,58 @@ export function Roster({
                 agiscono su quello che non si sta guardando. */}
             {vista === "turni" ? (
             <>
-            {departments.length > 0 ? (
-              <Select
-                aria-label="Filtra per reparto"
-                value={filtroReparto}
-                onChange={(e) => setFiltroReparto(e.target.value)}
-                className="w-auto min-w-32 sm:h-9"
-              >
-                <option value="">Tutti i reparti</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </Select>
-            ) : null}
-            <Select
-              aria-label="Filtra per contratto"
-              value={filtroContratto}
-              onChange={(e) => setFiltroContratto(e.target.value)}
-              className="w-auto min-w-32 sm:h-9"
+            {/* Il distintivo dice quanti filtri sono accesi anche a
+                pannello chiuso: senza, chiuderlo con un filtro attivo
+                nasconderebbe il motivo per cui mancano delle righe. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setFiltriAperti((a) => !a)}
+              aria-expanded={filtriAperti}
+              aria-controls="filtri-tabellone"
             >
-              <option value="">Qualsiasi contratto</option>
-              <option value="chiamata">A chiamata</option>
-              <option value="part_time">Part time</option>
-              <option value="full_time">Full time</option>
-            </Select>
-            <Select
-              aria-label="Filtra per ore"
-              value={filtroOre}
-              onChange={(e) => setFiltroOre(e.target.value)}
-              className="w-auto min-w-32 sm:h-9"
-            >
-              <option value="">Tutte le ore a settimana</option>
-              <option value="oltre">Con straordinari</option>
-              <option value="sotto">Sotto le ore</option>
-              <option value="pari">In pari</option>
-            </Select>
+              <Filter className="size-3.5" />
+              Filtri
+              {filtriAttivi > 0 ? (
+                <span className="cifre rounded-full bg-accent-soft px-1.5 text-[12px] font-semibold text-accent">
+                  {filtriAttivi}
+                </span>
+              ) : null}
+            </Button>
 
             {/* --------------------- variazioni, in fondo alla riga
                 Dentro il loro recinto: nella stessa riga dei filtri sono i
                 soli comandi che il tabellone lo cambiano per davvero, e
                 fra «filtra» e «cancella tutto» ci vuole un confine. */}
             <GruppoModifica>
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={annulla}
-                disabled={!puoAnnullare || inLavoro}
-                aria-label={etichettaAnnulla}
-                title={etichettaAnnulla}
-              >
-                <Undo2 className="size-4" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={ripeti}
-                disabled={!puoRipetere || inLavoro}
-                aria-label="Ripeti la modifica annullata"
-                title="Ripeti la modifica annullata"
-              >
-                <Redo2 className="size-4" />
-              </Button>
+              {/* Annulla, Ripeti e Svuota esistono solo mentre si puo'
+                  scrivere: in bozza, o dentro «Modifica». Fuori erano icone
+                  spente fisse — e il cestino di un'intera settimana non e'
+                  un abitante della barra, e' un gesto della sessione. */}
+              {inBozza || sospese.attivo ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={annulla}
+                    disabled={!puoAnnullare || inLavoro}
+                    aria-label={etichettaAnnulla}
+                    title={etichettaAnnulla}
+                  >
+                    <Undo2 className="size-4" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={ripeti}
+                    disabled={!puoRipetere || inLavoro}
+                    aria-label="Ripeti la modifica annullata"
+                    title="Ripeti la modifica annullata"
+                  >
+                    <Redo2 className="size-4" />
+                  </Button>
+                </>
+              ) : null}
 
               {inBozza ? (
                 <Button
@@ -1024,34 +1020,36 @@ export function Roster({
                 </Button>
               )}
 
-              {confermaSvuota ? (
-                <span className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-2 py-1">
-                  <span className="text-[12.5px] font-medium text-danger">
-                    Tutta la settimana?
+              {inBozza || sospese.attivo ? (
+                confermaSvuota ? (
+                  <span className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-2 py-1">
+                    <span className="text-[12.5px] font-medium text-danger">
+                      Tutta la settimana?
+                    </span>
+                    <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
+                      Sì, elimina
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfermaSvuota(false)}
+                    >
+                      No
+                    </Button>
                   </span>
-                  <Button variant="danger" size="sm" onClick={svuota} loading={inLavoro}>
-                    Sì, elimina
-                  </Button>
+                ) : (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setConfermaSvuota(false)}
+                    className="text-danger hover:bg-danger-soft"
+                    onClick={() => setConfermaSvuota(true)}
+                    title="Elimina tutti i turni della settimana"
                   >
-                    No
+                    <Trash2 className="size-3.5" />
+                    Svuota settimana
                   </Button>
-                </span>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-danger hover:bg-danger-soft"
-                  onClick={() => setConfermaSvuota(true)}
-                  aria-label="Elimina tutti i turni della settimana"
-                  title="Elimina tutti i turni della settimana"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              )}
+                )
+              ) : null}
             </GruppoModifica>
 
             {/* I tre modi di creare turni, raccolti in un'isoletta: tre
@@ -1099,6 +1097,55 @@ export function Roster({
             </>
             ) : null}
           </div>
+
+          {/* Il pannello dei filtri, sotto la barra: appare al bottone e
+              resta finche' non lo si richiude. Non e' una tendina volante
+              apposta — tre selettori nativi dentro un menu si contendono i
+              tocchi, una riga nel flusso no. */}
+          {vista === "turni" && filtriAperti ? (
+            <div
+              id="filtri-tabellone"
+              className="flex flex-wrap items-center gap-2"
+            >
+              {departments.length > 0 ? (
+                <Select
+                  aria-label="Filtra per reparto"
+                  value={filtroReparto}
+                  onChange={(e) => setFiltroReparto(e.target.value)}
+                  className="w-auto min-w-32 sm:h-9"
+                >
+                  <option value="">Tutti i reparti</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
+              <Select
+                aria-label="Filtra per contratto"
+                value={filtroContratto}
+                onChange={(e) => setFiltroContratto(e.target.value)}
+                className="w-auto min-w-32 sm:h-9"
+              >
+                <option value="">Qualsiasi contratto</option>
+                <option value="chiamata">A chiamata</option>
+                <option value="part_time">Part time</option>
+                <option value="full_time">Full time</option>
+              </Select>
+              <Select
+                aria-label="Filtra per ore"
+                value={filtroOre}
+                onChange={(e) => setFiltroOre(e.target.value)}
+                className="w-auto min-w-32 sm:h-9"
+              >
+                <option value="">Tutte le ore a settimana</option>
+                <option value="oltre">Con straordinari</option>
+                <option value="sotto">Sotto le ore</option>
+                <option value="pari">In pari</option>
+              </Select>
+            </div>
+          ) : null}
 
           {vista === "turni" && inBozza ? (
             <p className="rounded-xl bg-warning-soft px-4 py-2.5 text-[13px] font-medium text-warning">

@@ -11,6 +11,21 @@ ricostruite dalla storia dei commit.
 
 ## 30 agosto 2026
 
+**La pagina che spiegava troppo, e la barra che faceva cinque mestieri**
+Nicola: «le impostazioni sono diventate difficili da usare», e il conteggio
+gli dava ragione — 2.700 parole per dieci controlli, quattro blocchi di testo
+a levetta, un «Salva» a tre schermate dalla leva toccata. Adesso a vista resta
+una riga per controllo («Come funziona» tiene il resto, per chi sta
+decidendo), ogni modifica si salva da sola con mezzo secondo di respiro, e le
+tre pagine spegnibili stanno in una scheda propria in testa: accendere una
+pagina non e' una regola di conferma. Sul tabellone: i tre filtri che al
+riposo dicevano «qualsiasi» tre volte stanno dietro un bottone «Filtri» col
+conto degli attivi; Annulla, Ripeti e Svuota esistono solo quando si puo'
+scrivere, e il cestino dell'intera settimana ha perso il posto fisso in barra
+e guadagnato l'etichetta. Nel guscio il pallino ambra da 6px e' diventato il
+numero scritto, e l'iniziale ha la freccia che dichiara il menu. Non
+verificato a schermo: tutto dietro il login.
+
 **Perche' l'app e' lenta: misurato, e il database e' innocente**
 Statici a 832-1187ms l'uno alla prima visita e 21ms alla seconda (cache di
 bordo fredda), /login a 458-633ms freddo e 223ms caldo (funzioni in Ohio,
