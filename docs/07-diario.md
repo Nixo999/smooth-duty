@@ -9,6 +9,29 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 31 agosto 2026
+
+**L'attesa ha la faccia dell'app, e l'icona sulla home smette di essere rotta**
+Tre pezzi chiesti da Nicola. Tirando giù il tabellone dal bordo alto il
+marchio scende col dito, ruota, e oltre la soglia l'app si ricarica per
+intero con il marchio che gira a tutto schermo (`caricamento-marchio.tsx`;
+`overscroll-y-contain` tiene fuori la spia del browser, che sarebbe stata la
+seconda per lo stesso gesto). Lo stesso schermo compare quando esce una
+versione nuova: ogni build stampa un timbro in `NEXT_PUBLIC_VERSIONE`
+(next.config), `/versione` lo dice al mondo con `no-store`, e
+`controllo-versione.tsx` confronta al ritorno in primo piano e ogni cinque
+minuti — se differiscono, marchio e ricarica, con la memoria per-sessione
+che impedisce il giro infinito se una cache mente. E l'icona della home:
+la 180 di iOS aveva il marchio schiacciato nel quadrante in alto a sinistra
+con mezza icona vuota. Rigenerate tutte e cinque dal vettore vero di
+`marchio.tsx` — rasterizzato nel browser, che è l'unico renderer SVG di
+casa — con le maskable dedicate (logo al 56%%, dentro la zona che Android
+non ritaglia) e `?v=2` su manifest e meta perché iOS e Android tengono la
+vecchia icona in cache per indirizzo. Cache del service worker a `turni-v2`
+per lo stesso motivo. Non verificato: il tiro e l'aggiornamento forzato non
+sono stati provati su un telefono vero, e l'icona nuova sulla home si vede
+solo reinstallando l'app.
+
 ## 30 agosto 2026
 
 **La Disponibilità diventa una scelta, e la Supervisione smette di mostrare i fantasmi**

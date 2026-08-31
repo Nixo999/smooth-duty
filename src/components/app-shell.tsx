@@ -19,6 +19,7 @@ import { Marchio } from "@/components/ui/marchio";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { PannelloCambiaPassword } from "@/components/auth/cambia-la-mia-password";
+import { CaricamentoMarchio } from "@/components/ui/caricamento-marchio";
 import { ThemeToggle } from "@/components/ui/theme";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +67,70 @@ export function AppShell({
   const pathname = usePathname();
   const [cambioPassword, setCambioPassword] = React.useState(false);
   const moduloEsci = React.useRef<HTMLFormElement>(null);
+
+  /* ------------------------------------------------ tira giu' e aggiorna
+   * Il gesto del telefono: dal bordo alto del contenuto si tira giu', il
+   * marchio scende ruotando con il dito, e oltre la soglia l'app si
+   * ricarica per intero. Gli ascoltatori stanno su addEventListener perche'
+   * serve `passive: false`: senza, il preventDefault che tiene fermo lo
+   * scorrimento durante il tiro non ha effetto. Il ricaricamento e' quello
+   * vero (location.reload), non un refresh morbido: chi tira giu' vuole la
+   * certezza di guardare dati freschi, non una via di mezzo. */
+  const principale = React.useRef<HTMLElement>(null);
+  const [tiro, setTiro] = React.useState(0);
+  // Vero mentre il dito e' giu': durante il tiro l'indicatore sta incollato
+  // al dito (niente transizione), al rilascio rientra morbido.
+  const [inTiro, setInTiro] = React.useState(false);
+  const [ricarico, setRicarico] = React.useState(false);
+  const statoTiro = React.useRef({ y0: 0, valore: 0, attivo: false });
+
+  React.useEffect(() => {
+    const el = principale.current;
+    if (!el) return;
+
+    const aggiorna = (v: number) => {
+      statoTiro.current.valore = v;
+      setTiro(v);
+    };
+    const inizio = (e: TouchEvent) => {
+      if (el.scrollTop > 0) return;
+      statoTiro.current = { y0: e.touches[0].clientY, valore: 0, attivo: true };
+      setInTiro(true);
+    };
+    const movimento = (e: TouchEvent) => {
+      if (!statoTiro.current.attivo) return;
+      const delta = e.touches[0].clientY - statoTiro.current.y0;
+      if (delta <= 0 || el.scrollTop > 0) {
+        if (statoTiro.current.valore > 0) aggiorna(0);
+        return;
+      }
+      e.preventDefault();
+      // Meta' del dito: il tiro deve costare un po', o parte per sbaglio.
+      aggiorna(Math.min(delta * 0.45, 96));
+    };
+    const fine = () => {
+      if (!statoTiro.current.attivo) return;
+      statoTiro.current.attivo = false;
+      setInTiro(false);
+      if (statoTiro.current.valore >= 64) {
+        setRicarico(true);
+        window.location.reload();
+      } else {
+        aggiorna(0);
+      }
+    };
+
+    el.addEventListener("touchstart", inizio, { passive: true });
+    el.addEventListener("touchmove", movimento, { passive: false });
+    el.addEventListener("touchend", fine);
+    el.addEventListener("touchcancel", fine);
+    return () => {
+      el.removeEventListener("touchstart", inizio);
+      el.removeEventListener("touchmove", movimento);
+      el.removeEventListener("touchend", fine);
+      el.removeEventListener("touchcancel", fine);
+    };
+  }, []);
 
   const barra = sections.length > 1;
 
@@ -235,13 +300,38 @@ export function AppShell({
         onClose={() => setCambioPassword(false)}
       />
 
+      {/* Il marchio che scende col dito: compare solo durante il tiro, e la
+          transizione c'e' solo al rilascio — seguendo il dito deve stare
+          incollato, non rincorrerlo. */}
+      {tiro > 0 && !ricarico ? (
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none fixed left-1/2 top-14 z-40",
+            !inTiro && "transition-transform",
+          )}
+          style={{
+            transform: `translate(-50%, ${tiro - 48}px) rotate(${tiro * 2.4}deg)`,
+            opacity: Math.min(tiro / 64, 1),
+          }}
+        >
+          <div className="grid size-10 place-items-center rounded-full border border-border bg-surface shadow-float">
+            <Marchio className="size-6 text-text" />
+          </div>
+        </div>
+      ) : null}
+      {ricarico ? <CaricamentoMarchio messaggio="Aggiorno…" /> : null}
+
       {/* min-h-0 flex-1: il figlio prende lo spazio rimasto senza sforare
           l'altezza dell'intestazione, cosa che h-full farebbe. */}
       {/* Qui dentro scorre tutto. La navigazione in basso sta *dopo*, nel
           flusso: si prende il suo spazio da sola e questa area si accorcia di
           conseguenza, quindi non serve nessuno spazio in fondo scritto a mano
           — quello sbagliava ogni volta che la navigazione cambiava forma. */}
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      {/* overscroll-y-contain: il tiro e' nostro, quello del browser resta
+          fuori — due spie di ricaricamento per lo stesso gesto sono una di
+          troppo. */}
+      <main ref={principale} className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
         <div className="mx-auto w-full max-w-[100rem] px-4 py-5 sm:px-6 sm:py-7">
           {children}
         </div>

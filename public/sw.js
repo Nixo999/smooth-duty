@@ -9,7 +9,7 @@
  * Quello che fa: tiene in cache i file statici (che sono immutabili e hanno
  * l'impronta nel nome) e rende l'app installabile.
  */
-const VERSIONE = "turni-v1";
+const VERSIONE = "turni-v2";
 const OFFLINE = "/offline.html";
 
 const PRECARICATI = [OFFLINE, "/icone/icona-192.png", "/manifest.webmanifest"];

@@ -35,6 +35,15 @@ const nextConfig: NextConfig = {
   // e' un modo di sapere in fretta quali falle provare.
   poweredByHeader: false,
 
+  // Il timbro della build, identico nel server e nel browser: e' quello che
+  // permette a un'app rimasta aperta di accorgersi che e' uscita una
+  // versione nuova (app/versione/route.ts + components/controllo-versione).
+  // Calcolato qui perche' next.config gira una volta alla build e il valore
+  // viene scolpito nei bundle: a runtime non cambia piu'.
+  env: {
+    NEXT_PUBLIC_VERSIONE: Date.now().toString(36),
+  },
+
   async headers() {
     return [{ source: "/:path*", headers: INTESTAZIONI }];
   },

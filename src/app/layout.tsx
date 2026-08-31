@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { ControlloVersione } from "@/components/controllo-versione";
 import { ServiceWorker } from "@/components/service-worker";
 import { ThemeProvider } from "@/components/ui/theme";
 import "./globals.css";
@@ -24,11 +25,17 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   applicationName: NOME_PRODOTTO,
   icons: {
+    // `?v=2` non e' decorazione: iOS e Android tengono la vecchia icona in
+    // cache per indirizzo, e la 180 e' stata rigenerata il 31 agosto 2026
+    // perche' aveva il marchio schiacciato in un angolo. Senza il suffisso,
+    // chi l'ha gia' vista si terrebbe quella rotta.
     icon: [
-      { url: "/icone/icona-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icone/icona-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icone/icona-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icone/icona-512.png?v=2", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/icone/icona-180.png", sizes: "180x180", type: "image/png" }],
+    apple: [
+      { url: "/icone/icona-180.png?v=2", sizes: "180x180", type: "image/png" },
+    ],
   },
   // iOS non legge il manifest: lo schermo intero e il nome sotto l'icona si
   // chiedono con questi meta tag, non con il file.
@@ -59,6 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider>
           {children}
           <ServiceWorker />
+          <ControlloVersione />
           <Toaster
             position="top-center"
             toastOptions={{
