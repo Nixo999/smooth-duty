@@ -11,6 +11,32 @@ ricostruite dalla storia dei commit.
 
 ## 31 agosto 2026
 
+**All'apertura dell'app manca ancora un confine: eccolo**
+Patrick chiedeva la stessa cosa della voce qui sotto — *«il logo che gira anche
+quando carichi l'app, non solo quando cambi pagina»* — ed è arrivata per un'altra
+strada mentre ci lavoravo. Resta però un buco che i due `loading.tsx` di gruppo
+non possono chiudere, e la voce qui sotto dà per coperto: **il primo arrivo.**
+
+Il motivo è dove vive un confine di Suspense. `loading.tsx` avvolge i *figli*
+del suo segmento, quindi sta **dentro** il layout. All'apertura è il layout
+stesso ad aspettare: `(app)/layout.tsx` è `async` e prima di restituire una
+riga di JSX legge l'utente da Supabase, le impostazioni dell'azienda e i tre
+contatori del pallino su «Oggi». Finché quel `await` non torna, il confine
+dentro `(app)` non esiste ancora — quindi non può mostrare niente, e si vede
+il fondo vuoto.
+
+Il file nuovo è `src/app/loading.tsx`, un livello sopra il layout, e riusa
+`CaricamentoMarchio` così com'è: a tutto schermo, che qui è esatto perché
+un'intestazione da lasciar vedere non c'è ancora. **Fra una pagina e l'altra
+non cambia niente**: vince sempre il confine più vicino, cioè quello dentro
+`(app)`.
+
+⚠️ Non copre il bianco che nell'APK precede il **primo byte**, quando la
+webview non ha ancora l'HTML: lì non arriva nessun `loading.tsx`. Quel pezzo è
+lo splash nativo di Android (`values/styles.xml`), oggi un'icona ferma.
+
+Database: **niente**. Solo interfaccia.
+
 **Nell'attesa il calendario sta fermo e gira solo l'anello, anche fra le pagine**
 Richiesta di Nicola: durante ogni caricamento il logo al centro, col
 calendario immobile e il cerchio che orbita. L'anello del marchio ora vive in
