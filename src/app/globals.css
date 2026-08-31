@@ -503,6 +503,20 @@
   .no-scrollbar {
     scrollbar-width: none;
   }
+
+  /* Il marchio in attesa: gira solo l'anello, il calendario resta fermo.
+     `transform-box: fill-box` perche' l'origine va presa sul riquadro
+     dell'anello, non sul viewBox: il gruppo genitore e' traslato e capovolto
+     (scale(1,-1)) e senza questa riga l'anello orbiterebbe fuori dal disegno.
+     `reverse` per lo stesso capovolgimento: una rotazione positiva in uno
+     spazio specchiato appare antioraria, e un'attesa che gira all'indietro
+     sembra un errore. */
+  .marchio-girante .marchio-anello {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: var(--animate-girata);
+    animation-direction: reverse;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

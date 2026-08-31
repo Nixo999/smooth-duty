@@ -11,6 +11,20 @@ ricostruite dalla storia dei commit.
 
 ## 31 agosto 2026
 
+**Nell'attesa il calendario sta fermo e gira solo l'anello, anche fra le pagine**
+Richiesta di Nicola: durante ogni caricamento il logo al centro, col
+calendario immobile e il cerchio che orbita. L'anello del marchio ora vive in
+un gruppo suo (`.marchio-anello` in `marchio.tsx`) e la classe
+`marchio-girante` lo fa ruotare da solo — `transform-box: fill-box` perché il
+gruppo genitore è capovolto e senza origine propria l'anello orbiterebbe
+fuori dal disegno, `reverse` perché nello spazio specchiato la rotazione
+positiva appare all'indietro. I due `loading.tsx` (gruppi app e admin)
+abbandonano gli scheletri per il marchio centrato: un'attesa sola, uguale
+per la navigazione, il primo arrivo, il tiro del tabellone e la versione
+nuova. Misurato nel browser: rotazione lineare oraria, centro fisso, gruppo
+del calendario senza animazione. Non verificato: il loading montato dentro
+la shell (serve un accesso) — si guarda su denkishift.it navigando.
+
 **L'attesa ha la faccia dell'app, e l'icona sulla home smette di essere rotta**
 Tre pezzi chiesti da Nicola. Tirando giù il tabellone dal bordo alto il
 marchio scende col dito, ruota, e oltre la soglia l'app si ricarica per
