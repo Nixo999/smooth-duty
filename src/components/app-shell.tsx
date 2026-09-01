@@ -19,6 +19,7 @@ import { Marchio } from "@/components/ui/marchio";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { PannelloCambiaPassword } from "@/components/auth/cambia-la-mia-password";
+import { useScorrimentoPagine } from "@/components/scorrimento-pagine";
 import { CaricamentoMarchio } from "@/components/ui/caricamento-marchio";
 import { ThemeToggle } from "@/components/ui/theme";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,20 @@ export function AppShell({
    * vero (location.reload), non un refresh morbido: chi tira giu' vuole la
    * certezza di guardare dati freschi, non una via di mezzo. */
   const principale = React.useRef<HTMLElement>(null);
+
+  /* ------------------------------------------------- scorri e cambi pagina
+   * L'altro gesto del telefono: si trascina di lato e si passa alla voce
+   * accanto della barra. Vive qui e non nelle pagine perche' e' la barra a
+   * dare l'ordine, e la barra sta in questo file: il dito e il pulsante
+   * portano nello stesso posto per costruzione, non per manutenzione.
+   *
+   * Le pagine non si preallineano a mano: le voci della barra sono `<Link>`
+   * in vista, e Next le prende gia' in anticipo per conto suo — con
+   * `staleTimes.dynamic: 30` (next.config.ts) chi scorre avanti e indietro
+   * fra due pagine non rifa il giro fino all'Ohio ogni volta. */
+  const { foglio, orizzontale, anteprima, classeEntrata, entrataFinita } =
+    useScorrimentoPagine(principale, sections.map((s) => s.href));
+
   const [tiro, setTiro] = React.useState(0);
   // Vero mentre il dito e' giu': durante il tiro l'indicatore sta incollato
   // al dito (niente transizione), al rilascio rientra morbido.
@@ -99,6 +114,16 @@ export function AppShell({
     };
     const movimento = (e: TouchEvent) => {
       if (!statoTiro.current.attivo) return;
+      // Stesso dito, due gesti: a schermo in cima si contendono i primi
+      // pixel, e chi ha deciso per primo si tiene il gesto. Senza questa
+      // riga, un trascinamento di lato appena inclinato faceva scendere
+      // anche il marchio del ricaricamento.
+      if (orizzontale.current) {
+        statoTiro.current.attivo = false;
+        if (statoTiro.current.valore > 0) aggiorna(0);
+        setInTiro(false);
+        return;
+      }
       const delta = e.touches[0].clientY - statoTiro.current.y0;
       if (delta <= 0 || el.scrollTop > 0) {
         if (statoTiro.current.valore > 0) aggiorna(0);
@@ -130,9 +155,19 @@ export function AppShell({
       el.removeEventListener("touchend", fine);
       el.removeEventListener("touchcancel", fine);
     };
-  }, []);
+  }, [orizzontale]);
 
   const barra = sections.length > 1;
+
+  /** Come sta questa voce della barra adesso. Le due di mezzo esistono solo
+   *  mentre il dito e' giu': la pagina che si sta lasciando si spegne e la
+   *  destinazione si accende **prima** del rilascio, cosi' si sa dove si sta
+   *  andando finche' si e' ancora in tempo a tornare indietro. */
+  const statoVoce = (href: string) => {
+    if (anteprima?.percorso === href) return anteprima.sicura ? "sicura" : "vicina";
+    if (pathname === href) return anteprima ? "lasciata" : "attiva";
+    return "spenta";
+  };
 
   const initials = identity.name
     .split(/\s+/)
@@ -165,17 +200,19 @@ export function AppShell({
             >
               {sections.map(({ href, label, icon }) => {
                 const Icon = ICONS[icon];
-                const active = pathname === href;
+                const stato = statoVoce(href);
                 return (
                   <Link
                     key={href}
                     href={href}
-                    aria-current={active ? "page" : undefined}
+                    aria-current={pathname === href ? "page" : undefined}
                     className={cn(
                       "tap flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium",
-                      active
-                        ? "bg-surface text-text shadow-soft"
-                        : "text-muted hover:text-text",
+                      stato === "attiva" && "bg-surface text-text shadow-soft",
+                      stato === "lasciata" && "bg-surface text-muted shadow-soft",
+                      stato === "sicura" && "bg-accent-soft text-accent",
+                      stato === "vicina" && "text-text",
+                      stato === "spenta" && "text-muted hover:text-text",
                     )}
                   >
                     <Icon className="size-3.5" />
@@ -331,8 +368,28 @@ export function AppShell({
       {/* overscroll-y-contain: il tiro e' nostro, quello del browser resta
           fuori — due spie di ricaricamento per lo stesso gesto sono una di
           troppo. */}
-      <main ref={principale} className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-        <div className="mx-auto w-full max-w-[100rem] px-4 py-5 sm:px-6 sm:py-7">
+      {/* overflow-x-hidden: il foglio qui sotto esce di scena traslando, e
+          senza questa riga uscirebbe **dentro** una barra di scorrimento
+          orizzontale invece che fuori dallo schermo. */}
+      <main
+        ref={principale}
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+      >
+        {/* Il foglio che il dito trascina. `key={pathname}`: cambiando pagina
+            il nodo e' nuovo di zecca, quindi la trasformazione con cui il
+            vecchio e' uscito di scena sparisce da sola — e l'animazione
+            d'ingresso riparte senza doverla riavvolgere a mano. */}
+        <div
+          key={pathname}
+          ref={foglio}
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget) entrataFinita();
+          }}
+          className={cn(
+            "mx-auto w-full max-w-[100rem] px-4 py-5 sm:px-6 sm:py-7",
+            classeEntrata,
+          )}
+        >
           {children}
         </div>
       </main>
@@ -345,19 +402,21 @@ export function AppShell({
           <div className="flex items-stretch">
             {sections.map(({ href, label, icon }) => {
               const Icon = ICONS[icon];
-              const active = pathname === href;
+              const stato = statoVoce(href);
               return (
                 <Link
                   key={href}
                   href={href}
-                  aria-current={active ? "page" : undefined}
+                  aria-current={pathname === href ? "page" : undefined}
                   className={cn(
                     // `min-w-0` su una colonna flex non e' pignoleria: senza,
                     // la colonna non scende mai sotto la larghezza della sua
                     // parola, e la voce col nome piu' lungo si prende lo
                     // spazio delle altre.
                     "tap flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 pb-2 pt-2",
-                    active ? "text-accent" : "text-muted",
+                    (stato === "attiva" || stato === "sicura") && "text-accent",
+                    stato === "vicina" && "text-text",
+                    (stato === "lasciata" || stato === "spenta") && "text-muted",
                   )}
                 >
                   <Icon className="size-5" />

@@ -241,6 +241,24 @@
   /* Il marchio che gira: l'attesa dell'app ha la faccia dell'app. Lineare
      apposta — un giro che accelera e frena sembra un giro che inciampa. */
   --animate-girata: girata 1.1s linear infinite;
+
+  /* Il passaggio fra le pagine col dito (components/scorrimento-pagine.ts).
+     Durata e curve stanno qui perche' le scrive il TypeScript negli stili in
+     linea del foglio che si muove: due numeri in due posti, prima o poi si
+     scordano d'accordo. */
+  --pagina-durata: 0.22s;
+  /* Uscita: parte ferma e accelera via, come una cosa lanciata. */
+  --pagina-uscita: cubic-bezier(0.32, 0, 0.67, 0);
+  /* Rientro: il dito ha mollato troppo presto e la pagina torna al suo
+     posto — deve frenare, non sbattere. */
+  --pagina-rientro: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Ingresso: 32px e non mezza schermata. La pagina che arriva la disegna il
+     server, quindi entra quando e' pronta e non in fila con l'uscita: uno
+     scorrimento lungo, giocato in ritardo, si vede che e' in ritardo. Un
+     accenno di direzione piu' una dissolvenza no — ed e' la stessa dose del
+     resto dell'app (rise 6px, sheet-up 14px). */
+  --animate-entra-da-destra: entra-da-destra 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-entra-da-sinistra: entra-da-sinistra 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 @keyframes girata {
@@ -273,6 +291,20 @@
   from {
     opacity: 0;
     transform: translateY(14px) scale(0.985);
+  }
+}
+
+@keyframes entra-da-destra {
+  from {
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+}
+
+@keyframes entra-da-sinistra {
+  from {
+    opacity: 0;
+    transform: translate3d(-32px, 0, 0);
   }
 }
 

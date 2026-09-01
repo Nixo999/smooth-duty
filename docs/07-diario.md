@@ -9,6 +9,70 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 1 settembre 2026
+
+**Le pagine si cambiano col dito, e il dito dice dove sta andando prima di mollare**
+Su OperO il gesto c'era già e a Nicola serviva qui, fatto meglio. La parte
+uguale è quella giusta e si riusa: il foglio segue il dito, agli estremi
+trova resistenza invece del vuoto, e al rilascio o si è andati abbastanza in
+là (28% di schermo) o si è dato un colpo secco (0.45 px/ms in meno di mezzo
+secondo) — se no si torna al proprio posto.
+
+Le tre cose che qui sono diverse:
+
+**Le soglie stanno in un motore puro** (`lib/scorrimento.ts`), provato da
+`npm run prove` con 26 controlli. Un gesto si sbaglia di poco — la soglia
+bassa cambia pagina a chi scorre un elenco, quella alta fa sembrare l'app
+rotta — e il posto peggiore per accorgersene è il telefono in mano. Il caso
+che vale da solo la prova: **a 45 gradi vince lo scorrimento**, perché chi
+legge un elenco lungo la mano la porta anche di lato.
+
+**Il gesto si prende solo se non è di qualcun altro.** Prima di partire si
+risale l'albero dal punto toccato: se si è dentro qualcosa che scorre in
+orizzontale (la striscia dei giorni, le tabelle di prospetto, supervisione e
+disponibilità), dentro una barra trascinabile della supervisione
+(`touch-action: none`), dentro un campo di testo o sotto
+`data-scorrimento="no"`, il dito è suo e la pagina sta ferma. Fuori dalle
+pagine della barra il gesto non esiste proprio: da `/turni/importa` un dito di
+traverso butterebbe via l'anteprima di un foglio appena caricato. E i 24px ai
+bordi dello schermo restano del sistema — lì si torna indietro nel browser, e
+contendere quel gesto non lo vince, lo rompe.
+
+**La destinazione si accende nella barra mentre il dito è ancora giù**: la
+voce che si sta lasciando si spegne, quella dove si sta andando diventa
+grigio-testo appena il gesto è deciso e **accento** appena si è passata la
+soglia. È l'unica parte di interfaccia nuova, e non è decorazione: dice
+«mollando adesso arrivi qui» finché si è ancora in tempo a tornare indietro.
+
+⚠️ **Il passaggio non è un movimento solo, e non poteva esserlo.** Su OperO
+la pagina nuova è un cambio di componente e la si anima con una View
+Transition; qui ogni pagina è un giro fino al server (Ohio + Irlanda), quindi
+l'uscita parte col rilascio e l'ingresso quando la pagina arriva — e chi entra
+può essere il segnaposto di `loading.tsx`. Per questo l'uscita è piena
+(-100% e dissolvenza) e **l'ingresso è 32px più una dissolvenza**, la stessa
+dose del resto dell'app: uno scorrimento lungo giocato in ritardo si vede che
+è in ritardo. Le pagine non si pre-caricano a mano: le voci della barra sono
+`<Link>` in vista e Next le prende già in anticipo, e `staleTimes.dynamic: 30`
+fa il resto.
+
+Un pezzo di codice esistente è cambiato: il **tiro-giù per ricaricare**
+non mollava mai la presa. Parte dallo stesso dito e a schermo in cima si
+contendevano i primi pixel, quindi un trascinamento di lato appena inclinato
+faceva scendere anche il marchio del ricaricamento. Adesso chi decide per
+primo si tiene il gesto.
+
+Verificato in browser con eventi di tocco sintetici su un banco di prova
+temporaneo (tre pagine finte dentro `AppShell`, poi cancellate): il foglio
+segue il dito, la resistenza ai bordi c'è (50px di dito → 14px di pagina), il
+corto e lento torna indietro, il lungo passa, l'anteprima nella barra si
+accende alle due soglie, l'ingresso arriva dal lato giusto e si ripulisce, la
+striscia dei giorni e i bordi dello schermo non lo fanno partire, e il
+tiro-giù continua a funzionare da solo. ⚠️ **Non provato su un telefono
+vero**: il dito vero ha una precisione e una velocità che gli eventi
+sintetici non hanno, e le soglie potrebbero volere una limata.
+
+Database: **niente**. Solo interfaccia.
+
 ## 31 agosto 2026
 
 **All'apertura dell'app manca ancora un confine: eccolo**

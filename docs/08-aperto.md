@@ -144,6 +144,15 @@ In quest'ordine:
    accettare, non un avviso.
 8. **Sospendi/riattiva in Squadra**, compreso il rifiuto sull'unico
    responsabile attivo.
+9. **Il cambio pagina col dito, su un telefono vero** (1 settembre 2026).
+   Verificato solo con eventi di tocco sintetici: il dito vero ha una
+   precisione e una velocità che quelli non hanno. Cosa guardare, in ordine:
+   che scorrendo un elenco lungo la pagina **non** cambi mai da sola; che la
+   striscia dei giorni sul tabellone si scorra ancora; che le barre della
+   supervisione si trascinino ancora; che il tiro-giù per ricaricare parta
+   solo quando si tira dritto. Se una soglia va limata, sta tutta in
+   `src/lib/scorrimento.ts` — e le prove sono in
+   `scripts/prova-scorrimento.mjs`, da aggiornare insieme.
 
 ## Non c'è ancora
 

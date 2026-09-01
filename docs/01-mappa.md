@@ -65,6 +65,13 @@ l'app. Da telefono la barra scende in basso, con l'etichetta scritta su ogni
 voce: le cinque etichette intere non stanno in una riga sola a 375px, e i nomi
 delle pagine non si accorciano (decisione del 29 agosto 2026).
 
+**Da telefono le stesse pagine si cambiano anche col dito**, trascinando di
+lato: la barra dà l'ordine, quindi il dito e il pulsante portano sempre nello
+stesso posto. Vale solo sugli indirizzi della barra — da `/turni/importa`, con
+un foglio Excel in anteprima, il gesto non esiste. Sta in
+`components/scorrimento-pagine.ts`, le soglie in `lib/scorrimento.ts`
+(1 settembre 2026).
+
 **Un pallino solo in tutta la barra**, su «Oggi»: le cose che aspettano una
 decisione. Due contatori sullo stesso dato insegnano a non fidarsi di nessuno
 dei due.
@@ -123,3 +130,4 @@ Sono il cuore, e stanno tutti fuori dai componenti apposta: si provano con
 | `src/lib/generazione.ts` | chi ci metteresti, in questa settimana vuota? |
 | `src/lib/pubblicazione.ts` | questa settimana si può pubblicare? |
 | `src/lib/disponibilita.ts` | a chi è a chiamata, questo turno si può dare? |
+| `src/lib/scorrimento.ts` | questo dito sta cambiando pagina o scorrendo? |
