@@ -22,7 +22,7 @@ export const CURVA_USCITA: [number, number, number, number] = [0.32, 0, 0.67, 0]
  *  uscite, niente gesti ne' inView — nell'app non c'e' un solo `whileHover`
  *  o `whileTap`), e `strict`, che fa fallire la resa se qualcuno importa
  *  `motion.div` al posto di `m.div`, cioe' se qualcuno si porta dietro il
- *  pacchetto intero senza accorgersene. Costa comunque ~24 KB compressi su
+ *  pacchetto intero senza accorgersene. Costa comunque ~27 KB compressi su
  *  ogni rotta dell'app: e' il prezzo di averla ovunque, ed e' dichiarato.
  *
  *  Sta alla radice di `AppShell` e non dentro il foglio che cambia a ogni

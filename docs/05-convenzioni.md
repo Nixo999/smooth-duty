@@ -162,7 +162,7 @@ il valore vive nel `MotionValue`, React non ri-renderizza a ogni frame). Si
 usa **sempre e solo `m.*`**, mai `motion.*`: il provider `Movimento`, alla
 radice di `AppShell`, carica `domMin` (animazioni e uscite, niente gesti) in
 modalità `strict`, e `motion.div` rompe la resa apposta — è il modo in cui
-non ci si porta dietro il pacchetto intero senza accorgersene. Costa ~24 KB
+non ci si porta dietro il pacchetto intero senza accorgersene. Costa ~27 KB
 compressi su ogni rotta dell'app: è il prezzo dichiarato di averla ovunque.
 
 ## I motori si provano senza browser
