@@ -361,17 +361,17 @@ l'ordine del DOM resta quello di lettura sul telefono e aprire un `<details>`
 allunga solo la sua colonna — più `items-start`, o le due colonne si stirano
 alla stessa altezza. Sotto i 1024 px la pagina è identica a prima.
 La testata con lo stato del salvataggio è **fissa a ogni larghezza**
-(`sticky top-0`) e da staccata si accorcia: la riga che spiega cosa sono
-queste impostazioni sparisce e resta il titolo, il nome dell'azienda e la
-pastiglia del salvataggio. ⚠️ **`top-0` e non `top-14`**: a scorrere non è la
+(`sticky top-0`) e **non cambia mentre si scorre**: titolo, nome dell'azienda
+e riga di spiegazione restano identici dal primo pixel all'ultimo. Una
+versione intermedia si accorciava da staccata; è stata tolta perché per chi
+guarda è un'altra cosa che si muove. Il costo è dichiarato: sul telefono sono
+~74 px di barra sempre presenti, sotto ai 56 della topbar. ⚠️ **`top-0` e non `top-14`**: a scorrere non è la
 finestra ma il `<main>` del guscio (`overflow-y-auto`), quindi lo `sticky` si
 misura dal bordo alto dell'area di contenuto, che sta già sotto la topbar —
-con `top-14` la testata si incollava 56 px troppo in basso. Lo stacco lo
-riconosce un `IntersectionObserver` su una sentinella di un pixel, non un
-evento di scorrimento, proprio perché il contenitore che scorre non è la
-finestra. Il fondo è la classe `glass`, la stessa della topbar, e **compare
-solo da staccata**: dietro c'è lo sfondo d'ambiente del guscio, e un fondo
-piatto ci si vedrebbe sopra come una toppa.
+con `top-14` la testata si incollava 56 px troppo in basso. Il fondo è la classe `glass`, la stessa della topbar, ed è **sempre acceso**:
+dietro c'è lo sfondo d'ambiente del guscio — un `bg-canvas` piatto ci si
+vedrebbe sopra come una toppa — e accenderlo solo da staccata sarebbe di nuovo
+qualcosa che cambia sotto gli occhi.
 
 Fra le levette c'è un riquadro «sempre attivo», che levetta non è: la settimana
 in cui qualcuno sta sotto le sue ore da contratto si pubblica solo dopo che

@@ -101,51 +101,27 @@ export function Impostazioni({
 
   const richiedibili = v.causali_richiedibili.length;
 
-  /** La testata resta in cima mentre si scorre, e appena si stacca si
-   *  accorcia: la riga che spiega cosa sono queste impostazioni serve a chi
-   *  arriva, non a chi sta gia' scorrendo, e su un telefono una barra fissa a
-   *  due righe si mangia un sesto dello schermo per sempre.
-   *
-   *  La sentinella e' un pixel in cima al contenuto: quando esce dalla vista
-   *  la testata e' incollata. Si guarda cosi' e non con l'evento di
-   *  scorrimento perche' **a scorrere non e' la finestra** — e' il `<main>`
-   *  del guscio, che ha `overflow-y-auto` — e l'osservatore quel dettaglio lo
-   *  gestisce da solo. */
-  const sentinella = React.useRef<HTMLDivElement>(null);
-  const [compatta, setCompatta] = React.useState(false);
-
-  React.useEffect(() => {
-    const nodo = sentinella.current;
-    if (!nodo) return;
-    const osservatore = new IntersectionObserver(
-      ([voce]) => setCompatta(!voce.isIntersecting),
-    );
-    osservatore.observe(nodo);
-    return () => osservatore.disconnect();
-  }, []);
-
   return (
-    <div className="relative mx-auto flex max-w-2xl flex-col gap-4 lg:max-w-6xl lg:gap-6">
-      {/* Fuori flusso, o il `gap` qui sopra la conterebbe come una scheda. */}
-      <div
-        ref={sentinella}
-        aria-hidden
-        className="absolute left-0 top-[-1.25rem] h-px w-px sm:top-[-1.75rem]"
-      />
-      {/* La testata e' l'unica cosa fissa della pagina. Il fondo lo mette
-          `glass` — lo stesso della barra in alto — e **solo da staccata**:
-          a riposo dietro c'e' lo sfondo d'ambiente del guscio, e un
-          `bg-canvas` piatto ci si vedrebbe sopra come una toppa. I margini
-          negativi la portano fino al bordo della colonna, se no il contenuto
-          scorrerebbe scoperto nei quattro pixel di lato. */}
-      <div
-        className={cn(
-          "sticky top-0 z-20 -mx-4 -mt-5 flex items-start justify-between gap-3 px-4 transition-[padding,background-color] duration-200 motion-reduce:transition-none sm:-mx-6 sm:-mt-7 sm:px-6",
-          compatta
-            ? "glass border-b border-border pb-3 pt-3 sm:pt-3.5"
-            : "pb-1 pt-5 sm:pt-7",
-        )}
-      >
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 lg:max-w-6xl lg:gap-6">
+      {/* La testata e' l'unica cosa fissa della pagina, e **non cambia
+          mentre si scorre**: chiesto due volte da Nicola, il 2 settembre
+          2026. La versione di mezzo si accorciava da staccata — spariva la
+          riga di spiegazione — e quello, dal suo lato dello schermo, era
+          esattamente «il blocco che si muove». Adesso e' identico dal primo
+          pixel all'ultimo.
+
+          `top-0` e non `top-14`: **a scorrere non e' la finestra**, e' il
+          `<main>` del guscio (`overflow-y-auto`), quindi lo sticky si misura
+          dal bordo alto dell'area di contenuto — che sta gia' sotto la barra
+          in alto. Con `top-14` si incollava 56px troppo in basso e il
+          contenuto passava scoperto in quel buco.
+
+          Il fondo e' `glass`, lo stesso della barra in alto, ed e' **sempre
+          acceso**: accenderlo solo da staccata sarebbe un'altra cosa che
+          cambia sotto gli occhi, e senza fondo il contenuto che scorre
+          passerebbe attraverso le lettere. I margini negativi la portano
+          fino al bordo della colonna. */}
+      <div className="glass sticky top-0 z-20 -mx-4 -mt-5 flex items-start justify-between gap-3 border-b border-border px-4 pb-3.5 pt-4 sm:-mx-6 sm:-mt-7 sm:px-6 sm:pt-5">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
             <SlidersHorizontal className="size-[18px]" />
@@ -159,14 +135,7 @@ export function Impostazioni({
                 {azienda}
               </span>
             </div>
-            {/* Non `hidden`: sparire di colpo e' uno scatto, e questa riga
-                sta sopra a tutto il resto della pagina. */}
-            <p
-              className={cn(
-                "overflow-hidden text-[13.5px] text-muted transition-all duration-200 motion-reduce:transition-none",
-                compatta ? "max-h-0 opacity-0" : "mt-0.5 max-h-12 opacity-100",
-              )}
-            >
+            <p className="mt-0.5 text-[13.5px] text-muted">
               Valgono per tutta l&apos;azienda. Ogni modifica si salva da sola.
             </p>
           </div>

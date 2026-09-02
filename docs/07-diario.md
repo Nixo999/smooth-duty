@@ -11,6 +11,22 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**«Fermo» vuol dire identico, non «si accorcia con grazia»**
+La testata che si rimpiccioliva da staccata era una bella idea e la risposta
+sbagliata: Nicola ha ripetuto la stessa richiesta due volte — il blocco
+titolo + azienda + riga di spiegazione deve stare fermo in cima — e una
+testata che si accorcia mentre scorri è, dal suo lato dello schermo,
+esattamente il blocco che si muove. Fuori l'`IntersectionObserver`, fuori la
+sentinella, fuori la transizione: `glass` sempre acceso, imbottitura fissa,
+niente cambia. Meno codice di prima.
+
+⚠️ Il costo, dichiarato: sul telefono la barra occupa ~74 px per sempre,
+sotto ai 56 della topbar. Se dà fastidio si nasconde la riga di spiegazione
+sotto `sm`, ma è una scelta di prodotto, non una riga da mettere di mia
+iniziativa.
+
+---
+
 **La testata delle Impostazioni si incollava 56 px troppo in basso**
 Chiesto da Nicola: la testata deve restare fissa ed essere più bella.
 Restando fissa non lo era davvero — `lg:sticky lg:top-14` partiva dal
