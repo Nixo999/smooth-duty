@@ -286,13 +286,47 @@ in testa.
 **File**: `src/app/(app)/prospetto/page.tsx` ·
 `src/components/prospetto/prospetto.tsx` · **motore**: `src/lib/prospetto.ts`.
 
-Solo capo. Una tabella per settimana, mese o anno: ore programmate, perse,
-saltate, effettive e attese, più **una colonna per ogni causale di assenza**
-comparsa nel periodo (`malattia` c'è sempre, anche a zero: una colonna che
-sparisce a seconda del mese rende impossibile confrontare due periodi).
+Solo capo. Un periodo per volta — settimana, mese o anno — letto prima come
+figura e poi come numero.
+
+**La sintesi, in cima** (rifatta il 2 settembre 2026). Prima la pagina apriva
+su due numeri negativi senza denominatore — «perse 96h», «scoperti 12h» — e
+non c'era modo di sapere se 96 ore su quel mese fossero tante. Ora il numero
+grosso è **quanto si è lavorato**, sotto una barra a due segmenti dice quanto
+del periodo è stato lavorato e quanto perso, e i due numeri **da coprire**
+(turni saltati, turni scoperti) stanno accanto in due riquadri: sono cose da
+fare, non misure del periodo. ⚠️ Le ore effettive erano state tolte dalla
+sintesi il 30 agosto perché «già sotto ogni nome»: **quella metà è stata
+riaperta** — un totale di periodo non è la stessa informazione di una riga per
+persona. Le ore *attese* restano fuori, e per la ragione di allora: su un anno
+confrontano un contratto intero con un tabellone fatto per due settimane.
+
+**I due colori sono quelli che l'app usa già**: `--turno` per le ore lavorate
+(in quest'app quel blu vuol dire «turno» da sempre) e `--warning` per quelle
+perse, che è il colore che questa tabella dava già alle assenze. Nessuna
+tavolozza nuova: il colore qui ha un significato solo. La coppia è passata
+dal validatore del skill `dataviz` in tutti e due i temi — separazione CVD
+ampia (ΔE 23,6 chiaro · 30,2 scuro), contrasto sul fondo oltre 3:1; i due
+FAIL restanti sono sulle bande di luminosità e croma della tavolozza di
+riferimento del validatore, non sulla leggibilità. L'identità non è mai
+affidata al solo colore: ogni segmento ha la sua etichetta col valore
+accanto, i segmenti sono staccati di 2 px, e un riquadro che allarma porta
+un'icona oltre alla tinta.
+
+**La tabella**, una riga per persona: ore programmate, perse, saltate,
+effettive e attese, più **una colonna per ogni causale di assenza** comparsa
+nel periodo (`malattia` c'è sempre, anche a zero: una colonna che sparisce a
+seconda del mese rende impossibile confrontare due periodi). Sotto ogni nome
+la stessa barra a due segmenti, in piccolo: è quella che permette di vedere
+in un colpo d'occhio chi ha perso più ore, senza leggere i numeri. Sopra i
+700 px di contenuto la tabella scorre di lato con la colonna del nome
+appiccicata.
 
 Legge le assenze dalla **tabella** e non dalla vista: insieme a Squadra è
 l'unico posto in cui la causale serve, e lo vede solo il responsabile.
+
+La riga lunga che spiegava il conto delle assenze è diventata un richiudibile
+in fondo, come i «Come funziona» delle Impostazioni.
 
 Il calcolo di «quanto è costata un'assenza» è la regola meno ovvia dell'app:
 sta in [04-regole.md](04-regole.md). Si spegne con `pagina_prospetto`.

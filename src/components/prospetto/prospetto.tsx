@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Plus,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -28,6 +35,26 @@ function spostaPeriodo(livello: Livello, dentro: string, passo: number): string 
  *  dall'occhio. */
 const ore = (m: number) => (m > 0 ? formatDuration(m) : "—");
 
+/** Il periodo si legge prima come figura e poi come numero.
+ *
+ *  Rifatta il 2 settembre 2026. Quello che non andava non erano i conti — il
+ *  motore in `lib/prospetto.ts` non l'ho toccato — era che la pagina apriva
+ *  su **due numeri negativi senza denominatore**: «perse 96h» e «scoperti
+ *  12h», e nessun modo di sapere se 96 ore su questo mese siano tante. Sopra
+ *  la tabella adesso c'e' una figura sola — quanto del periodo e' stato
+ *  lavorato e quanto e' andato perso — e i due numeri da coprire stanno
+ *  accanto, che e' quello che sono: cose da fare, non misure del periodo.
+ *
+ *  **Due colori, e sono quelli che l'app usa gia'**: `--turno` per le ore
+ *  lavorate (nell'app quel blu vuol dire «turno» da sempre) e `--warning` per
+ *  quelle perse (e' il colore che questa tabella dava gia' alle assenze).
+ *  Niente tavolozza nuova: qui il colore ha un significato solo, ed e' quella
+ *  la regola.
+ *
+ *  Le barre non portano identita' da sole: ogni segmento ha la sua etichetta
+ *  scritta accanto col valore, i due segmenti sono staccati di 2px, e i
+ *  riquadri con un numero che allarma portano un'icona oltre al colore. Chi
+ *  non distingue il blu dall'oro legge la stessa cosa. */
 export function Prospetto({
   livello,
   dentro,
@@ -58,9 +85,36 @@ export function Prospetto({
   const corrente = oggi >= da && oggi <= a;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 lg:gap-5">
+      {/* ------------------------------------------------------ testata --- */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+            <ClipboardList className="size-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h1 className="text-[19px] font-semibold leading-tight tracking-tight">
+                Prospetto
+              </h1>
+              {/* Il periodo e' la cosa che cambia sotto le mani: sta in una
+                  pastiglia accanto al titolo e si annuncia da sola. */}
+              <span
+                aria-live="polite"
+                data-pending={inCorso || undefined}
+                className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-[12px] font-medium capitalize text-muted"
+              >
+                {titolo}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[13px] text-muted">
+              {dayLong(fromISODate(da))} → {dayLong(fromISODate(a))} ·{" "}
+              {dati.giorni} giorni
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 items-center rounded-lg border border-border bg-surface shadow-soft">
             <button
               type="button"
@@ -81,94 +135,202 @@ export function Prospetto({
             </button>
           </div>
 
-          <div className="min-w-0">
-            <p
-              className="text-[15px] font-semibold capitalize tracking-tight"
-              aria-live="polite"
-              data-pending={inCorso || undefined}
-            >
-              {titolo}
-            </p>
-            <p className="text-[12px] text-faint">
-              {dayLong(fromISODate(da))} → {dayLong(fromISODate(a))} · {dati.giorni}{" "}
-              giorni
-            </p>
-          </div>
-
           {!corrente ? (
             <Button variant="ghost" size="sm" onClick={() => vai(livello, oggi)}>
               Oggi
             </Button>
           ) : null}
-        </div>
 
-        <div
-          role="radiogroup"
-          aria-label="Periodo"
-          className="flex items-center gap-0.5 rounded-full bg-surface-3 p-0.5"
-        >
-          {(["settimana", "mese", "anno"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={livello === v}
-              onClick={() => vai(v, dentro)}
-              className={cn(
-                "tap h-7 rounded-full px-3 text-[13px] font-medium capitalize",
-                livello === v
-                  ? "bg-surface text-text shadow-soft"
-                  : "text-muted hover:text-text",
-              )}
-            >
-              {v}
-            </button>
-          ))}
+          <div
+            role="radiogroup"
+            aria-label="Periodo"
+            className="flex items-center gap-0.5 rounded-full bg-surface-3 p-0.5"
+          >
+            {(["settimana", "mese", "anno"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={livello === v}
+                onClick={() => vai(v, dentro)}
+                className={cn(
+                  "tap h-7 rounded-full px-3 text-[13px] font-medium capitalize",
+                  livello === v
+                    ? "bg-surface text-text shadow-soft"
+                    : "text-muted hover:text-text",
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <Riepilogo totali={dati.totale} scoperti={dati.scopertiMinuti} />
+      <Sintesi totali={dati.totale} scoperti={dati.scopertiMinuti} />
 
       <Tabella dati={dati} />
 
-      <p className="px-1 text-[12px] text-faint">
-        Le ore di assenza si contano sul contratto, non sul tabellone: in una
-        settimana da 40 ore chi ne lavora 10 perché è stato in malattia ne
-        perde 30, che il turno di quei giorni fosse scritto o no. Il conto è
-        settimanale, come il contratto. Chi lavora a chiamata non ha un
-        contratto da cui sottrarre: per lui restano le ore dei turni saltati.
-      </p>
+      <details className="group rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-card lg:px-5">
+        <summary className="tap flex cursor-pointer list-none items-center gap-2 text-[13px] font-medium">
+          <Chevron />
+          Come si contano le ore di assenza
+        </summary>
+        <p className="mt-2 pl-5 text-[13px] leading-relaxed text-muted">
+          Si contano sul contratto, non sul tabellone: in una settimana da 40
+          ore chi ne lavora 10 perché è stato in malattia ne perde 30, che il
+          turno di quei giorni fosse scritto o no. Il conto è settimanale, come
+          il contratto. Chi lavora a chiamata non ha un contratto da cui
+          sottrarre: per lui restano le ore dei turni saltati.
+        </p>
+      </details>
     </div>
   );
 }
 
-/** Solo quello che manca. Le ore effettive e quelle attese stavano qui e non
- *  servivano a niente: le prime sono gia' sotto ogni nome, le seconde su un
- *  anno confrontano un contratto intero con un tabellone fatto per due
- *  settimane, e il numero che ne esce non vuol dire nulla. */
-function Riepilogo({ totali, scoperti }: { totali: Totali; scoperti: number }) {
+/** La freccetta dei richiudibili, la stessa delle Impostazioni. */
+function Chevron() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Dato
-        etichetta="Perse per assenza"
-        valore={formatDuration(totali.persi)}
-        nota={
-          totali.saltati > 0
-            ? `sulle ore da contratto · ${formatDuration(totali.saltati)} di turni già scritti, da coprire`
-            : "sulle ore da contratto"
-        }
-        allerta={totali.persi > 0}
+    <span
+      aria-hidden
+      className="shrink-0 text-[13px] text-faint transition-transform group-open:rotate-90"
+    >
+      ›
+    </span>
+  );
+}
+
+/* ================================================================ sintesi */
+
+/** La barra: due segmenti, staccati di 2px, con gli estremi arrotondati.
+ *
+ *  Non porta etichette dentro — le porta la legenda qui accanto, col valore
+ *  scritto — perche' su una barra alta 8px un numero non ci sta e su una
+ *  riga di tabella nemmeno. */
+function Barra({
+  lavorate,
+  perse,
+  alta,
+  className,
+}: {
+  lavorate: number;
+  perse: number;
+  alta?: boolean;
+  className?: string;
+}) {
+  const totale = lavorate + perse;
+  const altezza = alta ? "h-2.5" : "h-1.5";
+
+  if (totale <= 0) {
+    return (
+      <div
+        aria-hidden
+        className={cn("rounded-full bg-surface-3", altezza, className)}
       />
-      <Dato
-        etichetta="Turni scoperti"
-        valore={formatDuration(scoperti)}
-        nota="non assegnati a nessuno"
-        allerta={scoperti > 0}
-      />
+    );
+  }
+
+  const quota = (m: number) => `${(m / totale) * 100}%`;
+
+  return (
+    <div aria-hidden className={cn("flex gap-0.5", altezza, className)}>
+      {lavorate > 0 ? (
+        <span
+          className="rounded-full bg-turno"
+          style={{ width: quota(lavorate) }}
+        />
+      ) : null}
+      {perse > 0 ? (
+        <span
+          className="rounded-full bg-warning"
+          style={{ width: quota(perse) }}
+        />
+      ) : null}
     </div>
   );
 }
 
+function Voce({
+  colore,
+  etichetta,
+  valore,
+}: {
+  colore: string;
+  etichetta: string;
+  valore: string;
+}) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", colore)} />
+      <span className="text-muted">{etichetta}</span>
+      <span className="cifre font-medium text-text">{valore}</span>
+    </span>
+  );
+}
+
+function Sintesi({ totali, scoperti }: { totali: Totali; scoperti: number }) {
+  const base = totali.effettivi + totali.persi;
+  const quotaPersa = base > 0 ? Math.round((totali.persi / base) * 100) : 0;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+      {/* Il numero grosso e' quello che si e' lavorato: e' il denominatore
+          che mancava, e senza di lui «96 ore perse» non vuol dire niente. */}
+      <section className="rounded-2xl border border-border bg-surface p-4 shadow-card lg:col-span-2 lg:p-5">
+        <p className="text-[12px] uppercase tracking-wide text-faint">
+          Ore lavorate nel periodo
+        </p>
+        <p className="cifre mt-1 text-[34px] font-semibold leading-none tracking-tight">
+          {totali.effettivi > 0 ? formatDuration(totali.effettivi) : "—"}
+        </p>
+        <p className="mt-1.5 text-[13px] text-muted">
+          {base === 0
+            ? "Nel periodo non risulta né lavoro né assenza."
+            : totali.persi === 0
+              ? "Nessuna ora persa: il periodo è pieno."
+              : `Il ${quotaPersa}% delle ore è andato perso per assenze.`}
+        </p>
+
+        <Barra
+          alta
+          lavorate={totali.effettivi}
+          perse={totali.persi}
+          className="mt-4"
+        />
+        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px]">
+          <Voce
+            colore="bg-turno"
+            etichetta="Lavorate"
+            valore={ore(totali.effettivi)}
+          />
+          <Voce
+            colore="bg-warning"
+            etichetta="Perse per assenza"
+            valore={ore(totali.persi)}
+          />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-1 lg:gap-5">
+        <Dato
+          etichetta="Turni saltati"
+          valore={ore(totali.saltati)}
+          nota="già scritti, da ricoprire"
+          allerta={totali.saltati > 0}
+        />
+        <Dato
+          etichetta="Turni scoperti"
+          valore={ore(scoperti)}
+          nota="non assegnati a nessuno"
+          allerta={scoperti > 0}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Un numero da coprire. L'icona non e' decorazione: e' il secondo segnale
+ *  oltre al colore, per chi il giallo non lo vede diverso dal grigio. */
 function Dato({
   etichetta,
   valore,
@@ -182,11 +344,18 @@ function Dato({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-card">
-      <p className="text-[12px] uppercase tracking-wide text-faint">{etichetta}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[12px] uppercase tracking-wide text-faint">
+          {etichetta}
+        </p>
+        {allerta ? (
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0 text-warning" />
+        ) : null}
+      </div>
       <p
         className={cn(
-          "mt-0.5 text-[22px] font-semibold cifre tracking-tight",
-          allerta ? "text-warning" : "text-muted",
+          "cifre mt-0.5 text-[22px] font-semibold tracking-tight",
+          allerta ? "text-warning" : "text-faint",
         )}
       >
         {valore}
@@ -227,7 +396,21 @@ function Tabella({ dati }: { dati: Dati }) {
   const larghezza = 22 + 8 + dati.causali.length * 7;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+      <header className="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-3 lg:px-5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+          <Users className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[14px] font-semibold">Persona per persona</h2>
+          <p className="text-[12.5px] text-muted">
+            {dati.righe.length}{" "}
+            {dati.righe.length === 1 ? "persona" : "persone"} · sotto ogni nome,
+            quanto ha lavorato e quanto ha perso
+          </p>
+        </div>
+      </header>
+
       <div className="overflow-x-auto">
         <table
           className="w-full border-collapse text-[13px]"
@@ -235,14 +418,16 @@ function Tabella({ dati }: { dati: Dati }) {
         >
           <thead>
             <tr className="border-b border-border bg-surface-2 text-left text-[12px] uppercase tracking-wide text-faint">
-              <th className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 font-medium">
+              <th className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 font-medium lg:px-5">
                 Nome
               </th>
-              <th className="px-3 py-2.5 text-right font-medium">Assenze</th>
+              <th className="whitespace-nowrap px-3 py-2.5 text-right font-medium">
+                Assenze
+              </th>
               {dati.causali.map((c) => (
                 <th
                   key={c}
-                  className="px-3 py-2.5 text-right font-medium"
+                  className="whitespace-nowrap px-3 py-2.5 text-right font-medium"
                   title={`Ore di assenza per ${ETICHETTA(c).toLowerCase()}`}
                 >
                   {ETICHETTA(c)}
@@ -259,8 +444,8 @@ function Tabella({ dati }: { dati: Dati }) {
               );
 
               return (
-                <tr key={r.profileId} className="border-t border-border">
-                  <td className="sticky left-0 z-10 bg-surface px-4 py-2.5">
+                <tr key={r.profileId} className="group border-t border-border">
+                  <td className="sticky left-0 z-10 bg-surface px-4 py-3 group-hover:bg-surface-2 lg:px-5">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-medium">{r.nome}</span>
                       {r.reparto ? (
@@ -272,15 +457,23 @@ function Tabella({ dati }: { dati: Dati }) {
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[12px] text-faint">
+                    <Barra
+                      lavorate={r.totali.effettivi}
+                      perse={totaleRiga}
+                      className="mt-1.5 max-w-[12rem]"
+                    />
+                    <p className="mt-1 text-[12px] text-faint">
                       {formatDuration(r.totali.effettivi)} lavorate
+                      {totaleRiga > 0
+                        ? ` · ${formatDuration(totaleRiga)} perse`
+                        : ""}
                       {r.aChiamata ? " · a chiamata" : ""}
                     </p>
                   </td>
 
                   <td
                     className={cn(
-                      "px-3 py-2.5 text-right font-semibold cifre",
+                      "cifre px-3 py-3 text-right align-top font-semibold group-hover:bg-surface-2",
                       totaleRiga > 0 ? "text-warning" : "text-faint",
                     )}
                     title={
@@ -299,7 +492,7 @@ function Tabella({ dati }: { dati: Dati }) {
                       <td
                         key={c}
                         className={cn(
-                          "px-3 py-2.5 text-right cifre",
+                          "cifre px-3 py-3 text-right align-top group-hover:bg-surface-2",
                           minuti > 0 ? "text-text" : "text-faint",
                         )}
                         title={
@@ -324,17 +517,19 @@ function Tabella({ dati }: { dati: Dati }) {
 
           <tfoot>
             <tr className="border-t-2 border-border-strong bg-surface-2 font-semibold">
-              <td className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5">Totale</td>
+              <td className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 lg:px-5">
+                Totale
+              </td>
               <td
                 className={cn(
-                  "px-3 py-2.5 text-right cifre",
+                  "cifre px-3 py-2.5 text-right",
                   dati.totaleAssenze > 0 ? "text-warning" : "text-faint",
                 )}
               >
                 {ore(dati.totaleAssenze)}
               </td>
               {dati.causali.map((c) => (
-                <td key={c} className="px-3 py-2.5 text-right cifre">
+                <td key={c} className="cifre px-3 py-2.5 text-right">
                   {ore(dati.totalePerCausale[c] ?? 0)}
                 </td>
               ))}
@@ -342,6 +537,6 @@ function Tabella({ dati }: { dati: Dati }) {
           </tfoot>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

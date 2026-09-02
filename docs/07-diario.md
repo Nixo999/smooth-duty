@@ -11,6 +11,44 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**Il Prospetto apriva su due numeri negativi senza denominatore**
+Chiesto da Nicola: riprogettare la pagina per impatto visivo e coerenza. Il
+difetto vero non era estetico. La pagina cominciava con «perse 96h» e
+«scoperti 12h» e nessun modo di sapere se 96 ore su quel mese fossero tante:
+mancava il denominatore. Adesso il numero grosso è **quanto si è lavorato**,
+sotto c'è una barra a due segmenti — lavorate / perse — e i due numeri **da
+coprire** stanno accanto in due riquadri, che è quello che sono: cose da
+fare, non misure del periodo. Sotto ogni nome, nella tabella, la stessa barra
+in piccolo: chi ha perso più ore si vede senza leggere una cifra.
+
+⚠️ **Riaperta mezza decisione del 30 agosto.** Le ore effettive erano state
+tolte dalla sintesi perché «già sotto ogni nome»: un totale di periodo però
+non è la stessa informazione di una riga per persona, ed era proprio il
+denominatore che mancava. Le ore *attese* restano fuori, e per la ragione di
+allora: su un anno confrontano un contratto intero con un tabellone fatto per
+due settimane.
+
+**Nessun colore nuovo.** `--turno` per le ore lavorate — in quest'app quel blu
+vuol dire «turno» da sempre — e `--warning` per le perse, che è la tinta che
+la tabella dava già alle assenze. La coppia è passata dal validatore del
+skill `dataviz`: separazione CVD ΔE 23,6 in chiaro e 30,2 in scuro, contrasto
+sul fondo oltre 3:1 in tutti e due. I due FAIL che restano sono sulle bande di
+luminosità e croma della tavolozza di riferimento del validatore, non sulla
+leggibilità, e non si correggono inventando tinte fuori dai token. Come vuole
+lo stesso skill, l'identità non è mai solo colore: etichetta col valore
+accanto a ogni segmento, 2 px di stacco fra i segmenti, icona oltre alla
+tinta sui riquadri che allarmano.
+
+Il resto è coerenza con le Impostazioni: testata con icona nel quadrato
+`accent-soft`, periodo in pastiglia con `aria-live`, un `<h1>` che prima non
+c'era, la scheda della tabella con la sua intestazione e la riga lunga sul
+conto delle assenze diventata un richiudibile.
+
+⚠️ Il motore (`lib/prospetto.ts`) non è stato toccato, e la pagina non è
+stata guardata in un browser: prove e build passano.
+
+---
+
 **La testata non doveva restare incollata: doveva sparire scorrendo**
 Terzo giro sulla stessa richiesta, e i primi due erano sbagliati nella stessa
 direzione: «deve rimanere fissa» l'avevo letto come «inchiodata allo
