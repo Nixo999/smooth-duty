@@ -342,12 +342,18 @@ e lavoratore, e il secondo non è «il primo di più». Tre levette in fila
 lascerebbero accenderne due, che non vuol dire niente.
 
 **Quattro sezioni per ambito, su due colonne da 1024 px** (2 settembre 2026).
-A sinistra cosa esiste e chi lo vede — *Moduli attivi*, *Visibilità e richieste
-del personale*; a destra cosa succede quando muovi un turno — *Pubblicazione e
-modifiche*, *Nuovi turni e personale a chiamata*. Fino al 1 settembre erano sei
-gruppi «per gesto», tutti intitolati «Quando…»: su una colonna erano un indice
-inutile, su due sarebbero state sei volte la stessa parola nella stessa
-schermata. Il gesto è sceso di un livello e sta nella riga «Quando scatta».
+A sinistra l'app e la settimana — *Moduli attivi*, *Pubblicazione e modifiche*;
+a destra le persone — *Cosa vedono e cosa chiedono i dipendenti*, *Turni nuovi
+e lavoro a chiamata*. Fino al 1 settembre erano sei gruppi «per gesto», tutti
+intitolati «Quando…»: su una colonna erano un indice inutile, su due sarebbero
+state sei volte la stessa parola nella stessa schermata. Il gesto è sceso di un
+livello e sta nella riga «Quando scatta».
+
+⚠️ **Quell'ordine è quello che pareggia le colonne, non ci si arriva per
+logica.** Il primo taglio metteva a sinistra «cosa esiste» e a destra «cosa
+succede quando muovi un turno»: si racconta meglio e lascia la colonna destra
+**450 px più lunga**, perché le due sezioni più alte finiscono una sopra
+l'altra. Chi sposta una sezione rimisuri, o il difetto torna.
 
 Il layout: `lg:max-w-6xl` (colonne da ~552 px, descrizioni sui 72 caratteri),
 due wrapper di colonna e non figli diretti dentro `grid-cols-2` — così

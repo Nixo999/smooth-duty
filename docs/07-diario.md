@@ -11,6 +11,36 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**Secondo giro sulle Impostazioni: le colonne si pareggiano, le frasi si sciolgono**
+Il primo taglio (sopra) reggeva alla lettura e non alla misura: «a sinistra
+cosa esiste, a destra cosa succede quando muovi un turno» metteva le due
+sezioni più alte una sopra l'altra e lasciava la colonna destra **450 px più
+lunga**. L'asse adesso è un altro e regge lo stesso — a sinistra l'app e la
+settimana (*Moduli attivi*, *Pubblicazione e modifiche*), a destra le persone
+(*Cosa vedono e cosa chiedono i dipendenti*, *Turni nuovi e lavoro a
+chiamata*) — e le due colonne finiscono alla stessa altezza. **L'ordine delle
+sezioni è una misura, non un ragionamento**: chi ne sposta una rimisuri.
+
+Le spaziature crescono solo da `lg`, dove lo spazio c'è: righe `lg:py-4`,
+schede `lg:px-5`, intestazioni `lg:py-3.5`, e un `lg:border-b` sotto la testata
+appiccicata — senza, le schede che le passano dietro sembravano toccarla. Sul
+telefono non cambia un pixel.
+
+Sui testi: tecnico non vuol dire contorto, e il primo giro aveva sbagliato nel
+verso opposto a quello di prima. Le nominalizzazioni sono tornate verbi — «la
+persona può rifiutare un turno che la porta oltre le ore del contratto» al
+posto di «un turno oltre le ore contrattuali diventa rifiutabile» — e sono
+sparite le parole da ufficio: «tipologie di assenza», «a parità di giorno e
+orario», «riceve una richiesta unica», «regime di ingaggio». Le tre opzioni di
+chi lavora a chiamata tornano a dirsi con un verbo («Segna i giorni in cui non
+può»), che si capisce prima di «Indisponibilità dichiarata». `disattivato`
+torna **spento**, che è la parola che l'app usa già altrove, e `In caso di
+rifiuto` diventa **Se rifiuta**.
+
+⚠️ Sempre non verificato in un browser: prove e build passano, la pagina no.
+
+---
+
 **Le Impostazioni smettono di essere un nastro verticale, e smettono di dare del tu**
 Due difetti che erano lo stesso difetto: la pagina era scritta come se
 esistesse solo il telefono. Il guscio dà fino a `max-w-[100rem]` e qui se ne

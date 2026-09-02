@@ -17,27 +17,34 @@ import { cn } from "@/lib/utils";
 
 /** Le regole generali dell'azienda, raccolte per **ambito**.
  *
- *  Due cose cambiate il 2 settembre 2026, e sono la stessa cosa vista da due
- *  lati — la pagina era scritta come se esistesse solo il telefono:
+ *  Rifatta il 2 settembre 2026: la pagina era scritta come se esistesse solo
+ *  il telefono. Il guscio dell'app da' fino a `max-w-[100rem]` e qui se ne
+ *  usavano `max-w-2xl` — su un monitor, 672px di nastro verticale e
+ *  novecento pixel di niente a destra, col salvataggio automatico annunciato
+ *  a tre schermate dalla leva appena toccata. Da 1024px le schede stanno su
+ *  due colonne; sotto, non cambia una riga.
  *
- *  - **Da 1024px le schede stanno su due colonne.** Il guscio dell'app da'
- *    fino a `max-w-[100rem]` e qui se ne usavano `max-w-2xl`: su un monitor
- *    erano 672px di nastro verticale e novecento pixel di niente, con il
- *    salvataggio automatico annunciato a tre schermate dalla leva toccata.
- *    Sotto i 1024px non cambia una riga: l'ordine e' lo stesso di prima.
- *  - **Le sei aggregazioni «per gesto» diventano quattro per ambito.** Il
- *    gesto non e' sparito, e' sceso di un livello: sta nella riga «Quando
- *    scatta». Sei intestazioni che cominciavano tutte per «Quando» erano un
- *    indice inutile su una colonna, e su due sarebbero state sei volte la
- *    stessa parola nella stessa schermata.
+ *  **L'ordine delle quattro sezioni e' quello che pareggia le colonne**, e
+ *  non l'ordine per cui l'ho scritto la prima volta. La divisione «a sinistra
+ *  cosa esiste, a destra cosa succede quando muovi un turno» era piu' bella a
+ *  raccontarsi e lasciava la colonna destra **450px piu' lunga** della
+ *  sinistra: sono le due sezioni piu' alte una sopra l'altra. Adesso l'asse e'
+ *  un altro e regge lo stesso — a sinistra l'app e la settimana, a destra le
+ *  persone — e le due colonne finiscono alla stessa altezza.
  *
- *  Insieme e' cambiato il registro dei testi. Fino al 30 agosto 2026 erano
- *  scritti «per chi gestisce un negozio», con la confidenza che ne segue
- *  («chi ti puo' dire di no», «l'app non serve a niente»). Adesso l'etichetta
- *  e' un sostantivo, la descrizione dice cosa cambia in azienda, e la
- *  rassicurazione e' un fatto — «il turno resta valido» — invece di una pacca
- *  sulla spalla. Chi legge qui e' un titolare o un responsabile turni, e sta
- *  decidendo, non imparando. */
+ *  Le sei aggregazioni «per gesto» sono diventate quattro per ambito. Il
+ *  gesto non e' sparito, e' sceso di un livello: sta nella riga «Quando
+ *  scatta». Sei intestazioni che cominciavano tutte per «Quando» erano un
+ *  indice inutile su una colonna, e su due sarebbero state sei volte la
+ *  stessa parola nella stessa schermata.
+ *
+ *  Sul registro dei testi: chi apre questa pagina sta **decidendo**, non
+ *  imparando. L'etichetta e' un sostantivo, la descrizione dice cosa cambia
+ *  in azienda, la rassicurazione e' un fatto — «il turno resta valido» — e
+ *  non una pacca sulla spalla. Ma tecnico non vuol dire contorto: dove una
+ *  frase nominale si capiva meno di un verbo, vince il verbo. «La persona
+ *  puo' rifiutare un turno che la porta oltre le ore del contratto» batte
+ *  «un turno oltre le ore contrattuali diventa rifiutabile». */
 export function Impostazioni({
   valori,
   azienda,
@@ -91,19 +98,22 @@ export function Impostazioni({
         : [...v.causali_richiedibili, codice],
     });
 
+  const richiedibili = v.causali_richiedibili.length;
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 lg:max-w-6xl lg:space-y-6">
       {/* L'intestazione resta a piena larghezza e da lg si appende sotto la
           topbar del guscio (`sticky top-0 z-30`, alta 56px): con due colonne
-          lo stato del salvataggio finiva fuori campo appena si scendeva. */}
-      <div className="flex items-baseline justify-between gap-3 lg:sticky lg:top-14 lg:z-20 lg:-mx-2 lg:bg-canvas lg:px-2 lg:py-3">
+          lo stato del salvataggio finiva fuori campo appena si scendeva. La
+          riga sotto non e' decorazione: senza, le schede che le passano
+          dietro sembrano toccarla. */}
+      <div className="flex items-baseline justify-between gap-3 lg:sticky lg:top-14 lg:z-20 lg:-mx-2 lg:border-b lg:border-border lg:bg-canvas lg:px-2 lg:pb-3.5 lg:pt-4">
         <div>
           <h1 className="text-[19px] font-semibold tracking-tight">
             Impostazioni
           </h1>
           <p className="text-[13.5px] text-muted">
-            Configurazione di «{azienda}». Ogni modifica si applica subito a
-            tutta l&apos;azienda e viene salvata automaticamente.
+            Valgono per tutta «{azienda}». Ogni modifica viene salvata subito.
           </p>
         </div>
         {/* Il salvataggio e' silenzioso, ma non muto: senza questa scritta
@@ -129,13 +139,14 @@ export function Impostazioni({
           prima di tutto: senza, ogni levetta qui sotto sembra decidere se il
           turno vale, e non e' quello che fanno. Affiancati da lg. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-        <p className="rounded-2xl bg-surface-2 px-4 py-3.5 text-[13.5px] leading-relaxed text-muted">
-          I turni che pianifichi sono validi dal momento in cui li salvi. Le
-          regole di questa pagina stabiliscono solo chi può rifiutare un turno,
-          e in quali casi: senza risposta, il turno resta valido.
+        <p className="rounded-2xl bg-surface-2 px-4 py-3.5 text-[13.5px] leading-relaxed text-muted lg:px-5 lg:py-4">
+          Un turno vale dal momento in cui lo salvi. Le regole di questa pagina
+          decidono soltanto <strong className="font-medium text-text">chi
+          può rifiutarlo</strong>, e in quali casi: se nessuno risponde, il
+          turno resta valido.
         </p>
 
-        <details className="group rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-card">
+        <details className="group rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-card lg:px-5 lg:py-4">
           <summary className="tap flex cursor-pointer list-none items-start gap-2">
             <Freccia />
             <span className="min-w-0 flex-1">
@@ -143,18 +154,18 @@ export function Impostazioni({
                 Quando un rifiuto ha effetto
               </span>
               <span className="mt-0.5 block text-[13px] text-muted">
-                Il turno non cambia al momento del rifiuto: cambia quando apri
-                i messaggi.
+                Non nel momento in cui la persona rifiuta: quando apri i
+                messaggi.
               </span>
             </span>
           </summary>
           <p className="mt-2 pl-5 text-[13px] leading-relaxed text-muted">
-            Il rifiuto resta in attesa nella casella dei messaggi, in cima ai
-            Turni: il turno si aggiorna nel momento in cui{" "}
-            <strong className="font-medium text-text">apri i messaggi</strong>,
-            così lo vedi mentre succede. Se nel frattempo quel turno
-            l&apos;avevi già modificato tu, il rifiuto non produce effetti:
-            l&apos;ultima modifica registrata è la tua.
+            Il rifiuto resta in attesa nei messaggi, in cima ai Turni. Il turno
+            cambia nel momento in cui{" "}
+            <strong className="font-medium text-text">li apri</strong>, così lo
+            vedi cambiare mentre lo guardi. Se intanto quel turno l&apos;avevi
+            già modificato tu, il rifiuto non tocca niente: vale la modifica
+            tua, che è l&apos;ultima.
           </p>
         </details>
       </div>
@@ -166,64 +177,111 @@ export function Impostazioni({
           `items-start` o le due si stirano alla stessa altezza e il
           richiudibile aperto lascia un vuoto grigio nell'altra. */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 lg:gap-6">
-        {/* --------------------------------- cosa esiste, e chi lo vede --- */}
+        {/* --------------------------------------- l'app, e la settimana --- */}
         <div className="flex flex-col gap-4 lg:gap-6">
           <Sezione
             icona={LayoutGrid}
             titolo="Moduli attivi"
-            nota="Quattro moduli opzionali. Disattivandoli spariscono dal menu; i dati già registrati restano."
-            piede="Turni, Squadra e Impostazioni sono moduli di base e non si disattivano."
+            nota="Quattro moduli si possono spegnere: spariscono dal menu, e quello che contengono resta registrato."
+            piede="Turni, Squadra e Impostazioni sono moduli di base e non si spengono."
           >
             <Modulo
               nome="Permessi"
-              breve="I dipendenti richiedono ferie e permessi dall'app. Se disattivato, le assenze le registri tu dai Turni."
+              breve="I dipendenti chiedono ferie e permessi dall'app. Da spento, le assenze le registri tu dai Turni."
               acceso={v.pagina_permessi}
               onCambia={(x) => cambia({ pagina_permessi: x })}
             />
             <Modulo
               nome="Supervisione"
-              breve="Copertura della giornata in tempo reale, ora per ora e reparto per reparto."
+              breve="Chi è in turno adesso, ora per ora e reparto per reparto."
               acceso={v.pagina_supervisione}
               onCambia={(x) => cambia({ pagina_supervisione: x })}
             />
             <Modulo
               nome="Prospetto"
-              breve="Riepilogo mensile delle ore lavorate. Riservato al responsabile."
+              breve="Il conto delle ore a fine mese. Lo vedi solo tu."
               acceso={v.pagina_prospetto}
               onCambia={(x) => cambia({ pagina_prospetto: x })}
             />
             <Modulo
               nome="Disponibilità"
-              breve="Il personale a chiamata dichiara i propri giorni dall'app. Se disattivato, le dichiarazioni le registri tu dal tabellone."
+              breve="Chi lavora a chiamata compila il proprio calendario dall'app. Da spento, lo compili tu dal tabellone."
               acceso={v.pagina_disponibilita}
               onCambia={(x) => cambia({ pagina_disponibilita: x })}
             />
           </Sezione>
 
           <Sezione
+            icona={Send}
+            titolo="Pubblicazione e modifiche"
+            nota="Cosa succede quando pubblichi una settimana, o cambi un turno già pubblicato."
+          >
+            <Regola
+              titolo="Controllo delle ore da contratto"
+              breve="Prima di pubblicare, l'app ti dice chi resta sotto le ore del suo contratto, coi nomi."
+              dettagli="È una segnalazione, non un blocco: puoi pubblicare lo stesso. Finché la settimana la vedi solo tu non ti dice niente. Chi lavora a chiamata non ha ore da rispettare, e chi è assente conta solo per i giorni in cui c'è."
+            />
+            <Interruttore
+              acceso={v.conferma_settimana}
+              onCambia={(x) => cambia({ conferma_settimana: x })}
+              titolo="Straordinari alla pubblicazione"
+              breve="Quando pubblichi, chi va oltre le ore del suo contratto riceve una richiesta sola per tutta la settimana."
+              quando="Pubblichi una settimana che porta qualcuno oltre le ore del suo contratto."
+              esito="Chi rifiuta scrive il motivo, e lo leggi nei messaggi. I turni non si muovono di un minuto: la settimana la rifai tu, come vuoi."
+            />
+            <Interruttore
+              acceso={v.conferma_modifiche}
+              onCambia={(x) => cambia({ conferma_modifiche: x })}
+              titolo="Avviso a chi subisce la modifica"
+              breve="Un turno allungato o spostato la persona può rifiutarlo; uno accorciato o cancellato lo legge e basta."
+              quando="Allunghi, sposti, accorci o cancelli un turno di una settimana già pubblicata."
+              esito="Quando apri i messaggi, il turno torna esattamente com'era prima della tua modifica, col motivo scritto."
+            />
+            <Avanzate
+              riepilogo={
+                v.conferma_cambio_reparto
+                  ? "Anche il solo cambio di reparto si può rifiutare."
+                  : "Il solo cambio di reparto non avvisa nessuno."
+              }
+            >
+              <Interruttore
+                acceso={v.conferma_cambio_reparto}
+                onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
+                titolo="Avvisa anche per il solo reparto"
+                breve="Stessa persona, stesso giorno, stessi orari: cambia solo il reparto."
+                quando="Cambi il reparto di un turno, e nient'altro."
+                esito="Quando apri i messaggi, il turno torna al reparto di prima."
+              />
+            </Avanzate>
+          </Sezione>
+        </div>
+
+        {/* ------------------------------------------------- le persone --- */}
+        <div className="flex flex-col gap-4 lg:gap-6">
+          <Sezione
             icona={Eye}
-            titolo="Visibilità e richieste del personale"
-            nota="Cosa i dipendenti vedono dell'organizzazione e cosa possono richiedere da soli."
+            titolo="Cosa vedono e cosa chiedono i dipendenti"
+            nota="Quanto della giornata è visibile a tutti, e cosa una persona può chiedere da sola."
           >
             <Interruttore
               acceso={v.supervisione_dipendenti}
               onCambia={(x) => cambia({ supervisione_dipendenti: x })}
               titolo="Supervisione visibile ai dipendenti"
-              breve="I dipendenti vedono la copertura della giornata e i colleghi in turno. I motivi delle assenze restano riservati."
-              quando="Un dipendente apre l'app: la voce Supervisione compare nel suo menu."
+              breve="Anche i dipendenti vedono chi è in turno nella giornata. Il motivo di un'assenza no."
+              quando="Un dipendente apre l'app: nel suo menu compare la voce Supervisione."
               etichettaEsito="Cosa vede"
-              esito="I turni della giornata, reparto per reparto. Il motivo di un'assenza resta fra te e l'interessato."
+              esito="I turni di tutti nella giornata, reparto per reparto. Il motivo di un'assenza resta fra te e l'interessato."
               spento={!v.pagina_supervisione}
             />
             <Avanzate
-              riepilogo={`Motivi di assenza richiedibili dall'app: ${v.causali_richiedibili.length} di ${CODICI_CAUSALE.length} abilitati.`}
+              riepilogo={`${richiedibili} ${richiedibili === 1 ? "motivo" : "motivi"} di assenza su ${CODICI_CAUSALE.length} si possono chiedere dall'app.`}
               disabilitato={!v.pagina_permessi}
             >
               <div className="space-y-3 py-3.5">
                 <p className="text-[13px] text-muted">
-                  Le tipologie di assenza che un dipendente può richiedere da
-                  solo. Tocca un motivo per abilitarlo o disabilitarlo; gli altri li
-                  registri tu, senza limitazioni.
+                  Cosa un dipendente può chiedere da solo. Tocca un motivo per
+                  toglierlo o rimetterlo: quelli spenti li registri comunque
+                  tu, senza limiti.
                 </p>
                 {CAUSALI.map((gruppo) => (
                   <div key={gruppo.gruppo}>
@@ -257,94 +315,46 @@ export function Impostazioni({
               </div>
             </Avanzate>
           </Sezione>
-        </div>
-
-        {/* ------------------------- cosa succede quando muovi un turno --- */}
-        <div className="flex flex-col gap-4 lg:gap-6">
-          <Sezione
-            icona={Send}
-            titolo="Pubblicazione e modifiche"
-            nota="Cosa succede quando rendi visibile una settimana o cambi un turno già pubblicato."
-          >
-            <Regola
-              titolo="Controllo delle ore da contratto"
-              breve="Prima di pubblicare, l'app segnala chi resta sotto le ore previste dal contratto, con i nomi."
-              dettagli="È una segnalazione, non un blocco: puoi pubblicare comunque. Non compare finché la settimana è visibile solo a te. Il personale a chiamata è escluso, e chi è assente conta solo per i giorni di presenza."
-            />
-            <Interruttore
-              acceso={v.conferma_settimana}
-              onCambia={(x) => cambia({ conferma_settimana: x })}
-              titolo="Accettazione dello straordinario"
-              breve="Alla pubblicazione, chi supera le ore da contratto riceve una richiesta unica sull'intera settimana."
-              quando="Pubblichi una settimana che porta una o più persone oltre le ore del proprio contratto."
-              esito="L'interessato indica il motivo e lo trovi nei messaggi. I turni restano invariati: la settimana la ripianifichi tu."
-            />
-            <Interruttore
-              acceso={v.conferma_modifiche}
-              onCambia={(x) => cambia({ conferma_modifiche: x })}
-              titolo="Notifica delle modifiche"
-              breve="Le modifiche a una settimana pubblicata arrivano all'interessato: allungamenti e spostamenti sono rifiutabili, riduzioni e cancellazioni solo notificate."
-              quando="Allunghi, sposti, accorci o cancelli un turno in una settimana già pubblicata."
-              esito="All'apertura dei messaggi il turno torna esattamente come prima della modifica, con il motivo indicato."
-            />
-            <Avanzate
-              riepilogo={
-                v.conferma_cambio_reparto
-                  ? "I cambi di solo reparto sono rifiutabili."
-                  : "I cambi di solo reparto non generano notifiche."
-              }
-            >
-              <Interruttore
-                acceso={v.conferma_cambio_reparto}
-                onCambia={(x) => cambia({ conferma_cambio_reparto: x })}
-                titolo="Includi i cambi di reparto"
-                breve="Estende la notifica ai turni in cui cambia solo il reparto, a parità di giorno e orario."
-                quando="Cambi il reparto di un turno, e nient'altro."
-                esito="All'apertura dei messaggi il turno torna al reparto precedente."
-              />
-            </Avanzate>
-          </Sezione>
 
           <Sezione
             icona={CalendarPlus}
-            titolo="Nuovi turni e personale a chiamata"
-            nota="Le regole che si applicano nel momento in cui assegni un turno."
+            titolo="Turni nuovi e lavoro a chiamata"
+            nota="Cosa succede nel momento in cui assegni un turno."
           >
             <Interruttore
               acceso={v.conferma_straordinari}
               onCambia={(x) => cambia({ conferma_straordinari: x })}
-              titolo="Accettazione dei turni in straordinario"
-              breve="Un turno che porta la persona oltre le ore settimanali da contratto deve essere accettato."
-              quando="Assegni un turno che porta la persona oltre le ore settimanali del suo contratto."
-              esito="All'apertura dei messaggi il turno viene eliminato e il giorno torna libero: non resta nessun turno scoperto da riassegnare. Il promemoria resta nei messaggi finché non ripianifichi quelle ore o non lo chiudi."
+              titolo="Straordinari sul singolo turno"
+              breve="La persona può rifiutare un turno che la porta oltre le ore settimanali del suo contratto."
+              quando="Dai a qualcuno un turno che lo porta oltre le ore settimanali del suo contratto."
+              esito="Quando apri i messaggi il turno sparisce e quel giorno torna vuoto: non resta un turno scoperto da riassegnare. Il promemoria te lo tiene la casella dei messaggi, finché non rifai quelle ore o non la chiudi."
             />
             <Avanzate
               riepilogo={
                 v.orari_preimpostati
-                  ? "Gli orari fuori standard sono rifiutabili."
-                  : "Gli orari fuori standard valgono come qualsiasi altro turno."
+                  ? "Un turno con orari diversi da quelli in scheda si può rifiutare."
+                  : "Un turno con orari diversi da quelli in scheda vale come tutti gli altri."
               }
             >
               <Interruttore
                 acceso={v.orari_preimpostati}
                 onCambia={(x) => cambia({ orari_preimpostati: x })}
-                titolo="Orari fuori standard"
-                breve="Per chi ha un orario fisso in scheda, un turno con orari diversi diventa rifiutabile."
-                quando="Assegni orari diversi da quelli indicati nella scheda della persona, in Squadra."
-                esito="Il turno viene eliminato e il giorno torna libero."
+                titolo="Orari diversi da quelli in scheda"
+                breve="Chi ha un orario fisso scritto in scheda, in Squadra, può rifiutare un turno con orari diversi."
+                quando="Gli dai un turno con orari diversi da quelli scritti nella sua scheda."
+                esito="Quando apri i messaggi il turno sparisce e quel giorno torna vuoto, come sopra."
               />
             </Avanzate>
 
             {/* Non e' una levetta e non e' un'avanzata: e' la terza cosa che
                 si decide qui dentro, e ha bisogno del suo titolo. */}
-            <div className="py-3.5">
+            <div className="py-3.5 lg:py-4">
               <p className="text-[14px] font-medium">
-                Regime di ingaggio del personale a chiamata
+                L&apos;accordo con chi lavora a chiamata
               </p>
               <p className="mt-0.5 text-[13px] text-muted">
-                Si applica a chi ha il contratto «a chiamata» nella scheda, in
-                Squadra. Sono tre accordi diversi, non tre gradi della stessa
-                regola.
+                Vale per chi ha «a chiamata» nella sua scheda, in Squadra. Sono
+                tre accordi diversi: se ne sceglie uno.
               </p>
               <Scelta
                 valore={v.regime_chiamata}
@@ -352,55 +362,55 @@ export function Impostazioni({
                 opzioni={[
                   {
                     valore: "indisponibilita",
-                    titolo: "Indisponibilità dichiarata",
+                    titolo: "Segna i giorni in cui non può",
                     breve:
-                      "La persona segnala i giorni in cui non è disponibile. Negli altri giorni l'assegnazione è diretta.",
+                      "In tutti gli altri giorni lo metti in turno senza chiedere niente.",
                     quando:
-                      "Assegni un turno in un giorno dichiarato indisponibile.",
+                      "Provi a dargli un turno in un giorno che aveva segnato.",
                     esito:
-                      "Il salvataggio viene bloccato e l'app indica le ore escluse.",
+                      "L'app non ti lascia salvare, e ti dice quali ore aveva escluso.",
                   },
                   {
                     valore: "disponibilita",
-                    titolo: "Disponibilità dichiarata",
+                    titolo: "Segna i giorni in cui può",
                     breve:
-                      "La persona segnala i giorni in cui è disponibile. Fuori da quelle fasce non è assegnabile: finché non dichiara nulla, non riceve turni.",
+                      "Fuori da quei giorni non lo puoi mettere in turno. Finché non segna niente non riceve turni: il vincolo è tuo.",
                     quando:
-                      "Assegni un turno fuori dai giorni o dagli orari dichiarati.",
+                      "Provi a dargli un turno fuori dai giorni e dalle ore che aveva segnato.",
                     esito:
-                      "Il salvataggio viene bloccato: riduci il turno o chiedi di estendere la disponibilità.",
+                      "L'app non ti lascia salvare: o accorci il turno, o gli chiedi di allargare la disponibilità.",
                   },
                   {
                     valore: "on_demand",
-                    titolo: "Proposta singola",
+                    titolo: "Gli chiedi ogni volta",
                     breve:
-                      "Nessun calendario: ogni turno è una proposta e diventa valido solo con l'accettazione.",
+                      "Nessun calendario: ogni turno è una proposta, e vale solo se lui lo accetta.",
                     quando:
-                      "Assegni o modifichi un turno in una settimana già pubblicata.",
+                      "Gli dai o gli cambi un turno di una settimana già pubblicata.",
                     esito:
-                      "All'apertura dei messaggi un turno appena creato viene eliminato e il giorno torna libero; un turno modificato torna alla versione precedente.",
+                      "Quando apri i messaggi: un turno appena creato sparisce e quel giorno torna vuoto; un turno che avevi solo cambiato torna com'era. Quella chiamata la rifai a qualcun altro.",
                   },
                 ]}
               />
               {v.regime_chiamata === "on_demand" ? (
                 <p className="text-[13px] leading-relaxed text-warning">
-                  Con questa scelta il turno{" "}
+                  Attenzione: con questa scelta il turno di chi è a chiamata{" "}
                   <strong className="font-medium">
-                    non è valido finché la persona non accetta
+                    vale solo se lui lo accetta
                   </strong>
-                  : è l&apos;unico caso in tutta l&apos;app in cui il silenzio
-                  non equivale all&apos;assenso.
+                  . È l&apos;unico caso in tutta l&apos;app in cui il silenzio
+                  non vuol dire sì.
                 </p>
               ) : v.pagina_disponibilita ? (
                 <p className="text-[13px] leading-relaxed text-muted">
-                  Le dichiarazioni arrivano dal modulo Disponibilità; se una
-                  persona ti telefona, puoi registrarle tu al posto suo.
+                  Il calendario lo compila lui da «Disponibilità»; se ti
+                  telefona, puoi compilarlo tu al posto suo.
                 </p>
               ) : (
                 <p className="text-[13px] leading-relaxed text-muted">
-                  Modulo Disponibilità disattivato: le dichiarazioni le
-                  registri tu dal tabellone, dalla vista «Disponibilità». Il
-                  regime scelto resta valido.
+                  Il modulo Disponibilità è spento: il calendario lo compili tu
+                  dal tabellone, nella vista «Disponibilità». L&apos;accordo
+                  scelto qui vale lo stesso.
                 </p>
               )}
             </div>
@@ -411,7 +421,7 @@ export function Impostazioni({
   );
 }
 
-/** «Disattivato», scritto uguale ovunque.
+/** «Spento», scritto uguale ovunque.
  *
  *  E' il modo in cui questa schermata dice che una cosa c'e' ma non vale.
  *  L'altro modo — sbiadire il blocco — e' stato tolto il 30 agosto 2026:
@@ -420,7 +430,7 @@ export function Impostazioni({
 function NonInUso() {
   return (
     <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[12px] font-medium uppercase tracking-wide text-faint">
-      disattivato
+      spento
     </span>
   );
 }
@@ -460,7 +470,7 @@ function Sezione({
       aria-labelledby={id}
       className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card"
     >
-      <header className="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-3">
+      <header className="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-3 lg:px-5 lg:py-3.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
           <Icona className="size-4" />
         </span>
@@ -472,10 +482,10 @@ function Sezione({
         </div>
       </header>
       {children ? (
-        <div className="divide-y divide-border px-4">{children}</div>
+        <div className="divide-y divide-border px-4 lg:px-5">{children}</div>
       ) : null}
       {piede ? (
-        <p className="border-t border-border bg-surface-2 px-4 py-2.5 text-[12.5px] text-faint">
+        <p className="border-t border-border bg-surface-2 px-4 py-2.5 text-[12.5px] text-faint lg:px-5 lg:py-3">
           {piede}
         </p>
       ) : null}
@@ -496,7 +506,7 @@ function Modulo({
   onCambia: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 py-3">
+    <div className="flex items-center gap-3 py-3 lg:py-3.5">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 text-[14px] font-medium">
           {nome}
@@ -523,7 +533,7 @@ function Avanzate({
   children: React.ReactNode;
 }) {
   return (
-    <details className="group py-3.5">
+    <details className="group py-3.5 lg:py-4">
       <summary
         className={cn(
           "tap flex list-none items-start gap-2 rounded-xl px-1 py-1",
@@ -550,7 +560,7 @@ function Avanzate({
 function ComeFunziona({
   quando,
   esito,
-  etichettaEsito = "In caso di rifiuto",
+  etichettaEsito = "Se rifiuta",
 }: {
   quando?: string;
   esito?: string;
@@ -558,12 +568,12 @@ function ComeFunziona({
 }) {
   if (!quando && !esito) return null;
   return (
-    <details className="group mt-1">
+    <details className="group mt-1.5">
       <summary className="tap flex cursor-pointer list-none items-center gap-1.5 text-[12.5px] font-medium text-faint hover:text-muted">
         <Freccia />
         Come funziona
       </summary>
-      <dl className="mt-1 space-y-0.5 pl-5 text-[13px]">
+      <dl className="mt-1.5 space-y-1 pl-5 text-[13px]">
         {quando ? (
           <div className="flex gap-1.5">
             <dt className="shrink-0 text-faint">Quando scatta</dt>
@@ -604,7 +614,7 @@ function Interruttore({
   spento?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3.5">
+    <div className="flex items-start gap-3 py-3.5 lg:py-4">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 text-[14px] font-medium">
           {titolo}
@@ -628,8 +638,8 @@ function Interruttore({
  *  solo l'opzione scelta: sono la conseguenza della scelta fatta, e su tutte
  *  e tre insieme erano la meta' del peso della pagina.
  *
- *  «Esito» e non «In caso di rifiuto»: due regimi su tre **bloccano il
- *  salvataggio**, e li' un rifiuto e' una cosa che non succede. */
+ *  «Esito» e non «Se rifiuta»: due regimi su tre **bloccano il salvataggio**,
+ *  e li' un rifiuto e' una cosa che non succede. */
 function Scelta<T extends string>({
   valore,
   onCambia,
@@ -684,7 +694,7 @@ function Scelta<T extends string>({
                 {o.breve}
               </span>
               {scelta ? (
-                <span className="mt-1.5 block space-y-0.5 text-[13px]">
+                <span className="mt-1.5 block space-y-1 text-[13px]">
                   <span className="flex gap-1.5">
                     <span className="shrink-0 text-faint">Quando scatta</span>
                     <span className="min-w-0 text-muted">{o.quando}</span>
@@ -751,20 +761,20 @@ function Regola({
   dettagli?: string;
 }) {
   return (
-    <div className="py-3.5">
-      <div className="rounded-xl bg-surface-2 px-3.5 py-3">
+    <div className="py-3.5 lg:py-4">
+      <div className="rounded-xl bg-surface-2 px-3.5 py-3 lg:px-4 lg:py-3.5">
         <p className="text-[12px] font-medium uppercase tracking-wide text-success">
-          Sempre attivo
+          Sempre attiva
         </p>
         <p className="mt-1 text-[14px] font-medium">{titolo}</p>
         <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{breve}</p>
         {dettagli ? (
-          <details className="group mt-1">
+          <details className="group mt-1.5">
             <summary className="tap flex cursor-pointer list-none items-center gap-1.5 text-[12.5px] font-medium text-faint hover:text-muted">
               <Freccia />
               Come funziona
             </summary>
-            <p className="mt-1 pl-5 text-[13px] leading-relaxed text-muted">
+            <p className="mt-1.5 pl-5 text-[13px] leading-relaxed text-muted">
               {dettagli}
             </p>
           </details>
