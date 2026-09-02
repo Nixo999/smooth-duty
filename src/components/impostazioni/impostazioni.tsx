@@ -103,25 +103,14 @@ export function Impostazioni({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 lg:max-w-6xl lg:gap-6">
-      {/* La testata e' l'unica cosa fissa della pagina, e **non cambia
-          mentre si scorre**: chiesto due volte da Nicola, il 2 settembre
-          2026. La versione di mezzo si accorciava da staccata — spariva la
-          riga di spiegazione — e quello, dal suo lato dello schermo, era
-          esattamente «il blocco che si muove». Adesso e' identico dal primo
-          pixel all'ultimo.
-
-          `top-0` e non `top-14`: **a scorrere non e' la finestra**, e' il
-          `<main>` del guscio (`overflow-y-auto`), quindi lo sticky si misura
-          dal bordo alto dell'area di contenuto — che sta gia' sotto la barra
-          in alto. Con `top-14` si incollava 56px troppo in basso e il
-          contenuto passava scoperto in quel buco.
-
-          Il fondo e' `glass`, lo stesso della barra in alto, ed e' **sempre
-          acceso**: accenderlo solo da staccata sarebbe un'altra cosa che
-          cambia sotto gli occhi, e senza fondo il contenuto che scorre
-          passerebbe attraverso le lettere. I margini negativi la portano
-          fino al bordo della colonna. */}
-      <div className="glass sticky top-0 z-20 -mx-4 -mt-5 flex items-start justify-between gap-3 border-b border-border px-4 pb-3.5 pt-4 sm:-mx-6 sm:-mt-7 sm:px-6 sm:pt-5">
+      {/* La testata sta in cima alla pagina e **se ne va scorrendo**, come
+          qualunque altro contenuto. Il 2 settembre 2026 e' stata incollata in
+          alto per due giri di fila, perche' avevo letto «fissa» come
+          «inchiodata allo schermo»: era il contrario. Chi scorre le
+          impostazioni sta cercando una levetta, e una barra che lo segue gli
+          toglie una riga di schermo per ripetergli il nome della pagina in
+          cui e' gia'. */}
+      <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
             <SlidersHorizontal className="size-[18px]" />
