@@ -360,18 +360,19 @@ due wrapper di colonna e non figli diretti dentro `grid-cols-2` — così
 l'ordine del DOM resta quello di lettura sul telefono e aprire un `<details>`
 allunga solo la sua colonna — più `items-start`, o le due colonne si stirano
 alla stessa altezza. Sotto i 1024 px la pagina è identica a prima.
-La testata con lo stato del salvataggio è **fissa a ogni larghezza**
-(`sticky top-0`) e **non cambia mentre si scorre**: titolo, nome dell'azienda
-e riga di spiegazione restano identici dal primo pixel all'ultimo. Una
-versione intermedia si accorciava da staccata; è stata tolta perché per chi
-guarda è un'altra cosa che si muove. Il costo è dichiarato: sul telefono sono
-~74 px di barra sempre presenti, sotto ai 56 della topbar. ⚠️ **`top-0` e non `top-14`**: a scorrere non è la
-finestra ma il `<main>` del guscio (`overflow-y-auto`), quindi lo `sticky` si
-misura dal bordo alto dell'area di contenuto, che sta già sotto la topbar —
-con `top-14` la testata si incollava 56 px troppo in basso. Il fondo è la classe `glass`, la stessa della topbar, ed è **sempre acceso**:
-dietro c'è lo sfondo d'ambiente del guscio — un `bg-canvas` piatto ci si
-vedrebbe sopra come una toppa — e accenderlo solo da staccata sarebbe di nuovo
-qualcosa che cambia sotto gli occhi.
+La testata — icona, titolo, nome dell'azienda in pastiglia, stato del
+salvataggio in pastiglia col pallino — **sta in cima alla pagina e se ne va
+scorrendo**, come qualunque altro contenuto. Il 2 settembre 2026 è stata
+incollata in alto per due giri di fila leggendo «fissa» come «inchiodata allo
+schermo»: era il contrario. Chi scorre le impostazioni sta cercando una
+levetta, non il nome della pagina in cui è già.
+
+⚠️ Se un giorno qualcosa dentro una pagina torna `sticky`: **`top-0` e non
+`top-14`**. A scorrere non è la finestra ma il `<main>` del guscio
+(`overflow-y-auto`), quindi lo sticky si misura dal bordo alto dell'area di
+contenuto, che sta già sotto la topbar — con `top-14` si incolla 56 px troppo
+in basso e il contenuto passa scoperto in quel buco. Vale per ogni `sticky`
+dentro una pagina, non solo per questa.
 
 Fra le levette c'è un riquadro «sempre attivo», che levetta non è: la settimana
 in cui qualcuno sta sotto le sue ore da contratto si pubblica solo dopo che

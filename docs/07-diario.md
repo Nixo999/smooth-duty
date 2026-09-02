@@ -11,6 +11,20 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**La testata non doveva restare incollata: doveva sparire scorrendo**
+Terzo giro sulla stessa richiesta, e i primi due erano sbagliati nella stessa
+direzione: «deve rimanere fissa» l'avevo letto come «inchiodata allo
+schermo», e voleva dire «sta in cima alla pagina e quando scendo se ne va».
+Tolto lo `sticky`, tolto `glass`, tolti i margini negativi: la testata è un
+blocco normale in cima. Restano l'icona, la pastiglia dell'azienda e quella
+del salvataggio, che erano la parte che andava bene.
+
+Resta scritto in [03-pagine.md](03-pagine.md) il pezzo che vale comunque: se
+un giorno qualcosa dentro una pagina torna `sticky`, si misura da `top-0` e
+non da `top-14`, perché a scorrere è il `<main>` del guscio e non la finestra.
+
+---
+
 **«Fermo» vuol dire identico, non «si accorcia con grazia»**
 La testata che si rimpiccioliva da staccata era una bella idea e la risposta
 sbagliata: Nicola ha ripetuto la stessa richiesta due volte — il blocco
