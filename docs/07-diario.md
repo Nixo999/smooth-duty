@@ -11,6 +11,34 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**La testata delle Impostazioni si incollava 56 px troppo in basso**
+Chiesto da Nicola: la testata deve restare fissa ed essere più bella.
+Restando fissa non lo era davvero — `lg:sticky lg:top-14` partiva dal
+presupposto che a scorrere fosse la finestra, e **a scorrere è il `<main>`
+del guscio**, che ha `overflow-y-auto`. Lo `sticky` si misura dal bordo alto
+di quell'area, che sta già sotto la topbar: quei 56 px erano un buco in cui
+il contenuto passava scoperto. Adesso `top-0`, e fissa a **ogni** larghezza,
+non solo da `lg`.
+
+Da staccata la testata si accorcia: resta titolo, nome dell'azienda e stato
+del salvataggio, sparisce la riga che spiega cosa sono queste impostazioni —
+serve a chi arriva, non a chi sta già scorrendo, e su un telefono una barra
+fissa a due righe si mangia un sesto dello schermo per sempre. Lo stacco lo
+riconosce un `IntersectionObserver` su una sentinella di un pixel: con un
+evento di scorrimento avrei dovuto sapere quale nodo scorre, che è
+esattamente il dettaglio su cui la versione di prima aveva sbagliato.
+
+Il fondo è `glass`, lo stesso della topbar, e **compare solo da staccata**:
+il guscio disegna dietro le pagine una sfumatura con due aloni, e un
+`bg-canvas` piatto ci si vedeva sopra come una toppa. Sull'estetica: icona in
+un quadrato `accent-soft` come nelle intestazioni delle sezioni, il nome
+dell'azienda in una pastiglia invece che dentro le virgolette basse, e lo
+stato del salvataggio diventa una pastiglia con un pallino — colore *e*
+forma, perché il verde e il rosso non li distinguono tutti. «Modifica non
+salvata» si accorcia in «Non salvato»: sta in una pastiglia, non in una riga.
+
+---
+
 **Secondo giro sulle Impostazioni: le colonne si pareggiano, le frasi si sciolgono**
 Il primo taglio (sopra) reggeva alla lettura e non alla misura: «a sinistra
 cosa esiste, a destra cosa succede quando muovi un turno» metteva le due

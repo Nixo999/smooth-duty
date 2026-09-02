@@ -5,6 +5,7 @@ import {
   Eye,
   LayoutGrid,
   Send,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -100,37 +101,108 @@ export function Impostazioni({
 
   const richiedibili = v.causali_richiedibili.length;
 
+  /** La testata resta in cima mentre si scorre, e appena si stacca si
+   *  accorcia: la riga che spiega cosa sono queste impostazioni serve a chi
+   *  arriva, non a chi sta gia' scorrendo, e su un telefono una barra fissa a
+   *  due righe si mangia un sesto dello schermo per sempre.
+   *
+   *  La sentinella e' un pixel in cima al contenuto: quando esce dalla vista
+   *  la testata e' incollata. Si guarda cosi' e non con l'evento di
+   *  scorrimento perche' **a scorrere non e' la finestra** — e' il `<main>`
+   *  del guscio, che ha `overflow-y-auto` — e l'osservatore quel dettaglio lo
+   *  gestisce da solo. */
+  const sentinella = React.useRef<HTMLDivElement>(null);
+  const [compatta, setCompatta] = React.useState(false);
+
+  React.useEffect(() => {
+    const nodo = sentinella.current;
+    if (!nodo) return;
+    const osservatore = new IntersectionObserver(
+      ([voce]) => setCompatta(!voce.isIntersecting),
+    );
+    osservatore.observe(nodo);
+    return () => osservatore.disconnect();
+  }, []);
+
   return (
-    <div className="mx-auto max-w-2xl space-y-4 lg:max-w-6xl lg:space-y-6">
-      {/* L'intestazione resta a piena larghezza e da lg si appende sotto la
-          topbar del guscio (`sticky top-0 z-30`, alta 56px): con due colonne
-          lo stato del salvataggio finiva fuori campo appena si scendeva. La
-          riga sotto non e' decorazione: senza, le schede che le passano
-          dietro sembrano toccarla. */}
-      <div className="flex items-baseline justify-between gap-3 lg:sticky lg:top-14 lg:z-20 lg:-mx-2 lg:border-b lg:border-border lg:bg-canvas lg:px-2 lg:pb-3.5 lg:pt-4">
-        <div>
-          <h1 className="text-[19px] font-semibold tracking-tight">
-            Impostazioni
-          </h1>
-          <p className="text-[13.5px] text-muted">
-            Valgono per tutta «{azienda}». Ogni modifica viene salvata subito.
-          </p>
+    <div className="relative mx-auto flex max-w-2xl flex-col gap-4 lg:max-w-6xl lg:gap-6">
+      {/* Fuori flusso, o il `gap` qui sopra la conterebbe come una scheda. */}
+      <div
+        ref={sentinella}
+        aria-hidden
+        className="absolute left-0 top-[-1.25rem] h-px w-px sm:top-[-1.75rem]"
+      />
+      {/* La testata e' l'unica cosa fissa della pagina. Il fondo lo mette
+          `glass` — lo stesso della barra in alto — e **solo da staccata**:
+          a riposo dietro c'e' lo sfondo d'ambiente del guscio, e un
+          `bg-canvas` piatto ci si vedrebbe sopra come una toppa. I margini
+          negativi la portano fino al bordo della colonna, se no il contenuto
+          scorrerebbe scoperto nei quattro pixel di lato. */}
+      <div
+        className={cn(
+          "sticky top-0 z-20 -mx-4 -mt-5 flex items-start justify-between gap-3 px-4 transition-[padding,background-color] duration-200 motion-reduce:transition-none sm:-mx-6 sm:-mt-7 sm:px-6",
+          compatta
+            ? "glass border-b border-border pb-3 pt-3 sm:pt-3.5"
+            : "pb-1 pt-5 sm:pt-7",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+            <SlidersHorizontal className="size-[18px]" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h1 className="text-[19px] font-semibold leading-tight tracking-tight">
+                Impostazioni
+              </h1>
+              <span className="max-w-full truncate rounded-full border border-border bg-surface px-2.5 py-0.5 text-[12px] font-medium text-muted">
+                {azienda}
+              </span>
+            </div>
+            {/* Non `hidden`: sparire di colpo e' uno scatto, e questa riga
+                sta sopra a tutto il resto della pagina. */}
+            <p
+              className={cn(
+                "overflow-hidden text-[13.5px] text-muted transition-all duration-200 motion-reduce:transition-none",
+                compatta ? "max-h-0 opacity-0" : "mt-0.5 max-h-12 opacity-100",
+              )}
+            >
+              Valgono per tutta l&apos;azienda. Ogni modifica si salva da sola.
+            </p>
+          </div>
         </div>
-        {/* Il salvataggio e' silenzioso, ma non muto: senza questa scritta
-            l'unica conferma sarebbe la leva stessa, che era gia' li'. */}
+
+        {/* Il salvataggio e' silenzioso, ma non muto: senza questa pastiglia
+            l'unica conferma sarebbe la leva stessa, che era gia' li'. Il
+            pallino porta lo stato anche a chi il verde e il rosso non li
+            distingue. */}
         <p
           aria-live="polite"
           className={cn(
-            "shrink-0 text-[12.5px]",
-            stato === "errore" ? "font-medium text-danger" : "text-faint",
+            "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium transition-opacity duration-200 motion-reduce:transition-none",
+            stato === "in_corso" && "bg-surface-3 text-muted",
+            stato === "salvato" && "bg-success-soft text-success",
+            stato === "errore" && "bg-danger-soft text-danger",
+            stato === "fermo" && "opacity-0",
           )}
         >
+          {stato === "fermo" ? null : (
+            <span
+              aria-hidden
+              className={cn(
+                "size-1.5 rounded-full",
+                stato === "in_corso" && "animate-pulse bg-faint motion-reduce:animate-none",
+                stato === "salvato" && "bg-success",
+                stato === "errore" && "bg-danger",
+              )}
+            />
+          )}
           {stato === "in_corso"
             ? "Salvataggio…"
             : stato === "salvato"
               ? "Salvato"
               : stato === "errore"
-                ? "Modifica non salvata"
+                ? "Non salvato"
                 : ""}
         </p>
       </div>
