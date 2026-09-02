@@ -29,3 +29,14 @@ export const BARRA_AZIONI =
   "sticky bottom-0 z-30 -mx-4 border-t border-border bg-surface/95 px-4 py-3 " +
   "shadow-float backdrop-blur sm:-mx-6 " +
   "sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))]";
+
+/** La tendina di Radix (`DropdownMenu.Content`), uguale in tutta l'app.
+ *
+ *  Stava scritta a mano in cinque posti, identica salvo la larghezza, e
+ *  aggiungerle l'animazione di chiusura e' costato cinque modifiche: lo
+ *  stesso ritocco sul modale ne e' costata una, perche' `ui/modal.tsx` lo
+ *  avvolge una volta sola. L'animazione e' legata allo stato: Radix tiene il
+ *  nodo montato finche' quella di chiusura non finisce. */
+export const TENDINA =
+  "z-40 rounded-xl border border-border bg-surface p-1.5 shadow-float " +
+  "data-[state=open]:animate-pop data-[state=closed]:animate-pop-out";

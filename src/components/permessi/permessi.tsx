@@ -30,7 +30,7 @@ import { CAUSALI, ETICHETTA } from "@/lib/assenze";
 import { dayShort, fromISODate, isToday, toISODate } from "@/lib/date";
 import type { Absence, Department, Profile, VacationRequest } from "@/lib/types";
 import { addDays } from "@/lib/week";
-import { cn } from "@/lib/utils";
+import { cn, TENDINA } from "@/lib/utils";
 
 const MESI = [
   "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
@@ -476,7 +476,7 @@ function FiltroCausali({
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-40 w-60 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+          className={cn(TENDINA, "w-60")}
         >
           <p className="px-2.5 pb-1 pt-2 text-[12px] uppercase tracking-wide text-faint">
             Motivi da vedere

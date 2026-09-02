@@ -27,11 +27,13 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-[2px] data-[state=open]:animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay backdrop-blur-[2px] data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
         <Dialog.Content
           className={cn(
             "fixed z-50 flex flex-col bg-surface shadow-float",
-            "data-[state=open]:animate-sheet-up",
+            // Radix tiene il nodo montato finche' l'animazione di chiusura
+            // non finisce: senza `closed` il foglio spariva di colpo.
+            "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down",
             // telefono: foglio agganciato in basso, angoli alti arrotondati
             "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl",
             // desktop: finestra centrata

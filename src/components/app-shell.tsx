@@ -21,8 +21,9 @@ import * as React from "react";
 import { PannelloCambiaPassword } from "@/components/auth/cambia-la-mia-password";
 import { useScorrimentoPagine } from "@/components/scorrimento-pagine";
 import { CaricamentoMarchio } from "@/components/ui/caricamento-marchio";
+import { Movimento } from "@/components/ui/movimento";
 import { ThemeToggle } from "@/components/ui/theme";
-import { cn } from "@/lib/utils";
+import { cn, TENDINA } from "@/lib/utils";
 
 /** Le icone non si possono passare da un Server Component a un Client
  *  Component: attraversano il confine solo dati serializzabili. Il server
@@ -177,6 +178,7 @@ export function AppShell({
     .join("");
 
   return (
+    <Movimento>
     <div className="flex h-app flex-col">
       <header className="glass sticky top-0 z-30 border-b border-border">
         <div className="mx-auto flex h-14 w-full max-w-[100rem] items-center gap-3 px-4 sm:px-6">
@@ -259,7 +261,7 @@ export function AppShell({
                   // sempre: Radix tiene in vita la tendina finche' un
                   // fotogramma resta da disegnare, e una che si anima anche
                   // da chiusa resterebbe nel documento a coprire i click.
-                  className="z-40 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+                  className={cn(TENDINA, "w-56")}
                 >
                   <div className="px-2.5 py-2">
                     <p className="truncate text-[13px] font-medium">
@@ -434,5 +436,6 @@ export function AppShell({
         </nav>
       ) : null}
     </div>
+    </Movimento>
   );
 }

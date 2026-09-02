@@ -140,6 +140,15 @@
   --shadow-sm: 0 1px 2px rgba(24, 18, 32, 0.07), 0 1px 1px rgba(24, 18, 32, 0.05);
   --shadow-md: 0 4px 14px rgba(24, 18, 32, 0.1), 0 1px 3px rgba(24, 18, 32, 0.06);
   --shadow-lg: 0 24px 60px rgba(24, 18, 32, 0.22), 0 2px 10px rgba(24, 18, 32, 0.09);
+
+  /* Le due curve dell'app, e basta. Chi arriva frena, chi se ne va accelera.
+     Erano scritte a mano in sette punti di questo file e in due file
+     TypeScript: adesso stanno qui e tutto il resto le cita. Fuori dal
+     @theme perche' le legge anche il codice (scorrimento-pagine.ts,
+     movimento.tsx) e devono esistere a runtime a prescindere da quali
+     utility Tailwind decida di emettere. */
+  --curva-entrata: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --curva-uscita: cubic-bezier(0.32, 0, 0.67, 0);
 }
 
 .dark {
@@ -234,10 +243,25 @@
   --shadow-card: var(--shadow-md);
   --shadow-float: var(--shadow-lg);
 
+  /* Le utility `transition-*` di Tailwind hanno una curva e una durata loro
+     (cubic-bezier(0.4, 0, 0.2, 1), 150ms): quindici transizioni dell'app
+     giravano su quelle, fianco a fianco con `.tap` che gira sulla nostra.
+     Da qui in poi una transizione nuda eredita curva e durata di `.tap`. */
+  --default-transition-timing-function: var(--curva-entrata);
+  --default-transition-duration: 0.14s;
+
   --animate-fade-in: fade-in 0.22s ease-out both;
-  --animate-rise: rise 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  --animate-pop: pop 0.18s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  --animate-sheet-up: sheet-up 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-rise: rise 0.28s var(--curva-entrata) both;
+  --animate-pop: pop 0.18s var(--curva-entrata) both;
+  --animate-sheet-up: sheet-up 0.3s var(--curva-entrata) both;
+  /* Le uscite: piu' corte delle entrate e con la curva dell'uscita di pagina
+     (parte ferma, accelera via). Una cosa che se ne va non deve farsi
+     guardare; una che arriva si'. Prima non c'erano: modali e tendine
+     sparivano di colpo, e lo scatto si notava proprio perche' l'ingresso
+     era morbido. */
+  --animate-fade-out: fade-out 0.16s var(--curva-uscita) both;
+  --animate-sheet-down: sheet-down 0.2s var(--curva-uscita) both;
+  --animate-pop-out: pop-out 0.14s var(--curva-uscita) both;
   /* Il marchio che gira: l'attesa dell'app ha la faccia dell'app. Lineare
      apposta — un giro che accelera e frena sembra un giro che inciampa. */
   --animate-girata: girata 1.1s linear infinite;
@@ -248,17 +272,17 @@
      scordano d'accordo. */
   --pagina-durata: 0.22s;
   /* Uscita: parte ferma e accelera via, come una cosa lanciata. */
-  --pagina-uscita: cubic-bezier(0.32, 0, 0.67, 0);
+  --pagina-uscita: var(--curva-uscita);
   /* Rientro: il dito ha mollato troppo presto e la pagina torna al suo
      posto — deve frenare, non sbattere. */
-  --pagina-rientro: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --pagina-rientro: var(--curva-entrata);
   /* Ingresso: 32px e non mezza schermata. La pagina che arriva la disegna il
      server, quindi entra quando e' pronta e non in fila con l'uscita: uno
      scorrimento lungo, giocato in ritardo, si vede che e' in ritardo. Un
      accenno di direzione piu' una dissolvenza no — ed e' la stessa dose del
      resto dell'app (rise 6px, sheet-up 14px). */
-  --animate-entra-da-destra: entra-da-destra 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  --animate-entra-da-sinistra: entra-da-sinistra 0.26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-entra-da-destra: entra-da-destra 0.26s var(--curva-entrata) both;
+  --animate-entra-da-sinistra: entra-da-sinistra 0.26s var(--curva-entrata) both;
 }
 
 @keyframes girata {
@@ -291,6 +315,26 @@
   from {
     opacity: 0;
     transform: translateY(14px) scale(0.985);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-down {
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
   }
 }
 
@@ -400,6 +444,17 @@
     display: none;
   }
 
+  /* Un <details> nativo si apre di scatto: il contenuto compare intero,
+     senza un frame in mezzo. Qui quello che sta sotto al summary entra con
+     la stessa dose del resto dell'app (rise: 6px e una dissolvenza).
+     Nessuno script, nessuna misura dell'altezza: l'apertura resta quella
+     del browser, e' solo il contenuto a non apparire di colpo. Regola
+     sull'elemento e non classe da aggiungere: cinque <details> su cinque
+     la volevano, e il sesto se la sarebbe dimenticata. */
+  details[open] > :not(summary) {
+    animation: var(--animate-rise);
+  }
+
   /* I campi data/ora nativi: su telefono aprono il selettore di sistema, che e'
      migliore di qualunque calendario in JavaScript. Va solo reso leggibile
      l'iconcina, che di default resta nera anche sul tema scuro. */
@@ -421,7 +476,7 @@
   /* La risposta al tocco la da' solo l'elemento premuto. */
   .tap {
     transition:
-      transform 0.14s cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 0.14s var(--curva-entrata),
       background-color 0.14s ease,
       border-color 0.14s ease,
       opacity 0.14s ease;

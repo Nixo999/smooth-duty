@@ -8,10 +8,13 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
+import { AnimatePresence, m } from "motion/react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { salvaImpostazioni } from "@/app/(app)/impostazioni/actions";
+import { Freccia } from "@/components/ui/freccia";
+import { CURVA_USCITA } from "@/components/ui/movimento";
 import { CAUSALI, CODICI_CAUSALE } from "@/lib/assenze";
 import type { Impostazioni as Valori } from "@/lib/impostazioni";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,14 @@ import { cn } from "@/lib/utils";
  *  frase nominale si capiva meno di un verbo, vince il verbo. «La persona
  *  puo' rifiutare un turno che la porta oltre le ore del contratto» batte
  *  «un turno oltre le ore contrattuali diventa rifiutabile». */
+/** La pastiglia del salvataggio, uno stato per riga: aggiungerne uno e'
+ *  una riga qui, non tre scale di ternari da tenere d'accordo. */
+const PASTIGLIA = {
+  in_corso: { sfondo: "bg-surface-3 text-muted", punto: "animate-pulse bg-faint", testo: "Salvataggio…" },
+  salvato: { sfondo: "bg-success-soft text-success", punto: "bg-success", testo: "Salvato" },
+  errore: { sfondo: "bg-danger-soft text-danger", punto: "bg-danger", testo: "Non salvato" },
+} as const;
+
 export function Impostazioni({
   valori,
   azienda,
@@ -133,36 +144,33 @@ export function Impostazioni({
         {/* Il salvataggio e' silenzioso, ma non muto: senza questa pastiglia
             l'unica conferma sarebbe la leva stessa, che era gia' li'. Il
             pallino porta lo stato anche a chi il verde e il rosso non li
-            distingue. */}
-        <p
-          aria-live="polite"
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium transition-opacity duration-200 motion-reduce:transition-none",
-            stato === "in_corso" && "bg-surface-3 text-muted",
-            stato === "salvato" && "bg-success-soft text-success",
-            stato === "errore" && "bg-danger-soft text-danger",
-            stato === "fermo" && "opacity-0",
-          )}
-        >
-          {stato === "fermo" ? null : (
-            <span
-              aria-hidden
-              className={cn(
-                "size-1.5 rounded-full",
-                stato === "in_corso" && "animate-pulse bg-faint motion-reduce:animate-none",
-                stato === "salvato" && "bg-success",
-                stato === "errore" && "bg-danger",
-              )}
-            />
-          )}
-          {stato === "in_corso"
-            ? "Salvataggio…"
-            : stato === "salvato"
-              ? "Salvato"
-              : stato === "errore"
-                ? "Non salvato"
-                : ""}
-        </p>
+            distingue. `AnimatePresence` perche' la pastiglia deve anche
+            andarsene con grazia, e un elemento tolto dall'albero il CSS non
+            lo anima piu'; la `key` sullo stato fa rientrare la pastiglia a
+            ogni cambio invece di cambiarle il testo sotto gli occhi. */}
+        <div aria-live="polite" className="flex h-7 shrink-0 items-center">
+          <AnimatePresence mode="wait">
+            {stato === "fermo" ? null : (
+              <m.p
+                key={stato}
+                initial={{ opacity: 0, scale: 0.92, y: -2 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.14, ease: CURVA_USCITA } }}
+                transition={{ duration: 0.16 }}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium",
+                  PASTIGLIA[stato].sfondo,
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn("size-1.5 rounded-full", PASTIGLIA[stato].punto)}
+                />
+                {PASTIGLIA[stato].testo}
+              </m.p>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Il modello di tutta la pagina, e la sua unica eccezione. Vengono
@@ -178,7 +186,7 @@ export function Impostazioni({
 
         <details className="group rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-card lg:px-5 lg:py-4">
           <summary className="tap flex cursor-pointer list-none items-start gap-2">
-            <Freccia />
+            <Freccia className="mt-0.5" />
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-medium">
                 Quando un rifiuto ha effetto
@@ -465,18 +473,6 @@ function NonInUso() {
   );
 }
 
-/** La freccetta dei richiudibili, una sola per tutti. */
-function Freccia() {
-  return (
-    <span
-      aria-hidden
-      className="mt-0.5 shrink-0 text-[13px] text-faint transition-transform group-open:rotate-90"
-    >
-      ›
-    </span>
-  );
-}
-
 /** Un ambito delle impostazioni. Il titolo e' un `<h2>` vero e la scheda lo
  *  dichiara con `aria-labelledby`: con due colonne affiancate e' l'unico modo
  *  perche' chi legge con lo screen reader sappia dove finisce una scheda e
@@ -570,7 +566,7 @@ function Avanzate({
           disabilitato ? "pointer-events-none" : "cursor-pointer",
         )}
       >
-        <Freccia />
+        <Freccia className="mt-0.5" />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2 text-[13px] font-medium">
             Opzioni avanzate
@@ -600,7 +596,7 @@ function ComeFunziona({
   return (
     <details className="group mt-1.5">
       <summary className="tap flex cursor-pointer list-none items-center gap-1.5 text-[12.5px] font-medium text-faint hover:text-muted">
-        <Freccia />
+        <Freccia className="mt-0.5" />
         Come funziona
       </summary>
       <dl className="mt-1.5 space-y-1 pl-5 text-[13px]">
@@ -771,8 +767,10 @@ function Levetta({
     >
       <span
         className={cn(
-          "absolute top-0.5 size-5 rounded-full bg-surface shadow-soft transition-[left]",
-          acceso ? "left-[1.375rem]" : "left-0.5",
+          // `translate` e non `left`: il compositor la muove senza rifare
+          // il layout, e sul telefono si vede la differenza.
+          "absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow-soft transition-transform",
+          acceso ? "translate-x-5" : "translate-x-0",
         )}
       />
     </button>
@@ -801,7 +799,7 @@ function Regola({
         {dettagli ? (
           <details className="group mt-1.5">
             <summary className="tap flex cursor-pointer list-none items-center gap-1.5 text-[12.5px] font-medium text-faint hover:text-muted">
-              <Freccia />
+              <Freccia className="mt-0.5" />
               Come funziona
             </summary>
             <p className="mt-1.5 pl-5 text-[13px] leading-relaxed text-muted">

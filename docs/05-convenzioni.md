@@ -120,6 +120,51 @@ I reparti salvano una **tinta** (0–360), non un colore finito: il colore lo
 compone il foglio di stile, perché chiaro e scuro hanno bisogno di due
 luminosità diverse.
 
+## Animazioni: un vocabolario, e `motion` solo dove il CSS non arriva
+
+Le animazioni dell'app sono **CSS**, e stanno tutte in `globals.css` come
+token `--animate-*` con i loro `@keyframes`: `fade-in`, `rise` (6 px),
+`pop` (scala 0,97), `sheet-up` (14 px), le entrate di pagina (32 px), e dal
+2 settembre 2026 le **uscite** — `fade-out`, `sheet-down`, `pop-out` —
+che prima non c'erano: modali e tendine sparivano di colpo, e lo scatto si
+notava proprio perché l'ingresso era morbido. Le regole che tengono insieme
+il tutto:
+
+- **due curve, e sono token**: `--curva-entrata` (chi arriva frena) e
+  `--curva-uscita` (chi se ne va accelera), definite in `:root` e citate da
+  ogni `--animate-*`, da `.tap`, dal passaggio di pagina e — come costanti
+  `CURVA_ENTRATA` / `CURVA_USCITA` in `ui/movimento.tsx` — dal codice. Non se
+  ne scrivono più a mano;
+- **anche le utility `transition-*` di Tailwind girano su quella curva**:
+  `--default-transition-timing-function` e `--default-transition-duration`
+  (0,14 s, come `.tap`) sono ridefinite nel `@theme`. Una transizione nuda
+  eredita la curva dell'app, non quella di Tailwind;
+- **le uscite sono più corte delle entrate** (0,14–0,2 s contro 0,18–0,3 s):
+  una cosa che se ne va non deve farsi guardare;
+- **la dose è piccola**: 6 px, 14 px, scala 0,97. Un'app che si usa cento
+  volte al giorno non deve sembrare una presentazione;
+- la risposta al tocco la dà solo l'elemento premuto (`.tap`); ogni
+  `<details>` aperto fa entrare il contenuto con `rise` — regola
+  sull'elemento, non classe da ricordare — e la freccia è `ui/freccia.tsx`;
+- la tendina di Radix ha la sua stringa in `TENDINA` (`lib/utils.ts`), come
+  `BARRA_AZIONI`: l'animazione di chiusura è lì una volta, non in cinque
+  file;
+- **`prefers-reduced-motion` vale ovunque**: il blocco in fondo a
+  `globals.css` azzera tutto, e il provider di `motion` fa lo stesso con
+  `reducedMotion="user"`. Niente guardie `motion-reduce:` per elemento.
+
+**`motion`** (`motion/react`, in `package.json` dal primo giorno) entra solo
+per le due cose che il CSS non sa fare bene: un elemento che deve animarsi
+**dopo** essere uscito dall'albero (`AnimatePresence`, es. la pastiglia di
+salvataggio delle Impostazioni) e un **numero che scorre** da un valore
+all'altro (`useMotionValue` + `animate`, es. le ore lavorate del Prospetto —
+il valore vive nel `MotionValue`, React non ri-renderizza a ogni frame). Si
+usa **sempre e solo `m.*`**, mai `motion.*`: il provider `Movimento`, alla
+radice di `AppShell`, carica `domMin` (animazioni e uscite, niente gesti) in
+modalità `strict`, e `motion.div` rompe la resa apposta — è il modo in cui
+non ci si porta dietro il pacchetto intero senza accorgersene. Costa ~24 KB
+compressi su ogni rotta dell'app: è il prezzo dichiarato di averla ovunque.
+
 ## I motori si provano senza browser
 
 I calcoli stanno in funzioni **pure** dentro `src/lib/`, fuori dai componenti,

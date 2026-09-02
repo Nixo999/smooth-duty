@@ -9,9 +9,12 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { animate, m, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Freccia } from "@/components/ui/freccia";
+import { CURVA_ENTRATA } from "@/components/ui/movimento";
 import { ETICHETTA } from "@/lib/assenze";
 import { dayLong, formatDuration, fromISODate, toISODate, weekLabel } from "@/lib/date";
 import type { Livello, Prospetto as Dati, Totali } from "@/lib/prospetto";
@@ -173,7 +176,7 @@ export function Prospetto({
 
       <details className="group rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-card lg:px-5">
         <summary className="tap flex cursor-pointer list-none items-center gap-2 text-[13px] font-medium">
-          <Chevron />
+          <Freccia />
           Come si contano le ore di assenza
         </summary>
         <p className="mt-2 pl-5 text-[13px] leading-relaxed text-muted">
@@ -185,18 +188,6 @@ export function Prospetto({
         </p>
       </details>
     </div>
-  );
-}
-
-/** La freccetta dei richiudibili, la stessa delle Impostazioni. */
-function Chevron() {
-  return (
-    <span
-      aria-hidden
-      className="shrink-0 text-[13px] text-faint transition-transform group-open:rotate-90"
-    >
-      ›
-    </span>
   );
 }
 
@@ -230,22 +221,31 @@ function Barra({
     );
   }
 
-  const quota = (m: number) => `${(m / totale) * 100}%`;
+  const quota = (minuti: number) => `${(minuti / totale) * 100}%`;
+  const segmenti: [number, string][] = [
+    [lavorate, "bg-turno"],
+    [perse, "bg-warning"],
+  ];
 
   return (
     <div aria-hidden className={cn("flex gap-0.5", altezza, className)}>
-      {lavorate > 0 ? (
-        <span
-          className="rounded-full bg-turno"
-          style={{ width: quota(lavorate) }}
-        />
-      ) : null}
-      {perse > 0 ? (
-        <span
-          className="rounded-full bg-warning"
-          style={{ width: quota(perse) }}
-        />
-      ) : null}
+      {segmenti.map(([minuti, colore]) =>
+        minuti > 0 ? (
+          <span
+            key={colore}
+            // La larghezza scorre solo sulla barra grande: e' quella che si
+            // guarda cambiando periodo. Nelle righe della tabella cambiano
+            // tutti i numeri insieme, e `width` dentro una <table> rifa' il
+            // layout della tabella intera a ogni frame.
+            className={cn(
+              "rounded-full",
+              colore,
+              alta && "transition-[width] duration-300",
+            )}
+            style={{ width: quota(minuti) }}
+          />
+        ) : null,
+      )}
     </div>
   );
 }
@@ -268,6 +268,34 @@ function Voce({
   );
 }
 
+/** Il numero grosso scorre dal valore vecchio a quello nuovo quando si cambia
+ *  periodo: cosi' si vede *quanto* e' cambiato, non solo che e' cambiato.
+ *
+ *  Il valore vive in un `MotionValue` e `m.span` lo scrive nel testo da
+ *  solo: React non ri-renderizza a ogni frame, e la corsa parte da quello
+ *  che c'e' **a schermo** — chi preme la freccia tre volte di fila vede il
+ *  numero inseguire l'ultimo tocco, non tre conti in coda. `animate()` e'
+ *  una funzione e non legge `MotionConfig`: la riduzione del movimento la
+ *  chiede da se'. */
+function NumeroOre({ minuti }: { minuti: number }) {
+  const meno = useReducedMotion();
+  const valore = useMotionValue(minuti);
+  const testo = useTransform(valore, (v) =>
+    v > 0 ? formatDuration(Math.round(v)) : "—",
+  );
+
+  React.useEffect(() => {
+    if (meno) {
+      valore.jump(minuti);
+      return;
+    }
+    const corsa = animate(valore, minuti, { duration: 0.5, ease: CURVA_ENTRATA });
+    return () => corsa.stop();
+  }, [minuti, meno, valore]);
+
+  return <m.span>{testo}</m.span>;
+}
+
 function Sintesi({ totali, scoperti }: { totali: Totali; scoperti: number }) {
   const base = totali.effettivi + totali.persi;
   const quotaPersa = base > 0 ? Math.round((totali.persi / base) * 100) : 0;
@@ -281,7 +309,7 @@ function Sintesi({ totali, scoperti }: { totali: Totali; scoperti: number }) {
           Ore lavorate nel periodo
         </p>
         <p className="cifre mt-1 text-[34px] font-semibold leading-none tracking-tight">
-          {totali.effettivi > 0 ? formatDuration(totali.effettivi) : "—"}
+          <NumeroOre minuti={totali.effettivi} />
         </p>
         <p className="mt-1.5 text-[13px] text-muted">
           {base === 0

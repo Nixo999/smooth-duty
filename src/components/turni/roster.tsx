@@ -89,7 +89,7 @@ import type {
   Profile,
   Shift,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, TENDINA } from "@/lib/utils";
 
 const UNASSIGNED = "__scoperti__";
 
@@ -1066,7 +1066,7 @@ export function Roster({
                 <DropdownMenu.Content
                   align="end"
                   sideOffset={8}
-                  className="z-40 w-52 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+                  className={cn(TENDINA, "w-52")}
                 >
                   <DropdownMenu.Item
                     onSelect={() => openNew(selectedDay, null)}

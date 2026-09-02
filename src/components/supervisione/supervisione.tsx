@@ -55,7 +55,7 @@ import {
   type TurnoBozza,
 } from "@/lib/turni-staging";
 import { addDays } from "@/lib/week";
-import { cn } from "@/lib/utils";
+import { cn, TENDINA } from "@/lib/utils";
 
 const SENZA_REPARTO = "__senza__";
 
@@ -1046,7 +1046,7 @@ function Stato({ buchi, conRegole }: { buchi: Buco[]; conRegole: boolean }) {
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-40 w-72 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+          className={cn(TENDINA, "w-72")}
         >
           <ul className="space-y-0.5">
             {buchi.map((b) => (
@@ -1172,7 +1172,7 @@ function FiltroReparti({
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-40 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-float data-[state=open]:animate-pop"
+          className={cn(TENDINA, "w-56")}
         >
           <p className="px-2.5 pb-1 pt-2 text-[12px] uppercase tracking-wide text-faint">
             Reparti da vedere

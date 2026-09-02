@@ -11,6 +11,57 @@ ricostruite dalla storia dei commit.
 
 ## 2 settembre 2026
 
+**Le cose che se ne vanno adesso se ne vanno, e `motion` entra dopo un mese in panchina**
+Chiesto da Nicola: micro-animazioni veloci, interfaccia fluida, usando le
+librerie già a disposizione. La libreria a disposizione era una: `motion`,
+in `package.json` dal commit «Tutta l'app» e **mai importata**. Il
+vocabolario CSS invece c'era ed era buono — una curva, dosi piccole,
+`prefers-reduced-motion` globale — ma aveva un buco: **solo entrate**.
+Modali e tendine sparivano di colpo, e lo scatto si notava proprio perché
+l'ingresso era morbido. Aggiunte le tre uscite (`fade-out`, `sheet-down`,
+`pop-out`), più corte e con la curva dell'uscita di pagina, e agganciate
+ai `data-[state=closed]` di Radix sul modale e sulle cinque tendine
+dell'app. I `<details>` prendono `.dettagli`: il contenuto entra con `rise`
+invece di apparire intero.
+
+`motion` entra in versione piccola — `LazyMotion` con `domAnimation`,
+`strict`, `MotionConfig reducedMotion="user"` — dal provider `Movimento` nel
+guscio, e solo dove il CSS non arriva: la pastiglia di salvataggio delle
+Impostazioni ha una presenza vera (entra, cambia stato rientrando, **esce**),
+e le ore lavorate del Prospetto scorrono dal valore vecchio al nuovo quando
+si cambia periodo, con una corsa interrompibile — tre frecce di fila danno
+un numero che insegue l'ultimo tocco, non tre conti in coda. Le barre del
+Prospetto animano la larghezza in CSS. La levetta delle Impostazioni si
+muove col `transform` invece che col `left`.
+
+Regola scritta in [05-convenzioni.md](05-convenzioni.md): CSS prima,
+`motion` solo per uscite e numeri, sempre `m.*`.
+
+**Poi `/simplify`, quattro revisori in parallelo**, e sei cose rifatte
+prima del commit: il provider stava dentro il foglio che cambia a ogni
+pagina (smontato a ogni navigazione, e cieco alle tendine del guscio) →
+alla radice di `AppShell`, e `domMin` al posto di `domAnimation` perché
+nell'app non c'è un `whileHover`; `NumeroOre` faceva un `setState` a ogni
+frame → il valore vive in un `MotionValue` e `m.span` scrive il testo da
+solo, e la corsa parte da quello che c'è a schermo; la curva era scritta a
+mano in sette punti del CSS e in due file TS → `--curva-entrata` /
+`--curva-uscita` in `:root`, e `CURVA_*` esportate dal provider; le utility
+`transition-*` di Tailwind giravano sulla curva di Tailwind → ridefiniti i
+default nel `@theme`; `.dettagli` era una classe che cinque `<details>` su
+cinque avevano → regola sull'elemento; la stringa della tendina era in
+cinque file → `TENDINA` in `lib/utils.ts`, come `BARRA_AZIONI`. Più la
+freccia dei richiudibili, che era scritta due volte, in `ui/freccia.tsx`.
+Non fatto, dichiarato: un wrapper vero della tendina (Root/Trigger/Item),
+perché tocca otto siti fuori dal diff.
+
+⚠️ Sul Mac di Patrick non c'è nessuno dei plugin del PC di Nicola
+(superdesign, playground, modern-web-guidance, ponytail, deep-research):
+sono locali a quella macchina, come dice la nota del vault. La «pulizia del
+codice» qui è passata da tsc, eslint, `npm run prove` e dal `/simplify` di
+Claude Code sul diff.
+
+---
+
 **Il Prospetto apriva su due numeri negativi senza denominatore**
 Chiesto da Nicola: riprogettare la pagina per impatto visivo e coerenza. Il
 difetto vero non era estetico. La pagina cominciava con «perse 96h» e
