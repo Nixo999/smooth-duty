@@ -331,33 +331,48 @@ Due protezioni scritte in `modificaPersona`:
 
 **File**: `src/app/(app)/impostazioni/` · `src/components/impostazioni/`.
 
-Solo capo. Undici impostazioni, tutte descritte in
-[04-regole.md](04-regole.md): quali pagine l'azienda usa, chi vede la
-Supervisione, quali causali si possono chiedere, quando la squadra viene
-coinvolta sui turni, e come si ingaggia chi lavora a chiamata.
+Solo capo. Dodici impostazioni, tutte descritte in
+[04-regole.md](04-regole.md): quali moduli l'azienda usa, chi vede la
+Supervisione, quali motivi di assenza si possono chiedere, quando la squadra
+viene coinvolta sui turni, e come si ingaggia chi lavora a chiamata.
 
-L'undicesima non è una levetta ed è l'unica scelta fra tre: le regole di
+La dodicesima non è una levetta ed è l'unica scelta fra tre: le regole di
 ingaggio non sono un'opzione da accendere, sono tre accordi diversi fra datore
 e lavoratore, e il secondo non è «il primo di più». Tre levette in fila
 lascerebbero accenderne due, che non vuol dire niente.
 
-Le cinque dei Turni sono raggruppate **per gesto** e non per tipo — quando
-pubblichi, quando cambi un turno già pubblicato, quando ne aggiungi uno —
-perché quello che cambia non è un'opzione: è cosa succede quando si preme un
-bottone. Ognuna dice, su due righe separate dal testo, **quando** scatta e
-**cosa succede se la persona dice di no**: sono le due domande che uno si fa
-davanti a una levetta, e dentro un paragrafo bisogna trovarle leggendo.
+**Quattro sezioni per ambito, su due colonne da 1024 px** (2 settembre 2026).
+A sinistra cosa esiste e chi lo vede — *Moduli attivi*, *Visibilità e richieste
+del personale*; a destra cosa succede quando muovi un turno — *Pubblicazione e
+modifiche*, *Nuovi turni e personale a chiamata*. Fino al 1 settembre erano sei
+gruppi «per gesto», tutti intitolati «Quando…»: su una colonna erano un indice
+inutile, su due sarebbero state sei volte la stessa parola nella stessa
+schermata. Il gesto è sceso di un livello e sta nella riga «Quando scatta».
 
-Fra le levette c'è anche un riquadro «sempre attiva», che levetta non è: la
-settimana in cui qualcuno sta sotto le sue ore da contratto si pubblica solo
-dopo che l'app te l'ha fatto vedere. Sta lì perché è lì che uno la cerca.
+Il layout: `lg:max-w-6xl` (colonne da ~552 px, descrizioni sui 72 caratteri),
+due wrapper di colonna e non figli diretti dentro `grid-cols-2` — così
+l'ordine del DOM resta quello di lettura sul telefono e aprire un `<details>`
+allunga solo la sua colonna — più `items-start`, o le due colonne si stirano
+alla stessa altezza. Sotto i 1024 px la pagina è identica a prima.
+L'intestazione con lo stato del salvataggio è `lg:sticky lg:top-14`, sotto la
+topbar del guscio.
 
-Le descrizioni sono scritte per **chi gestisce un negozio**, non per chi ha
-scritto il codice: frasi corte, niente parole del dominio interno («preapprovato»,
-«motivo di rifiuto», «monte ore»). Ogni levetta dice, su due righe separate,
-*quando* scatta e *cosa succede se la persona dice di no* — sono le due domande
-che uno si fa davanti a un interruttore, e dentro un paragrafo bisogna trovarle
-leggendo.
+Fra le levette c'è un riquadro «sempre attivo», che levetta non è: la settimana
+in cui qualcuno sta sotto le sue ore da contratto si pubblica solo dopo che
+l'app te l'ha fatto vedere. Sta lì perché è lì che uno la cerca.
+
+Le descrizioni sono scritte per chi **decide**, non per chi impara: l'etichetta
+è un sostantivo («Accettazione dei turni in straordinario»), la descrizione sta
+in una o due righe e dice cosa cambia in azienda, la rassicurazione è un fatto
+(«il turno resta valido») e non una pacca sulla spalla. Ogni levetta porta, in
+un richiudibile, **quando** scatta e **cosa succede se la persona dice di no**:
+sono le due domande che uno si fa davanti a un interruttore. Per i tre regimi a
+chiamata la seconda riga si chiama «Esito» e non «In caso di rifiuto», perché
+lì l'app blocca il salvataggio invece di far rifiutare.
+
+Un salvataggio fallito lascia scritto «Modifica non salvata» finché non ne
+riesce uno nuovo: il toast passa, e su due colonne la levetta che è tornata
+indietro da sola può stare nella metà di schermo che non si sta guardando.
 
 Salvando si rivalidano anche `/supervisione`, `/permessi` e `/turni`: queste
 impostazioni cambiano cosa vedono gli altri.

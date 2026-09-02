@@ -9,6 +9,62 @@ ricostruite dalla storia dei commit.
 
 ---
 
+## 2 settembre 2026
+
+**Le Impostazioni smettono di essere un nastro verticale, e smettono di dare del tu**
+Due difetti che erano lo stesso difetto: la pagina era scritta come se
+esistesse solo il telefono. Il guscio dà fino a `max-w-[100rem]` e qui se ne
+usavano `max-w-2xl` — su un monitor sono 672 px di colonna, nove schede in
+fila e novecento pixel di niente a destra, con il salvataggio automatico
+annunciato a tre schermate dalla leva appena toccata.
+
+**Da 1024 px le schede stanno su due colonne.** `lg:` e non `md:`: a 768 le
+colonne stanno a ~350 px e la descrizione va a quattro righe per far passare
+la levetta da 44. `lg:max-w-6xl` e non oltre, o le descrizioni superano i 90
+caratteri e si legge peggio di prima. Due wrapper di colonna e non otto figli
+diretti dentro `grid-cols-2`: così l'ordine del DOM resta quello di lettura
+sul telefono, il Tab scorre per colonne, e aprire un `<details>` allunga solo
+la sua colonna — con `items-start`, o le due si stirano e il richiudibile
+aperto lascia un vuoto nell'altra. **Sotto i 1024 px non cambia niente.**
+
+**Le sei aggregazioni «per gesto» diventano quattro per ambito**: Moduli
+attivi · Visibilità e richieste del personale · Pubblicazione e modifiche ·
+Nuovi turni e personale a chiamata. Il gesto non è sparito, è sceso di un
+livello: sta nella riga «Quando scatta». Sei intestazioni che cominciavano
+tutte per «Quando» erano un indice inutile su una colonna, e su due sarebbero
+state sei volte la stessa parola nella stessa schermata. `Gesto` diventa
+`Sezione` col titolo in `<h2>` e `aria-labelledby`, `Pagina` diventa
+`Modulo`.
+
+**Il registro dei testi cambia**, e questo riapre la scelta del 30 agosto.
+Erano scritti «per chi gestisce un negozio», con la confidenza che ne segue
+(«chi ti può dire di no», «l'app non serve a niente»). Adesso l'etichetta è
+un sostantivo — «Accettazione dei turni in straordinario», non «Straordinari
+da accettare» — la descrizione dice cosa cambia in azienda, e la
+rassicurazione è un fatto: «il turno resta valido», non «va bene». Chi legge
+sta decidendo, non imparando. Fuori anche `non in uso` → **Disattivato**,
+`Se dice no` → **In caso di rifiuto**, e un'etichetta nuova **Esito** per i
+regimi a chiamata, dove l'app blocca il salvataggio invece di far rifiutare:
+lì «se dice no» descriveva una cosa che non succede.
+
+**Un guasto del salvataggio adesso resta scritto.** Prima era un toast che
+passava e una levetta che tornava indietro da sola; su due colonne quella
+levetta può stare nella metà di schermo che non si sta guardando. Lo stato
+`errore` tiene «Modifica non salvata» finché un salvataggio nuovo non riesce.
+
+Trovato di striscio: il sottotitolo diceva «Tre si possono spegnere» sopra a
+quattro moduli, e `docs/03-pagine.md` conta undici impostazioni quando in
+`lib/impostazioni.ts` sono dodici — `pagina_disponibilita` è arrivata dopo
+tutti e due. Corretto il primo, aggiornato il secondo.
+
+⚠️ **Non verificato su schermo**: `npm run prove` e `npm run build` passano e
+le utility Tailwind sono nel CSS costruito, ma la pagina non è stata guardata
+da un browser. E resta aperta la domanda del 29 agosto — turno rifiutato:
+eliminato o scoperto? I due «In caso di rifiuto» della quarta sezione dicono
+*eliminato*, che è il comportamento di oggi.
+
+---
+
 ## 1 settembre 2026
 
 **Le pagine si cambiano col dito, e il dito dice dove sta andando prima di mollare**
